@@ -1,0 +1,11 @@
+#!/bin/bash
+# Creates symlinks from home directory to dotfiles
+
+curdir=~/dotfiles
+# TODO automate this line by getting contents of dir
+files="vimrc gvimrc emacs conkyrc pentadactylrc"
+
+for f in $files; do
+    rm ~/.$f
+    ln -s $curdir/$f ~/.$f
+done

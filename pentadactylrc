@@ -1,0 +1,58 @@
+" -*-vimrc-*-
+" Kelly Stewart pentadactylrc
+
+" * Appearance
+" ** General
+colorscheme solarized-dark
+set titlestring="Probably not work"
+set showtabline=multitab
+set maxitems=10
+" ** Turn off the damn bell
+set visualbell
+hi Bell display: none;
+" ** Dark theme toggle
+command -d "Return regular colors" sunon
+  \ set! browser.display.foreground_color=#000000
+  \ set! browser.display.background_color=#ffffff
+  \ set! browser.anchor_color=#0000ee
+  \ set! browser.visited_color=#551a8b
+" TODO: Foreground colors not showing up correctly
+command -d "Use dark colours to save eyes" sunoff
+  \ set! browser.display.foreground_color=#eee8d5
+  \ set! browser.display.background_color=#073642
+  \ set! browser.anchor_color=#b58900
+  \ set! browser.visited_color=#859900
+
+" * Behavior
+" ** General
+loadplugins '\.(css|js|penta)$'
+group user
+cd ~
+set scroll=5
+set newtab+=help,prefs
+set urlsep=", ?"
+set insertmode
+set editor="emacs -nw +<line>:<column> <file>"
+set passkeys+=improbableisland.com:abcdefghijklmnopqrstuvwxyz0123456789!
+set hintkeys=asdfghjkl;
+" changes accented characters into unaccented equivalents for typing
+set hintmatching+=transliterated
+" ** User Commands
+command -d 'Search mp3 with ddg' -nargs=+ mus open ddg mp3 <args>
+" ** Mappings
+" *** Common commands
+nmap -b <Space> :
+map -m command,insert -b jk <Esc>
+nmap -b U :undo<Space>
+nmap -b s :stop<CR>
+nmap -b ,t :set guioptions!=t<CR>
+nmap -b ,T :set guioptions!=T<CR>
+nmap -b ,u :set usermode!
+" **** Open hints in new tab by default
+nmap -b F f
+nmap -b f F
+" **** h and l to move tabs
+nmap -b h gT
+nmap -b l gt
+" *** disabled keybinds
+unmap! gh
