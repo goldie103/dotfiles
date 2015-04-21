@@ -1,83 +1,12 @@
-;;; init.el --- Kelly Stewart's init
-;;; Commentary:
-;; TODO: auto add comment leaders
-;; TODO: highlight 'TODO' and 'FIXME'
-;;; Code:
-;;;; setup
-;;;;; debugging
-;; http://emacs.stackexchange.com/questions/7852/show-line-number-on-error
-(setq debug-on-error t debug-on-quit t) ; debug errors during loading
-;;(with-eval-after-load
-;; 'debug
-;; (defun debugger-setup-buffer (debugger-args)
-;;   "Initialize the `*Backtrace*' buffer for entry to the debugger.
-;;That buffer should be current already."
-;;   (setq buffer-read-only nil)
-;;   (erase-buffer)
-;;   (set-buffer-multibyte t)        ;Why was it nil ?  -stef
-;;   (setq buffer-undo-list t)
-;;   (let ((standard-output (current-buffer))
-;;         (print-escape-newlines t)
-;;         (print-level 8)
-;;         (print-length 50))
-;;     (backtrace))
-;;   (goto-char (point-min))
-;;   (delete-region
-;;    (point)
-;;    (progn
-;;      (search-forward "\n  debug(")
-;;      (forward-line (if (eq (car debugger-args) 'debug)
-;;                        2    ; Remove implement-debug-on-entry frame.
-;;                      1))
-;;      (point)))
-;;   (insert "Debugger entered")
-;;   ;; lambda is for debug-on-call when a function call is next.
-;;   ;; debug is for debug-on-entry function called.
-;;   (pcase (car debugger-args)
-;;     ((or `lambda `debug)
-;;      (insert "--entering a function:\n"))
-;;     ;; Exiting a function.
-;;     (`exit
-;;      (insert "--returning value: ")
-;;      (setq debugger-value (nth 1 debugger-args))
-;;      (prin1 debugger-value (current-buffer))
-;;      (insert ?\n)
-;;      (delete-char 1)
-;;      (insert ? )
-;;      (beginning-of-line))
-;;     ;; Debugger entered for an error.
-;;     (`error
-;;      (insert "--Lisp error: ")
-;;      (prin1 (nth 1 debugger-args) (current-buffer))
-;;      (insert ?\n))
-;;     ;; debug-on-call, when the next thing is an eval.
-;;     (`t
-;;      (insert "--beginning evaluation of function call form:\n"))
-;;     ;; User calls debug directly.
-;;     (_
-;;      (insert ": ")
-;;      (prin1 (if (eq (car debugger-args) 'nil)
-;;                 (cdr debugger-args) debugger-args)
-;;             (current-buffer))
-;;      (insert ?\n)))
-;;   ;; After any frame that uses eval-buffer,
-;;   ;; insert a line that states the buffer position it's reading at.
-;;   (save-excursion
-;;     (let ((tem eval-buffer-list))
-;;       (while (and tem
-;;                   (re-search-forward "^  eval-\\(buffer\\|region\\)(" nil t))
-;;         (beginning-of-line)
-;;         (insert (format "Error at line %d in %s: "
-;;                         (with-current-buffer (car tem)
-;;                           (line-number-at-pos (point)))
-;;                         (with-current-buffer (car tem)
-;;                           (buffer-name))))
-;;         (pop tem))))
-;;   (debugger-make-xrefs)))
-;;;;; custom vars
+;; -*-emacs-lisp-*-
+;; TODO auto add comment leaders
+;; TODO highlight 'TODO' and 'FIXME'
+;; TODO get evil outline mode navigation
+;;; setup
+;;;; custom vars
 (defconst my-winp (eq system-type 'windows-nt) "Running windows?")
 (defvar my-tmp "~/.emacs.d/.saves" "Temporary user storage dir.")
-;;;;; package init
+;;;; package init
 (require 'package)
 (setq
  package-enable-at-startup nil          ; we will manually initialize
@@ -87,15 +16,15 @@
                     ("elpy" . "http://jorgenschaefer.github.io/packages/"))
  )
 (package-initialize)
-;;;;; use-package setup
+
 ;; install use-package if not already
 (unless (package-installed-p 'use-package)
   (package-refresh-contents) (package-install 'use-package))
 (require 'use-package)
 ;; diminish builtin modes
 (use-package diminish :ensure t :config (diminish 'visual-line-mode))
-;;;; general emacs config
-;;;;; interface
+;;; general emacs config
+;;;; interface
 (setq
  frame-title-format "%b - emacs"        ; buffer name as frame title
  echo-keystrokes 0.1                    ; echo commands unfinished 1s
@@ -120,7 +49,7 @@
 (when my-winp (set-frame-font "Input-9"))
 ;; manually set headline font family
 (set-face-attribute 'variable-pitch nil :family "Fantasque Sans Mono")
-;;;;; editing
+;;;; editing
 (setq
  save-interprogram-paste-before-kill t  ; save clipboard contents to kill-ring
  initial-major-mode 'text-mode          ; start scratch in text mode
@@ -142,7 +71,7 @@
 (bind-key "RET" 'reindent-then-newline-and-indent)
 ;; word-based text wrapping for text modes only
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)
-;;;;; behavior
+;;;; behavior
 (setq
  delete-by-moving-to-trash t            ; use system trash for deletion
  find-file-visit-truename t             ; resolve symlinks
@@ -152,6 +81,8 @@
  delete-old-versions t                  ; delete old backups silently
  kept-old-versions 5                    ; old versions to keep
  kept-new-versions 8                    ; new versions to keep
+ ;; don't ask before allowing these variables
+ safe-local-variable-values '((eval whitespace-mode nil) (buffer-read-only \.t))
  ;; backup directory
  backup-directory-alist `((".*" . ,my-tmp))
  ;; auto save location
@@ -170,7 +101,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
 (set-keyboard-coding-system 'utf-8)
 (set-language-environment "UTF-8")
 (prefer-coding-system 'utf-8)
-;;;;; navigation
+;;;; navigation
 (fset 'yes-or-no-p 'y-or-n-p)           ; less annoying
 (cd "~")                                ; start in home dir
 (setq case-fold-search t                ; ignore case when searching
@@ -178,12 +109,12 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
       )
 (goto-address-mode t)                   ; URL highlight and follow
 
-;;;;; custom commands
-;;;;;; because I'm lazy
+;;;; custom commands
+;;;;; because I'm lazy
 (defun my-config ()
   "Opens local init.el file."
   (interactive) (find-file user-init-file))
-;;;;;; because other people are lazy
+;;;;; because other people are lazy
 (defun my-cleanup ()
   "Perform a lot of stuff on whitespace."
   (interactive)
@@ -191,7 +122,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (untabify (point-min) (point-max))       ; tabs are evil
   (whitespace-cleanup)                     ; whitespace stuff
   )
-;;;;;; open source files in read-only mode
+;;;;; open source files in read-only mode
 (dir-locals-set-class-variables
  'emacs
  '((nil . ((buffer-read-only .t)
@@ -201,9 +132,9 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
            )))
  )
 (dir-locals-set-directory-class (concat user-emacs-directory "elpa") 'emacs)
-;;;; packages
-;;;;; navigation
-;;;;;; dired
+;;; packages
+;;;; navigation
+;;;;; dired
 (use-package dired
   :config
   (use-package dired+ :ensure t)
@@ -217,14 +148,14 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   ;; auto refresh dired buffer on changes
   (add-hook 'dired-mode-hook 'auto-revert-mode)
   )
-;;;;;; saveplace
+;;;;; saveplace
 ;; save cursor place in file and return to it
 (use-package saveplace
   :init (setq-default save-place-file (concat my-tmp "/places") save-place t))
-;;;;;; help-mode+
+;;;;; help-mode+
 ;; library names in *Help* buffers become links
 (use-package help-mode+ :ensure t)
-;;;;;; nyan-mode
+;;;;; nyan-mode
 (use-package nyan-mode :ensure t
   :config
   ;; TODO get this working
@@ -242,7 +173,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (setq nyan-wavy-trail t)
   (nyan-mode t)
   )
-;;;;;; popwin
+;;;;; popwin
 ;; uses popup window for minor buffers
 (use-package popwin :ensure t
   :init (popwin-mode 1)
@@ -250,7 +181,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (add-to-list 'popwin:special-display-config '("*Help*" :stick t :noselect t))
   (add-to-list 'popwin:special-display-config '("*Python Help*" :stick t :noselect t :height 20))
   )
-;;;;;; golden-ratio
+;;;;; golden-ratio
 ;; resize windows according to golden ratio
 (use-package golden-ratio :ensure t
   :config
@@ -262,14 +193,14 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
                                      "dired-mode"))
   (golden-ratio-mode t)
   )
-;;;;;; projectile
+;;;;; projectile
 ;; project-based navigation
 (use-package projectile :ensure t
   :config
   (setq projectile-indexing-method 'alien)
   (projectile-global-mode t)
   )
-;;;;;; helm
+;;;;; helm
 ;; Fuzzy minibuffer completion.
 (use-package helm :ensure t
   :diminish ""
@@ -281,7 +212,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
          ("C-x C-f" . helm-find-files)
          )
   :init
-;;;;;;; init
+;;;;;; init
   (setq
    helm-move-to-line-cycle-in-source t     ; cycle on buffer end
    helm-ff-file-name-history-use-recentf t ; use recentf not history
@@ -294,7 +225,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
    helm-apropos-fuzzy-match t
   )
   :config
-;;;;;;; config
+;;;;;; config
   (use-package helm-config)
   (use-package helm-projectile :ensure t
     :config
@@ -310,8 +241,8 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (helm-autoresize-mode t)
   (helm-mode t)
   )
-;;;;; editing
-;;;;;; whitespace
+;;;; editing
+;;;;; whitespace
 ;; highlight trailing whitespace and lines over certain length
 (use-package whitespace
   :diminish ""
@@ -323,7 +254,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
    whitespace-style '(face trailing lines-tail)
    )
   )
-;;;;;; flyspell
+;;;;; flyspell
 ;; automatic spell checking
 (use-package flyspell
   :diminish ""
@@ -333,18 +264,18 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (add-hook 'org-mode-hook 'flyspell-mode)
   (add-hook 'prog-mode-hook 'flyspell-prog-mode)
   )
-;;;;;; highlight-numbers
+;;;;; highlight-numbers
 ;; highlight numbers in text
 (use-package highlight-numbers :ensure t
   :init (highlight-numbers-mode t))
-;;;;;; highlight-quoted
+;;;;; highlight-quoted
 ;; highlight lisp quotes and quoted symbols
 (use-package highlight-quoted :ensure t
   )
-;;;;;; rainbow-mode
+;;;;; rainbow-mode
 ;; Different from nyan mode. Highlight color codes with color code.
 ;;(use-package rainbow-mode :ensure :config (rainbow-mode t))
-;;;;;; smartparens
+;;;;; smartparens
 ;; auto-add parenthesis
 (use-package smartparens-config :ensure smartparens
   :diminish smartparens-mode
@@ -352,13 +283,13 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (smartparens-global-mode)
   (show-smartparens-mode t)        ; highlight all matching pairs
   )
-;;;;;; auto-indent
+;;;;; auto-indent
 ;; automatically indent lines according to user settings
 ;; TODO: test out smarttab as adequate replacement
 ;;(use-package auto-indent-mode :ensure
 ;;  :init (setq auto-indent-on-visit-file t)
 ;;  :config (auto-indent-global-mode))
-;;;;;; org-mode
+;;;;; org-mode
 (use-package org :ensure t
   :config
   (setq
@@ -367,7 +298,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
    org-alphabetical-lists t             ; add alphabetical lists
    )
   )
-;;;;;; outshine
+;;;;; outshine
 ;; org-mode style using outline mode
 (use-package outshine :ensure t
   :diminish outline-minor-mode
@@ -378,14 +309,14 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (add-hook 'vimrc-mode 'outline-minor-mode)
   (setq outshine-show-hidden-lines-cookies-p t)
   )
-;;;;;; undo-tree
+;;;;; undo-tree
 ;; branching tree for undo actions
 (use-package undo-tree :ensure t
   :diminish ""
   :init (global-undo-tree-mode t)
   :config (bind-key "C-x u" 'undo-tree-visualize undo-tree-map)
   )
-;;;;;; flycheck
+;;;;; flycheck
 ;; on-the-fly syntax checking
 (use-package flycheck :ensure t
   :config
@@ -394,7 +325,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (use-package flycheck-tip
     :ensure :config (flycheck-tip-use-timer 'verbose))
   )
-;;;;;; company
+;;;;; company
 ;; autocompletion in code
 (use-package company :ensure t
   :bind ("C-." . company-complete)
@@ -404,8 +335,19 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (setq company-idle-delay 0.2)       ; delay before completions
   (setq company-show-numbers t)       ; show quick-access nums
   )
-;;;;; misc
-;;;;;; smart-mode-line
+;;;;; language-specific packages
+(use-package elpy :ensure t :config (elpy-enable))     ; python
+(use-package vimrc-mode :ensure t
+  :mode ".+\\.\\(vim\\|penta\\)$\\|[._]?\\(pentadactyl\\|vim\\)rc$")
+;;;;;; emacs-lisp
+(use-package elisp-slime-nav :ensure t
+  :diminish ""
+  :config
+  (add-hook 'emacs-lisp-mode-hook
+            (lambda ()(elisp-slime-nav-mode t) (eldoc-mode t)))
+  )
+;;;; misc
+;;;;; smart-mode-line
 ;; powerline isn't exactly stable
 ;;(use-package smart-mode-line :ensure t
 ;;  :config
@@ -413,14 +355,14 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
 ;;    :config (setq sml/theme 'powerline))
 ;;  (sml/setup)
 ;;  )
-;;;;;; powerline
+;;;;; powerline
 ;; better status line
 ;; FIXME: breaks. completely.
 ;;(use-package powerline :ensure :config (powerline-default-theme))
-;;;;;; colorscheme
+;;;;; colorscheme
 ;;(use-package color-theme-solarized :ensure t :config (load-theme 'solarized t))
 ;;(use-package zenburn-theme :ensure t :config (load-theme 'hc-zenburn t))
-;;;;;; eshell
+;;;;; eshell
 ;; emacs shell
 (use-package eshell
   :bind (("<f3>" . eshell))
@@ -438,7 +380,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
      ;;)
     ;;)
   )
-;;;;;; magit
+;;;;; magit
 ;; git command integration
 (use-package magit :ensure t
   :bind (("<f12>" . magit-status))
@@ -447,17 +389,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   (setq magit-last-seen-setup-instructions "1.4.0") ; hide message
   ;;(use-package diff-hl-mode :ensure t)    ; highlight uncommited changes
   )
-;;;;;; language-specific packages
-(use-package elpy :ensure t :config (elpy-enable))     ; python
-(use-package vimrc-mode :ensure t :mode "\\(.vim\|[._]?vimrc\\)$")
-;;;;;;; emacs-lisp
-(use-package elisp-slime-nav :ensure t
-  :diminish ""
-  :config
-  (defun my-elisp-hook () (elisp-slime-nav-mode t) (eldoc-mode t))
-  (add-hook 'emacs-lisp-mode-hook 'my-elisp-hook)
-  )
-;;;;;; evil
+;;;;; evil
 ;; vimlike keybindings and modal editing
 (use-package evil :ensure t
   ;:bind (("C-h" . evil-window-left)
@@ -465,9 +397,9 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   ;       ("C-k" . evil-window-up)
   ;       ("C-l" . evil-window-right)
   ;       )
-;;;;;;; config
+;;;;;; config
   :config
-;;;;;;;; bindings
+;;;;;;; bindings
   ;; TODO multi-map bindings
   (bind-keys
    :map evil-insert-state-map
@@ -493,7 +425,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
    ;;("k" . evil-previous-visual-line)
    ("SPC" . helm-M-x)                   ; helm
    )
-;;;;;;;;; jk to exit insert mode
+;;;;;;;; jk to exit insert mode
   ;; TODO get source for this
   (evil-define-command cofi/maybe-exit ()
     :repeat change
@@ -511,7 +443,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
          (t (setq unread-command-events (append unread-command-events
                                                 (list evt))))
          ))))
-;;;;;;;;; esc quits
+;;;;;;;; esc quits
   ;; TODO get source for this
   (defun minibuffer-keyboard-quit ()
     "Abort recursive edit.
@@ -528,7 +460,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
   (bind-key [escape] 'minibuffer-keyboard-quit minibuffer-local-completion-map)
   (bind-key [escape] 'minibuffer-keyboard-quit minibuffer-local-must-match-map)
   (bind-key [escape] 'minibuffer-keyboard-quit minibuffer-local-isearch-map)
-;;;;;;;; evil-leader
+;;;;;;; evil-leader
   ;; TODO try get rid of need for this
   (use-package evil-leader :ensure t
     :init
@@ -543,17 +475,17 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
       )
     :config (global-evil-leader-mode t)
     )
-;;;;;;;; evil-surround
+;;;;;;; evil-surround
   (use-package evil-surround :ensure t
     :config (global-evil-surround-mode t))
-;;;;;;;; evil-commentary
+;;;;;;; evil-commentary
   (use-package evil-commentary :ensure t
     :diminish ""
     :config (evil-commentary-mode t))
-;;;;;;;; evil-org
+;;;;;;; evil-org
   ;; evil org-mode bindings
   (use-package evil-org :ensure t)
-;;;;;;;; package
+;;;;;;; package
   (bind-keys
    :map package-menu-mode-map
    ("j" . next-line)
@@ -564,7 +496,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
    ("N" . isearch-repeat-backward)
    ("<escape>" . isearch-cancel)
    )
-;;;;;;;; outline-mode bindings
+;;;;;;; outline-mode bindings
 ;;  (evil-define-key 'normal outline-minor-mode-map
 ;;    "zh" 'outline-promote
 ;;    "zl" 'outline-demote
@@ -576,20 +508,15 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 ;;    "zA" 'outline-toggle-children
 ;;    "zm" 'outline-mark-subtree
 ;;    )
-;;;;;;;; elisp-slime-nav bindings
+;;;;;;; elisp-slime-nav bindings
   (evil-define-key 'normal emacs-lisp-mode-map
     "K" 'elisp-slime-nav-describe-elisp-thing-at-point)
-;;;;;;;; magit initial states
+;;;;;;; magit initial states
   (dolist (mode
            '(magit-mode magit-mode-status magit-mode-diff magit-mode-log))
     (evil-set-initial-state mode 'normal))
-;;;;;;;; misc
+;;;;;;; misc
   (setq evil-want-fine-undo t           ; vim-style undo
    )
   (evil-mode t)
   )
-
-;;;; cleanup
-(setq debug-on-error nil debug-on-quit nil)    ; turn off debug
-(setq safe-local-variable-values '((eval whitespace-mode nil)
-                                   (buffer-read-only \.t)))
