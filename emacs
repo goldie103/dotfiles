@@ -2,6 +2,12 @@
 ;; TODO auto add comment leaders
 ;; TODO highlight 'TODO' and 'FIXME'
 ;; TODO get evil outline mode navigation
+;; TODO autocorrect spelling
+;; http://emacs.stackexchange.com/questions/2167/what-options-are-there-for-doing-spell-checking-in-emacs 
+;; TODO don't ask to save changes to dictionary
+;; TODO change use-package :ensure to prompt to install
+;; TODO projectile-helm stuff
+;; TODO bindings are all over the effin place ugh
 ;;; setup
 ;;;; custom vars
 (defconst my-winp (eq system-type 'windows-nt) "Running windows?")
