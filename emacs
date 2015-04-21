@@ -6,6 +6,37 @@
 ;;;; custom vars
 (defconst my-winp (eq system-type 'windows-nt) "Running windows?")
 (defvar my-tmp "~/.emacs.d/.saves" "Temporary user storage dir.")
+;;;; custom commands
+;;;;; because I'm lazy
+(defun my-config ()
+  "Opens local init.el file."
+  (interactive) (find-file user-init-file))
+;;;;; because other people are lazy
+(defun my-cleanup ()
+  "Perform a lot of stuff on whitespace."
+  (interactive)
+  (indent-region (point-min) (point-max))  ; indent properly
+  (untabify (point-min) (point-max))       ; tabs are evil
+  (whitespace-cleanup)                     ; whitespace stuff
+  )
+;;;;; open source files in read-only mode
+(dir-locals-set-class-variables
+ 'emacs
+ '((nil . ((buffer-read-only .t)
+           (show-trailing-whitespace . nil)
+           (tab-width . 8)
+           (eval . (whitespace-mode nil))
+           )))
+ )
+(dir-locals-set-directory-class (concat user-emacs-directory "elpa") 'emacs)
+;;;;; because I like abbreviating
+;; http://whattheemacsd.com/appearance.el-01.html
+(defmacro rename-modeline (package-name mode new-name)
+  `(eval-afer-load ,package-name
+                   '(defadvice ,mode (after rename-modeline activate)
+                      (setq mode-name ,new-name)))
+  "Rename a major mode in the modeline.")
+
 ;;;; package init
 (require 'package)
 (setq
@@ -22,33 +53,41 @@
   (package-refresh-contents) (package-install 'use-package))
 (require 'use-package)
 ;; diminish builtin modes
-(use-package diminish :ensure t :config (diminish 'visual-line-mode))
+(use-package diminish :ensure t)
 ;;; general emacs config
 ;;;; interface
 (setq
  frame-title-format "%b - emacs"        ; buffer name as frame title
- echo-keystrokes 0.1                    ; echo commands unfinished 1s
+ echo-keystrokes 0.1                    ; shorter wait before echoing commands
  x-underline-at-descent-line t          ; draw underline lower
- inhibit-splash-screen t                ; no splash screen
- initial-scratch-message nil            ; no scratch message
- inhibit-startup-echo-area-message t    ; no startup message
  window-combination-resize t            ; use proportional window resize
- ring-bell-function 'ignore             ; no alarms
  )
 (global-font-lock-mode t)               ; syntax highlight everywhere
 (global-linum-mode t)                   ; line numbers
-(line-number-mode t)                    ; line num in modeline
-(column-number-mode t)                  ; col num in modeline
 (show-paren-mode)                       ; highlight matching parens
 (hl-line-mode t)                        ; highlight current line
 (file-name-shadow-mode t)               ; dim expanded filename parts
+;;;;; disabled ui stuff
+(setq
+ ring-bell-function 'ignore             ; no alarms
+ inhibit-splash-screen t                ; no splash screen
+ initial-scratch-message nil            ; no scratch message
+ inhibit-startup-echo-area-message t    ; no startup message
+ )
 (tool-bar-mode -1)                      ; no toolbar
 (scroll-bar-mode -1)                    ; no scroll bar
 (blink-cursor-mode -1)                  ; no blinking cursor
+;;;;; fonts
 ;; manually set font for windows
 (when my-winp (set-frame-font "Input-9"))
 ;; manually set headline font family
 (set-face-attribute 'variable-pitch nil :family "Fantasque Sans Mono")
+;;;;; modeline
+(line-number-mode t)                    ; line num in modeline
+(column-number-mode t)                  ; col num in modeline
+;; less clutter
+(diminish 'visual-line-mode)
+(rename-modeline "emacs-lisp-mode" emacs-lisp-mode "Elisp")
 ;;;; editing
 (setq
  save-interprogram-paste-before-kill t  ; save clipboard contents to kill-ring
@@ -109,29 +148,6 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
       )
 (goto-address-mode t)                   ; URL highlight and follow
 
-;;;; custom commands
-;;;;; because I'm lazy
-(defun my-config ()
-  "Opens local init.el file."
-  (interactive) (find-file user-init-file))
-;;;;; because other people are lazy
-(defun my-cleanup ()
-  "Perform a lot of stuff on whitespace."
-  (interactive)
-  (indent-region (point-min) (point-max))  ; indent properly
-  (untabify (point-min) (point-max))       ; tabs are evil
-  (whitespace-cleanup)                     ; whitespace stuff
-  )
-;;;;; open source files in read-only mode
-(dir-locals-set-class-variables
- 'emacs
- '((nil . ((buffer-read-only .t)
-           (show-trailing-whitespace . nil)
-           (tab-width . 8)
-           (eval . (whitespace-mode nil))
-           )))
- )
-(dir-locals-set-directory-class (concat user-emacs-directory "elpa") 'emacs)
 ;;; packages
 ;;;; navigation
 ;;;;; dired
@@ -299,6 +315,7 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
    )
   )
 ;;;;; outshine
+
 ;; org-mode style using outline mode
 (use-package outshine :ensure t
   :diminish outline-minor-mode
@@ -322,8 +339,10 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   :config
   (global-flycheck-mode)
   ;; display errors by popup
-  (use-package flycheck-tip
-    :ensure :config (flycheck-tip-use-timer 'verbose))
+  (use-package flycheck-tip :ensure t
+    :config (flycheck-tip-use-timer 'verbose))
+  ;; don't need warnings in init about missing commentary
+  (setq-default flycheck-disabled-checkers '(emacs-lisp-checkdoc))
   )
 ;;;;; company
 ;; autocompletion in code
@@ -348,17 +367,14 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   )
 ;;;; misc
 ;;;;; smart-mode-line
-;; powerline isn't exactly stable
-;;(use-package smart-mode-line :ensure t
-;;  :config
-;;  (use-package smart-mode-line-powerline-theme :ensure t
-;;    :config (setq sml/theme 'powerline))
-;;  (sml/setup)
-;;  )
-;;;;; powerline
-;; better status line
-;; FIXME: breaks. completely.
-;;(use-package powerline :ensure :config (powerline-default-theme))
+;; prettier modeline
+(use-package smart-mode-line :ensure t
+  :config
+  (setq sml/no-confirm-load-theme t)
+  (use-package smart-mode-line-powerline-theme :ensure t
+    :config (setq sml/theme 'powerline))
+  (sml/setup)
+  )
 ;;;;; colorscheme
 ;;(use-package color-theme-solarized :ensure t :config (load-theme 'solarized t))
 ;;(use-package zenburn-theme :ensure t :config (load-theme 'hc-zenburn t))
