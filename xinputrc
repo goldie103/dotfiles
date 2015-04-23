@@ -1,0 +1,16 @@
+# -*-mode:shell-script-*-
+xinput disable 11                                # disable touchscreen
+# Key mappings
+# restart xorg with ctrl+alt+bksp, turn caps to ctrl
+OPTIONS=( "terminate:ctrl_alt_bksp caps:ctrl_modifier ctrl:nocaps")
+for option in $OPTIONS; do
+    # apply option if not already on
+    [ "$(setxkbmap -query | grep $option)" ] && setxkbmap $option
+done
+
+# Wacom tablet settings
+T_NUMS=( 3 9 1 8 )              # top-left, top-right, bottom-left, bottom-right
+T_MAPS=( "key ctrl z" )
+for i in ${#TABLET_MAPPINGS[@]}; do
+  xsetwacom set "Wacom Intuos PT S Finger pad" Button ${T_NUMS[i]} ${T_MAPS[i]}
+done

@@ -2,23 +2,25 @@
 # Creates symlinks from home directory to dotfiles
 
 DOT_DIR=~/dotfiles
-OLD_DIR=$DOT_DIR/.old
+LINKS=( "~/.emacs" "~/.vim/vimrc" "~/.vim/gvimrc" "~/.conkyrc" "~/.pentadactylrc" "~/.bashrc" )
 
-specified="~/.emacs.d/init.el emacs"
-links="~/.vim/vimrc vimrc ~/.vim/gvimrc gvimrc ~/.emacs.d/init.el ~/.conkyrc ~/.pentadactylrc"
-
-build_sources () {
-    
+move_old () {
+    OLD_DIR=$DOT_DIR/.old
+    if [ -h "$link" ]; then
+        rm "$link"
+    elif [ -r "$link" ]; then
+        [ ! -e "$OLD_DIR" ] && mkdir -p "$OLD_DIR"
+        mv "$link" "$OLD_DIR"
+    fi
 }
 
-for (( i=0; i<${#sources[@]}; i++ )); do
-    if [ -e ${links[i]} ]; then
-        if [ -h ${links[i]} ]; then
-            rm ${links[i]}
-        else
-            [ ! -e $OLD_DIR ] && mkdir -p $OLD_DIR
-            mv ${links[i]} $OLD_DIR/
-        fi
+for link in $links; do
+    fname=${link##*/}
+    [ $fname == "." ] && fname=${fname:0:1}
+    if [ -e "$DOT_DIR/$fname" ]; then
+        move_old
+        ln -s "$DOT_DIR/$fname" "$link"
+    else
+        echo "no file to link to"
     fi
-    ln -s $DOT_DIR/${sources[i]} ~/${links[i]}
 done
