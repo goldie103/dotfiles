@@ -2,6 +2,7 @@
 ;; TODO auto add comment leaders
 ;; TODO highlight 'TODO' and 'FIXME'
 ;; TODO get evil outline mode navigation
+;; TODO bindings clean em up (symbol-value map)
 ;;; setup
 ;;;; custom vars
 (defconst my-winp (eq system-type 'windows-nt) "Running windows?")
@@ -95,8 +96,9 @@
  )
 (mouse-wheel-mode t)                    ; mouse wheel enabled
 (semantic-mode t)                       ; language-aware editing cmds
+(global-auto-revert-mode t)             ; auto refresh buffers
 ;; confirm before killing emacs in gui sessions
-confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
+confirm-kill-emacs (if (window-system) 'yes-or-no-p nil)
 ;; always UTF-8 encoding
 (set-keyboard-coding-system 'utf-8)
 (set-language-environment "UTF-8")
@@ -347,6 +349,9 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
             (lambda ()(elisp-slime-nav-mode t) (eldoc-mode t)))
   )
 ;;;; misc
+;;;;; maylon
+;; Z-machine text based adventure reader
+;;(use-package maylon :ensure t)
 ;;;;; smart-mode-line
 ;; powerline isn't exactly stable
 ;;(use-package smart-mode-line :ensure t
@@ -360,7 +365,8 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
 ;; FIXME: breaks. completely.
 ;;(use-package powerline :ensure :config (powerline-default-theme))
 ;;;;; colorscheme
-;;(use-package color-theme-solarized :ensure t :config (load-theme 'solarized t))
+(use-package color-theme-solarized :ensure t
+  :config (setq background-mode 'dark) (load-theme 'solarized t))
 ;;(use-package zenburn-theme :ensure t :config (load-theme 'hc-zenburn t))
 ;;;;; eshell
 ;; emacs shell
@@ -387,16 +393,15 @@ confirm-kill-emacs (if (display-graphic-p) 'yes-or-no-p nil)
   :config
   (setq magit-auto-revert-mode nil)     ; don't revert
   (setq magit-last-seen-setup-instructions "1.4.0") ; hide message
-  ;;(use-package diff-hl-mode :ensure t)    ; highlight uncommited changes
   )
 ;;;;; evil
 ;; vimlike keybindings and modal editing
 (use-package evil :ensure t
-  ;:bind (("C-h" . evil-window-left)
-  ;       ("C-j" . evil-window-down)
-  ;       ("C-k" . evil-window-up)
-  ;       ("C-l" . evil-window-right)
-  ;       )
+  :bind (("C-h" . evil-window-left)
+         ("C-j" . evil-window-down)
+         ("C-k" . evil-window-up)
+         ("C-l" . evil-window-right)
+         )
 ;;;;;; config
   :config
 ;;;;;;; bindings

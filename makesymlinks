@@ -1,11 +1,24 @@
 #!/bin/bash
 # Creates symlinks from home directory to dotfiles
 
-curdir=~/dotfiles
-# TODO automate this line by getting contents of dir
-files="vimrc gvimrc emacs conkyrc pentadactylrc"
+DOT_DIR=~/dotfiles
+OLD_DIR=$DOT_DIR/.old
 
-for f in $files; do
-    rm ~/.$f
-    ln -s $curdir/$f ~/.$f
+specified="~/.emacs.d/init.el emacs"
+links="~/.vim/vimrc vimrc ~/.vim/gvimrc gvimrc ~/.emacs.d/init.el ~/.conkyrc ~/.pentadactylrc"
+
+build_sources () {
+    
+}
+
+for (( i=0; i<${#sources[@]}; i++ )); do
+    if [ -e ${links[i]} ]; then
+        if [ -h ${links[i]} ]; then
+            rm ${links[i]}
+        else
+            [ ! -e $OLD_DIR ] && mkdir -p $OLD_DIR
+            mv ${links[i]} $OLD_DIR/
+        fi
+    fi
+    ln -s $DOT_DIR/${sources[i]} ~/${links[i]}
 done
