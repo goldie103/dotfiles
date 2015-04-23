@@ -1,10 +1,10 @@
-# -*-shell-script-*
+# -*-mode: shell-script-*
 
 command fortune -a
 
 # prompt
 PS_ORIG=${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[01;34m\] \w \$\[\033[00m\]
-source /usr/share/git/completion/git-prompt.sh
+source git-prompt.sh
 set_prompt () {
     last_cmd=$?
     c_blue='\[\e[34m\]'
