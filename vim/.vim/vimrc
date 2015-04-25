@@ -1,0 +1,172 @@
+" Kelly Stewart
+" TODO turn off cursor blinking
+set nocompatible
+" Plugins {{{
+" Vundle setup {{{
+filetype off
+set rtp+=~/.vim/bundle/Vundle.vim
+call vundle#begin()
+
+Plugin 'gmarik/Vundle.vim'
+
+Plugin 'scrooloose/nerdcommenter'       " comment and uncomment blocks
+"TODO get commentary in here
+Plugin 'bling/vim-airline'              " status bar additions
+Plugin 'bling/vim-bufferline'           " buffer list in command or status bar
+Plugin 'tpope/vim-fugitive'             " call git commands within vim with G prefix
+Plugin 'tpope/vim-surround'             " deal with surrounding elements
+Plugin 'kien/ctrlp.vim'                 " fuzzy file search
+
+Plugin 'altercation/vim-colors-solarized'
+"Plugin 'morhetz/gruvbox'
+"Plugin 'whatyouhide/vim-gotham'
+
+Plugin 'dogrover/vim-pentadactyl'        " pentadactylrc syntax highlighting
+
+call vundle#end()
+filetype plugin indent on
+" }}}
+" solarized {{{
+let g:solarized_menu=0
+let g:solarized_termtrans=1     " use terminal transparency
+" }}}
+" ctrlp.vim {{{
+" Fuzzy file search
+let g:ctrlp_match_window='bottom,order:ttb' " order files top to bottom
+let g:ctrlp_switch_buffer=0                 " always open in a new buffer
+let g:ctrlp_working_path_mode=0             " make ctrlp use vim working dir
+" }}}
+" vim-airline {{{
+set encoding=utf8
+if !exists('g:airline_symbols')
+    let g:airline_symbols = {}
+endif
+
+" powerline
+"let g:airline_left_sep = '▶'
+"let g:airline_left_alt_sep = '»'
+"let g:airline_right_sep = '◀'
+"let g:airline_right_alt_sep = '«'
+
+let g:airline_left_sep = ''
+let g:airline_left_alt_sep = ''
+let g:airline_right_sep = ''
+let g:airline_right_alt_sep = ''
+
+let g:airline_symbols.branch = ''
+let g:airline_symbols.readonly = ''
+let g:airline_symbols.linenr = ''
+" unicode
+let g:airline_symbols.paste = 'ρ'
+let g:airline_symbols.whitespace = 'Ξ'
+
+" }}}
+" }}}
+" Appearance {{{
+syntax on
+set hlsearch
+color solarized
+set background=dark
+set showmatch                  " highlight matching brackets
+set matchtime=2                " 10ths of second to blink when matching brackets
+set matchpairs=(:),{:},[:],<:> " include angle brackets in matching
+set cursorline                 " highlight current line
+set lazyredraw	       	       " don't redraw when executing macros
+set scrolloff=3                " lines to keep visible above and below cursor
+set ruler	            	   " show the cursor position in statusline
+set wildmenu        		   " better command line completion
+set showcmd	            	   " display incomplete commands
+set laststatus=2	           " always display status line
+set noeb novb 	               " don't beep or flash
+set cmdheight=2                " prevent frequent need to scroll long commands
+set number relativenumber      " show both relative and absolute line numbers
+set guifont=Input\ 8           " GUI font
+set guioptions-=T              " no toolbar
+
+" }}}
+" Formatting {{{
+filetype plugin indent on
+set autoindent smartindent
+set shiftround                  " round to indent width
+set expandtab smarttab          " turn tabs to spaces
+set sw=4 ts=4 sts=4	            " indents of width 4
+set wrap textwidth=80           " wrap lines at 80 cols
+
+" File Specific Formatting
+augroup configgroup
+    autocmd!
+    " 2-space indents
+    autocmd FileType html setlocal sw=2 ts=2 sts=2
+    autocmd FileType css setlocal sw=2 ts=2 sts=2
+    autocmd FileType sh setlocal sw=2 ts=2 sts=2
+augroup END
+" }}}
+" Behavior {{{
+set ignorecase smartcase   		" use case sensitive search when case is used
+set incsearch		    		" do incremental searching
+set confirm			         	" ask to confirm close without writing
+set fic wic                     " ignore case in file names
+set hidden                      " allow hidden buffers to show
+set nobackup nowb noswapfile	" turn off all backup/temp files
+set backspace=indent,eol,start	" allow backspacing over everything
+set autoread			    	" autoread a file when changed from outside
+set mouse=a	                	" enable mouse if possible
+set modelines=1                 " for vimrc-specific folding
+set encoding=utf-8              " unicode forever
+set gdefault                    " global substitutions as default
+set autochdir                   " change to dir of file in buffer
+let mapleader = ','             " easier to reach
+cd ~
+
+" Return to last edit position when opening files
+autocmd BufReadPost *
+    \ if line("'\"") > 1 && line("'\"") <= line("$") |
+    \   exe "normal! g`\"" |
+    \ endif
+
+" defines command to see changes made if not already defined
+if !exists(":DiffOrig")
+    command DiffOrig vert new | set bt=nofile | r ++edit # | 0d_ | diffthis
+                \ | wincmd p | diffthis
+endif
+" }}}
+" Mappings {{{
+" file save
+nnoremap <leader>w :w<CR>
+nnoremap <leader>q :q<CR>
+nnoremap <leader>e <C-p>
+nnoremap <leader>x :so $myvimrc<CR>
+" backspace in Visual mode deletes selection
+vnoremap <BS> d
+" stops C-U in insert mode deleting so much
+inoremap <C-U> <C-G>u<C-U>
+" more consistent behavior with change and delete
+noremap Y y$
+" easier to reach commands for common movements
+noremap a ^
+noremap s $
+noremap S %
+" move through wrapped lines visually
+noremap j gj
+noremap k gk
+noremap gj j
+noremap gk k
+" jk to exit insert mode
+inoremap jk <ESC>
+" clear searches through <CR> press
+nnoremap <silent><CR> :noh<CR><CR>
+" <SPACE> to command
+noremap <SPACE> :
+" copy and paste using clipboard register by default
+noremap y "*y
+noremap p "*p
+noremap Y "*Y
+noremap P "*P
+" split movement
+nnoremap <C-l> <C-w>l
+nnoremap <C-k> <C-w>k
+nnoremap <C-j> <C-w>j
+nnoremap <C-h> <C-w>h
+" }}}
+
+" vim:foldenable:foldmethod=marker:foldlevel=0
