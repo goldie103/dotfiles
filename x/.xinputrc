@@ -2,21 +2,21 @@
 xinput disable 11                                # disable touchscreen
 
 # Key mappings
-OPTIONS=( "terminate:ctrl_alt_bksp"              # ctrl+alt+bksp restarts xorg
-    "caps:ctrl_modifier" "ctrl:nocaps"           # caps lock to ctrl
-    )
-# apply each option only if not already applied
-for option in $OPTIONS; do
-    [ "$(setxkbmap -query | grep $option)" ] && setxkbmap $option
-done
+#OPTIONS=( "terminate:ctrl_alt_bksp"              # ctrl+alt+bksp restarts xorg
+    #"caps:ctrl_modifier" "ctrl:nocaps"           # caps lock to ctrl
+    #)
+## apply each option only if not already applied
+#for option in $OPTIONS; do
+    #[ "$(setxkbmap -query | grep $option)" ] && setxkbmap $option
+#done
 
 # Wacom tablet mappings
-TABLET_MAPS=( "3key ctrl z"                         # top-left
+#TABLET_MAPS=( "3key ctrl z"                         # top-left
     #9                                              # top-right
     #1                                              # bottom-left
     #8                                              # bottom-right
-    )
+    #)
 # set each mapping from array
-for $map in $TABLET_MAPS; do
-  xsetwacom set "Wacom Intuos PT S Finger pad" Button ${map:0:1} ${map[i]:1}
-done
+#for $map in $TABLET_MAPS; do
+  #xsetwacom set "Wacom Intuos PT S Finger pad" Button ${map:0:1} ${map[i]:1}
+#done
