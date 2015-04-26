@@ -80,7 +80,7 @@ set laststatus=2	           " always display status line
 set noeb novb 	               " don't beep or flash
 set cmdheight=2                " prevent frequent need to scroll long commands
 set number relativenumber      " show both relative and absolute line numbers
-set guifont=Input\ 8           " GUI font
+set guifont=Input\ Mono\ 8     " GUI font
 set guioptions-=T              " no toolbar
 
 " }}}
