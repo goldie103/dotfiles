@@ -48,17 +48,9 @@
 (tool-bar-mode -1)                      ; no toolbar
 (scroll-bar-mode -1)                    ; no scroll bar
 (blink-cursor-mode -1)                  ; no blinking cursor
-;; less modeline cruft
-(defmacro rename-modeline (package-name mode new-name)
-  `(eval-after-load ,package-name
-     '(defadvice ,mode (after rename-modeline activate)
-        (setq mode-name ,new-name))))
-(rename-modeline "emacs-lisp-mode" emacs-lisp-mode "Elisp")
-;; manually set font for windows
-(set-frame-font "Input Mono Condensed-9")
-(when my-winp (set-frame-font "Input Mono Condensed-9"))
-;; manually set headline font family
-(set-face-attribute 'variable-pitch nil :family "Input Sans")
+
+(set-frame-font "Input Mono Condensed-9")                     ; general font
+(set-face-attribute 'variable-pitch nil :family "Input Sans") ; header font
 ;;;; editing
 (setq
  save-interprogram-paste-before-kill t  ; save clipboard contents to kill-ring
@@ -81,50 +73,60 @@
 (bind-key "RET" 'reindent-then-newline-and-indent)
 ;; word-based text wrapping for text modes only
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)
-;;;;; autocorrect through abbrev
-(setq abbrev-file-name (concat my-user-dir "/abbrev_defs.el" )
-      save-abbrevs t                   ; save abbrevs when saving file
- )
-(setq-default abbrev-mode t)
-(abbrev-mode t)
+;;;;; abbrev
+(use-package abbrev
+  :diminish ""
+  :config
+  (setq abbrev-file-name (concat my-user-dir "abbrev_defs.el" )
+        save-abbrevs t                   ; save abbrevs when saving file
+        )
+  (setq-default abbrev-mode t)t
+  )
+;;;;; pretty symbols
+;;(use-package pretty-symbols
+;;  )
+;;  (global-prettify-symbols-mode t)
 ;;;; behavior
 (setq
- delete-by-moving-to-trash t            ; use system trash for deletion
- find-file-visit-truename t             ; resolve symlinks
- ;; custom file dir
- custom-file (concat my-user-dir "custom.el")
+ delete-by-moving-to-trash t                   ; use system trash for deletion
+ find-file-visit-truename t                    ; follow symlinks
+ read-file-name-completion-ignore-case t       ; ignore case in completions
+ user-mail-address "stewart.g.kelly@gmail.com" ; for org mode
  ;; backups
  backup-by-copying t                    ; copy file into backup dir
- version-control t                      ; add version control numbers
+ version-control t                      ; add version numbers
  delete-old-versions t                  ; delete old backups silently
  kept-old-versions 5                    ; old versions to keep
  kept-new-versions 8                    ; new versions to keep
  ;; don't ask before allowing these variables
  safe-local-variable-values '((eval whitespace-mode nil) (buffer-read-only \.t))
- ;; backup directory
- backup-directory-alist `(("." . ,(expand-file-name (concat my-user-dir "backups"))))
- ;; auto save location
+ ;; locations for generated files
+ backup-directory-alist `(("." . ,(expand-file-name(concat my-user-dir
+                                                           "backups"))))
  auto-save-list-file-prefix (concat my-user-dir "autosaves")
  auto-save-file-name-transforms `((".*" "~/.emacs.d/.user/autosaves/" t))
- ;; ignore case in completion
- read-file-name-completion-ignore-case t
- ;; specify own email address
- user-mail-address "stewart.g.kelly@gmail.com"
+ custom-file (concat my-user-dir "custom.el")
  ;; confirm before killing emacs in gui sessions
  confirm-kill-emacs (if (window-system) 'yes-or-no-p nil)
  )
 (mouse-wheel-mode t)                    ; mouse wheel enabled
 (semantic-mode t)                       ; language-aware editing cmds
 (global-auto-revert-mode t)             ; auto refresh buffers
-;; org-mode
-(setq org-startup-folded t                 ; start in folded view
-      org-src-fontify-natively t           ; syntax highlight code in org buffer
-      org-alphabetical-lists t             ; add alphabetical lists
-      )
-;; always UTF-8 encoding
+
+;;;;; always UTF-8 encoding
 (set-keyboard-coding-system 'utf-8)
 (set-language-environment "UTF-8")
 (prefer-coding-system 'utf-8)
+
+;;;;; org-mode
+(use-package org
+  :config
+  (setq org-startup-folded t               ; start in folded view
+        org-src-fontify-natively t         ; syntax highlight code in org buffer
+        org-alphabetical-lists t           ; add alphabetical lists
+        )
+  )
+
 ;;;; navigation
 (fset 'yes-or-no-p 'y-or-n-p)           ; less annoying
 (cd "~")                                ; start in home dir
@@ -220,7 +222,7 @@
 ;;;;; golden-ratio
 ;; resize windows according to golden ratio
 (use-package golden-ratio :ensure t
-  ;;:diminish ""
+  :diminish ""
   :config
   (setq golden-ratio-exclude-modes '("helm-mode"
                                      "magit-log-mode"
@@ -241,7 +243,7 @@
 ;;;;; helm
 ;; Fuzzy minibuffer completion.
 (use-package helm :ensure t
-  ;;:diminish ""
+  :diminish ""
   :bind (;; helm replacements for builtins
          ("M-x" . helm-M-x)
          ("C-y" . helm-show-kill-ring)
@@ -265,7 +267,6 @@
 ;;;;;; config
   (use-package helm-config)
   (use-package helm-projectile :ensure t
-    :bind (("C-x C-f" . helm-projectile-find-file))
     :config
     (setq projectile-completion-system 'helm)
     (helm-projectile-on)
@@ -304,11 +305,11 @@
 ;;;;; fic-mode
 ;; highlight TODO and FIXME keywords
 (use-package fic-mode :ensure t
-  :config
-  (add-hook 'prog-mode-hook 'turn-on-fic-mode)
-  (setq fic-highlighted-words '("FIXME" "TODO" "DONE")
-        fic-foreground-color "#d33682"
-        fic-background-color "gray20")
+  :diminish fic-mode
+  :init (setq fic-highlighted-words '("FIXME" "TODO" "DONE")
+              fic-foreground-color "#d33682"
+              fic-background-color "gray20")
+  :config (add-hook 'prog-mode-hook 'turn-on-fic-mode)
   )
 ;;;;; rainbow-mode
 ;; Different from nyan mode. Highlight color codes with color code.
@@ -325,20 +326,37 @@
 ;;   )
 ;;  (global-relative-line-numbers-mode t)
 ;;  )
+;;;;; smart-mode-line
+;; better modeline
+(use-package smart-mode-line :ensure t
+  :config
+  (setq sml/shorten-directory t
+        sml/shorten-modes t
+        sml/no-confirm-load-theme t)
+  (dolist (def '(("^~/dotfiles/" ":.:")
+                 ("^:\\.:/emacs/\\.emacs\\.d/" ":.ED:")))
+    (add-to-list 'sml/replacer-regexp-list def t))
+  ;;(use-package smart-mode-line-powerline-theme :ensure t
+  ;;  :config (setq sml/theme 'powerline))
+  (sml/setup)
+  )
 ;;;; editing
 ;;;;; flyspell
 ;; automatic spell checking
-;; TODO introduce delay before checking so no erranous highlight
 ;; enable for appropriate modes
-(add-hook 'text-mode-hook 'flyspell-mode)
-(add-hook 'org-mode-hook 'flyspell-mode)
-(add-hook 'prog-mode-hook 'flyspell-prog-mode)
-; slower check so no midword errors
-(setq flyspell-delay 5)
+(use-package flyspell
+  :diminish ""
+  :config
+  (add-hook 'text-mode-hook 'flyspell-mode)
+  (add-hook 'org-mode-hook 'flyspell-mode)
+  (add-hook 'prog-mode-hook 'flyspell-prog-mode)
+  ;;(setq flyspell-delay 5)              ; slower check so no midword errors
+  )
+
 ;;;;; smartparens
 ;; auto-add parenthesis
 (use-package smartparens-config :ensure smartparens
-  ;;:diminish smartparens-mode
+  :diminish smartparens-mode
   :config
   (smartparens-global-mode)
   (show-smartparens-mode t)        ; highlight all matching pairs
@@ -358,7 +376,7 @@
 ;;;;; undo-tree
 ;; branching tree for undo actions
 (use-package undo-tree :ensure t
-  ;;:diminish ""
+  :diminish ""
   :config
   (global-undo-tree-mode t)
   (bind-key "C-x u" 'undo-tree-visualize undo-tree-map)
@@ -390,7 +408,7 @@
   :mode ".+\\.\\(vim\\|penta\\)$\\|[._]?\\(pentadactyl\\|vim\\)rc$")
 ;;;;;; emacs-lisp
 (use-package elisp-slime-nav :ensure t
-  ;;:diminish ""
+  :diminish ""
   :config
   (add-hook 'emacs-lisp-mode-hook
             (lambda ()(elisp-slime-nav-mode t) (eldoc-mode t)))
@@ -399,19 +417,6 @@
 ;;;;; maylon
 ;; Z-machine text based adventure reader
 ;;(use-package maylon :ensure t)
-;;;;; smart-mode-line
-;; better modeline
-(use-package smart-mode-line :ensure t
-  :config
-  (rich-minority-mode t)
-  (setq ;rm-blacklist '(" company" " Golden")
-        sml/shorten-directory t
-        sml/shorten-modes t
-        sml/no-confirm-load-theme t)
-  (use-package smart-mode-line-powerline-theme :ensure t
-    :config (setq sml/theme 'powerline))
-  (sml/setup)
-  )
 ;;;;; eshell
 ;; emacs shell
 (use-package eshell
@@ -448,6 +453,7 @@
 ;;;;;;;; evil-commentary
   ;; actions for adding/removing comments
   (use-package evil-commentary :ensure t
+    :diminish ""
     :config (evil-commentary-mode t))
 ;;;;;;;; evil-org
   ;; evil org-mode bindings
@@ -458,7 +464,10 @@
   (define-key evil-visual-state-map "," nil)
 ;;;;;;;; regular evil-state maps
   (bind-key "j" 'cofi/maybe-exit evil-insert-state-map) ; jk exits insert state
-  (dolist (map '(evil-normal-state-map evil-visual-state-map))
+;;;;;;;;; visual, normal and motion state bindings
+  (dolist (map '(evil-normal-state-map
+                 evil-visual-state-map
+                 evil-motion-state-map))
     (bind-keys :map (symbol-value map)
                ("Y" . 'copy-to-end-of-line)        ; more consistent
                ([escape] . keyboard-quit)          ; esc quits
@@ -480,12 +489,17 @@
                ;; visual line movement
                ("j" . evil-next-visual-line) ("k" . evil-previous-visual-line)
                ;; leader keys for common commands
-               (",w" . save-buffer)
                (",q" . kill-buffer-and-window)
                (",e" . helm-projectile-find-file)
-               ;;(",b" . helm-mini)
                (",x" . eval-region)
                (",X" . eval-buffer)
+               )
+    )
+;;;;;;;;; visual and normal state bindings
+  (dolist (map '(evil-normal-state-map
+                 evil-visual-state-map))
+    (bind-keys :map (symbol-value map)
+               (",w" . save-buffer)
                )
     )
 ;;;;;;;; esc quits minibuffer
