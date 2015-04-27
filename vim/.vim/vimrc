@@ -1,5 +1,6 @@
 " Kelly Stewart
 " TODO turn off cursor blinking
+" TODO system clipboard ugh
 set nocompatible
 " Plugins {{{
 " Vundle setup {{{
@@ -9,7 +10,7 @@ call vundle#begin()
 
 Plugin 'gmarik/Vundle.vim'
 
-Plugin 'scrooloose/nerdcommenter'       " comment and uncomment blocks
+Plugin 'tpope/vim-commentary'           " comment and uncomment blocks
 "TODO get commentary in here
 Plugin 'bling/vim-airline'              " status bar additions
 Plugin 'bling/vim-bufferline'           " buffer list in command or status bar
@@ -38,6 +39,7 @@ let g:ctrlp_working_path_mode=0             " make ctrlp use vim working dir
 " }}}
 " vim-airline {{{
 set encoding=utf8
+let g:airline_powerline_fonts = 1
 if !exists('g:airline_symbols')
     let g:airline_symbols = {}
 endif
@@ -115,6 +117,9 @@ set modelines=1                 " for vimrc-specific folding
 set encoding=utf-8              " unicode forever
 set gdefault                    " global substitutions as default
 set autochdir                   " change to dir of file in buffer
+set clipboard+=unnamed          " use system clipboards
+set paste                       " paste from system
+"set go+=a                       " auto copy visual selection to clipboard
 let mapleader = ','             " easier to reach
 cd ~
 
@@ -131,11 +136,13 @@ if !exists(":DiffOrig")
 endif
 " }}}
 " Mappings {{{
-" file save
+" file operations
 nnoremap <leader>w :w<CR>
-nnoremap <leader>q :q<CR>
 nnoremap <leader>e <C-p>
 nnoremap <leader>x :so $myvimrc<CR>
+" q to quit, and Q to record macro. I never use Ex mode anyway.
+nnoremap q :q<CR>
+nnoremap Q q
 " backspace in Visual mode deletes selection
 vnoremap <BS> d
 " stops C-U in insert mode deleting so much
@@ -149,24 +156,21 @@ noremap S %
 " move through wrapped lines visually
 noremap j gj
 noremap k gk
+" ... and move linewise with old visual line commands
 noremap gj j
 noremap gk k
 " jk to exit insert mode
 inoremap jk <ESC>
-" clear searches through <CR> press
+" clear search highlight through <CR> press
 nnoremap <silent><CR> :noh<CR><CR>
 " <SPACE> to command
 noremap <SPACE> :
-" copy and paste using clipboard register by default
-noremap y "*y
-noremap p "*p
-noremap Y "*Y
-noremap P "*P
 " split movement
-nnoremap <C-l> <C-w>l
-nnoremap <C-k> <C-w>k
-nnoremap <C-j> <C-w>j
-nnoremap <C-h> <C-w>h
+nnoremap <nop> gw
+nnoremap gwl <C-w>l
+nnoremap gwk <C-w>k
+nnoremap gwj <C-w>j
+nnoremap gwh <C-w>h
 " }}}
 
 " vim:foldenable:foldmethod=marker:foldlevel=0
