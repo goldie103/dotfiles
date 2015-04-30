@@ -10,12 +10,11 @@ call vundle#begin()
 
 Plugin 'gmarik/Vundle.vim'
 
-Plugin 'tpope/vim-commentary'           " comment and uncomment blocks
-"TODO get commentary in here
+Plugin 'tpope/vim-commentary'           " comment manipulation
+Plugin 'tpope/vim-surround'             " deal with surrounding elements
 Plugin 'bling/vim-airline'              " status bar additions
 Plugin 'bling/vim-bufferline'           " buffer list in command or status bar
 Plugin 'tpope/vim-fugitive'             " call git commands within vim with G prefix
-Plugin 'tpope/vim-surround'             " deal with surrounding elements
 Plugin 'kien/ctrlp.vim'                 " fuzzy file search
 
 Plugin 'altercation/vim-colors-solarized'
@@ -45,11 +44,6 @@ if !exists('g:airline_symbols')
 endif
 
 " powerline
-"let g:airline_left_sep = '▶'
-"let g:airline_left_alt_sep = '»'
-"let g:airline_right_sep = '◀'
-"let g:airline_right_alt_sep = '«'
-
 let g:airline_left_sep = ''
 let g:airline_left_alt_sep = ''
 let g:airline_right_sep = ''
@@ -139,7 +133,6 @@ endif
 " file operations
 nnoremap <leader>w :w<CR>
 nnoremap <leader>e <C-p>
-nnoremap <leader>x :so $myvimrc<CR>
 " q to quit, and Q to record macro. I never use Ex mode anyway.
 nnoremap q :q<CR>
 nnoremap Q q
@@ -166,11 +159,10 @@ nnoremap <silent><CR> :noh<CR><CR>
 " <SPACE> to command
 noremap <SPACE> :
 " split movement
-nnoremap <nop> gw
-nnoremap gwl <C-w>l
-nnoremap gwk <C-w>k
-nnoremap gwj <C-w>j
-nnoremap gwh <C-w>h
+nnoremap <C-l> <C-w>l
+nnoremap <C-k> <C-w>k
+nnoremap <C-j> <C-w>j
+nnoremap <C-h> <C-w>h
 " }}}
 
 " vim:foldenable:foldmethod=marker:foldlevel=0
