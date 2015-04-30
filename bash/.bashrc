@@ -31,19 +31,19 @@ set_prompt () {
     PS1+=" $C_BLUE\\w"
 
     # git status
-    # TODO get this working
+    # TODO Colors, symbolx
     source ~/dotfiles/.resources/git-prompt.sh
     GIT_PS1_SHOWDIRTYSTATE=1
     GIT_PS1_SHOWSTASHSTATE=1
     GIT_PS1_SHOWUNTRACKEDFILES=1
     GIT_PS1_SHOWCOLORHINTS=1
     GIT_PS1_SHOWUPSTREAM="auto"
-    GIT_PS1_SYMBOLDIRTYSTAGED=$S_CHECK
-    GIT_PS1_SYMBOLDIRTYMODIFIED=$S_CROSS
-    GIT_PS1_SYMBOLUNTRACKED=$S_CROSS
-    GIT_PS1_SYMBOLSTASHED="S"
-    GIT_PS1_SYMBOLUPSTREAMDIVERGED="-"
-    PS1+="$__git_ps1"
+    #GIT_PS1_SYMBOLDIRTYSTAGED="$S_CHECK"
+    #GIT_PS1_SYMBOLDIRTYMODIFIED="$S_CROSS"
+    #GIT_PS1_SYMBOLUNTRACKED="$S_CROSS"
+    #GIT_PS1_SYMBOLSTASHED="S"
+    #GIT_PS1_SYMBOLUPSTREAMDIVERGED="-"
+    PS1+="\$(__git_ps1)"
 
     # cleanup; add end character and reset colour
     PS1+=" \$ $C_RESET"
