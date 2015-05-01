@@ -40,8 +40,8 @@
 ;; Greek lettering is cool okay
 (global-prettify-symbols-mode t)
 (add-hook 'prog-mode-hook
-          (lambda () (dolist (replacement '(("TODO" . "ΤΔ")
-                                       ("FIXME" . "ΦΜ")))
+          (lambda () (dolist (replacement '(("TODO" . "Τ")
+                                       ("FIXME" . "Φ")))
                   (push replacement prettify-symbols-alist))))
 
 ;; modeline
@@ -84,6 +84,7 @@
 ;; Highlight annotations in comments and strings
 (use-package fic-ext-mode
   :diminish fic-ext-mode
+  :functions fic-ext-mode
   :config
   (add-hook 'prog-mode-hook #'fic-ext-mode))
 
@@ -96,7 +97,7 @@
 ;; ** linum-relative
 ;; Relative line numbers
 ;; TODO enable the damn thing
-(use-package linum-relative :ensure t
+(use-package linum-relative :ensure t :disabled t
   :config (linum-on))
 
 ;; ** winner
@@ -106,6 +107,7 @@
 ;; ** popwin
 ;; Popup window for minor buffers.
 (use-package popwin :ensure t
+  :commands popwin-mode
   :config
   (popwin-mode t)
   (add-to-list 'popwin:special-display-config '("*Python Help*"
@@ -128,6 +130,7 @@
 ;; ** nyan-mode
 ;; Nyan cat displays file percentage.
 (use-package nyan-mode :ensure t
+  :commands nyan-mode
   :config
   (setq nyan-wavy-trail t)
   (nyan-mode t))
@@ -135,6 +138,8 @@
 ;; ** smart-mode-line
 ;; better modeline
 (use-package smart-mode-line :ensure t
+  :commands (sml/faces-from-theme
+             sml/theme-p)
   :config
   (setq sml/shorten-directory t
         sml/shorten-modes t
@@ -238,11 +243,16 @@
 ;; ** real-auto-save
 (use-package real-auto-save :ensure t
   :delight real-auto-save-mode " α"
+  :commands real-auto-save-mode
   :config (real-auto-save-mode t))
 
 ;; * filetype major modes
 ;; ** org-mode
 (use-package org
+  :commands (org-bookmark-jump-unhide
+             org-babel-where-is-src-block-head
+             org-edit-src-code
+             org-edit-src-exit)
   :init
   (setq
    org-startup-folded t
@@ -363,6 +373,11 @@
 ;; Fuzzy minibuffer completion.
 (use-package helm :ensure t
   :delight helm-mode
+  :commands helm-autoresize-mode
+  :defines (helm-M-x-fuzzy-match
+            helm-semantic-fuzzy-match
+            helm-imenu-fuzzy-match
+            helm-apropos-fuzzy-match)
   :bind (;; helm replacements for builtins
          ("M-x" . helm-M-x)
          ("C-y" . helm-show-kill-ring)
@@ -391,14 +406,7 @@
 
 ;; * custom commands
 ;; ** check if online
-;; From https://github.com/bodil/emacs.d/blob/master/init.el
-(defun onlinep ()
-  (if (and (functionp 'network-interface-list) (network-interface-list))
-      (some (lambda (iface) (unless (equal "lo" (car iface))
-                         (member 'up (first (last (network-interface-info
-                                                   (car iface)))))))
-            (network-interface-list))
-    t))
+;; TODO get it to do the thing
 
 ;; ** because I'm lazy
 (defun my/config ()
@@ -431,10 +439,6 @@
 (dir-locals-set-directory-class
  (concat user-emacs-directory "elpa")
  'source)
-
-;; ** copy to end of line
-  (defun copy-to-end-of-line ()
-    (interactive) (evil-yank (point) (point-at-eol)))
 
 ;; ** esc quits
   ;; From https://github.com/davvil/.emacs.d/blob/master/init.el
@@ -469,6 +473,11 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 ;; ** auto-indent-mode
 ;; Automatically indent things (including pasted lines)
 (use-package auto-indent-mode
+  :delight auto-indent-mode
+  :commands (auto-indent-delete-backward-char
+             auto-indent-global-mode
+             auto-indent-remove-advice-p
+             auto-indent-is-bs-key-p)
   :config (auto-indent-global-mode t))
 
 ;; ** -diff-hl-mode
@@ -489,6 +498,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 ;; Better parenthesis motions and matching
 (use-package smartparens-config :ensure smartparens
   :delight smartparens-mode
+  :commands sp-insert-pair
   :config
   (smartparens-global-mode t)
   (show-smartparens-mode t))
@@ -504,6 +514,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 ;; ** flycheck
 ;; Syntax check buffers while editing.
 (use-package flycheck :ensure t
+  :commands flycheck-count-errors
   :config
   (setq-default flycheck-disabled-checkers '(emacs-lisp-checkdoc))
 
@@ -559,6 +570,7 @@ nil."
 ;; Highlight poor forms in writing
 (use-package writegood-mode :ensure t
   :delight writegood-mode
+  :commands writegood-turn-on
   :bind (("C-c C-g" . writegood-grade-level)
          ("C-c C-S-g" . writegood-reading-ease))
   :config (add-hook 'text-mode-hook #'writegood-turn-on))
@@ -573,6 +585,7 @@ nil."
 ;; ** hl-sentence
 ;; Highlight current sentence
 (use-package hl-sentence :ensure t
+  :functions my/hl-sentence-only
   :config
   (defun my/hl-sentence-only () (hl-sentence-mode t) (hl-line-mode -1))
   (add-hook 'text-mode #'my/hl-sentence-only))
@@ -581,6 +594,7 @@ nil."
 ;; Display horizontal lines instead of page break character
 (use-package page-break-lines
   :delight page-break-lines-mode
+  :functions global-page-break-lines-mode
   :config (global-page-break-lines-mode t))
 
 ;; ** word counting
@@ -604,8 +618,17 @@ nil."
 ;; * evil
 ;; Vim keybindings and modal editing
 (use-package evil :ensure t
+  :commands (evil-yank
+             evil-set-command-properties
+             evil-insert
+             evil-echo
+             evil-change-to-previous-state
+             evil-normal-state-p
+             evil-repeat-stop
+             evil-delay)
+  :functions maybe-exit
   :config
-  ;; ** packages
+;; ** packages
 ;; *** evil-surround
   ;; Manipulate surrounding elements
   (use-package evil-surround :ensure t :config (global-evil-surround-mode t))
@@ -636,9 +659,11 @@ nil."
 ;; *** evil-matchit
   ;; Manipulate tags
   (use-package evil-matchit :ensure t
+    :defines evilmi-may-jump-percentage
     :config
     (setq evilmi-may-jump-percentage nil)       ; num% jumps num times
-    (global-evil-matchit-mode t)
+    (global-evil-matchit-mode t))
+
 ;; *** evil-org
   ;; Evil org-mode bindings
   (use-package evil-org :ensure t)
@@ -667,19 +692,23 @@ command. Uses jk as default combination."
 
 ;; *** insert a single character
   ;; Consider this if dot repetition is needed. Otherwise \ is acceptable.
-  (evil-define-command evil-execute-in-insert-state (&optional arg)
-    "Execute the next command in Insert state."
-    (cond
-     ((called-interactively-p 'any)
-      (add-hook 'post-command-hook #'evil-execute-in-insert-state t)
-      (evil-insert 1)
-      (evil-echo "Switched to Insert state for the next command ..."))
-     ((not (eq this-command #'evil-execute-in-insert-state))
-      (remove-hook 'post-command-hook 'evil-execute-in-insert-state)
-      (evil-change-to-previous-state)
-      ;; ensure the command is recorded if we return to normal state
-      (when (evil-normal-state-p)
-        (evil-repeat-stop)))))
+  ;; (evil-define-command evil-execute-in-insert-state (&optional arg)
+  ;;   "Execute the next command in Insert state."
+  ;;   (cond
+  ;;    ((called-interactively-p 'any)
+  ;;     (add-hook 'post-command-hook #'evil-execute-in-insert-state t)
+  ;;     (evil-insert 1)
+  ;;     (evil-echo "Switched to Insert state for the next command ..."))
+  ;;    ((not (eq this-command #'evil-execute-in-insert-state))
+  ;;     (remove-hook 'post-command-hook 'evil-execute-in-insert-state)
+  ;;     (evil-change-to-previous-state)
+  ;;     ;; ensure the command is recorded if we return to normal state
+  ;;     (when (evil-normal-state-p)
+  ;;       (evil-repeat-stop)))))
+
+;; *** copy to end of line
+  (defun copy-to-end-of-line ()
+    (interactive) (evil-yank (point) (point-at-eol)))
 
 ;; ** bindings
 ;; *** regular evil-state maps
@@ -723,7 +752,7 @@ command. Uses jk as default combination."
 ;; **** insert
   (bind-key "j" #'maybe-exit evil-insert-state-map) ; jk exits insert state
 
-;; *** esc quits minibuffer
+;; *** ESC quits minibuffer
   (bind-keys :map (minibuffer-local-map
                    minibuffer-local-ns-map
                    minibuffer-local-completion-map
