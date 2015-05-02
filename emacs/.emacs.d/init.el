@@ -1,5 +1,6 @@
 ;; Kelly Stewart
 ;; * setup
+;; *** package
 (require 'package)
 (setq
  load-prefer-newer t                   ; don't load outdated byte code
@@ -10,19 +11,29 @@
                     ("elpy" . "http://jorgenschaefer.github.io/packages/")))
 (package-initialize)
 
-;; install use-package if not already installed
+;; setup use-package
 (unless (package-installed-p 'use-package)
-  (package-refresh-contents) (package-install 'use-package))
+  (package-refresh-contents)
+  (package-install 'use-package))
 (require 'use-package)
 (setq use-package-verbose t)            ; log message after loading packages
 
 ;; non-melpa packages
-(add-to-list 'load-path (concat user-emacs-directory "packages"))
+(add-to-list 'load-path (concat user-emacs-directory "packages/"))
 
 ;; here so later use-package declarations can use `:delight' keyword
 (use-package delight :ensure t
   :config (delight '((visual-line-mode)
                      (emacs-lisp-mode "Elisp" :major))))
+
+;; *** user info
+(defvar my/user-dir (concat user-emacs-directory ".user/"))
+
+(add-to-list 'load-path (concat my/user-dir "elisp/"))
+;;(require 'my/private)
+
+(setq user-full-name "Kelly Stewart"
+      user-mail-address "stewart.g.kelly@gmail.com")
 
 ;; * appearance
 ;; ** builtin
@@ -39,15 +50,15 @@
 
 ;; Greek lettering is cool okay
 (global-prettify-symbols-mode t)
-(add-hook 'prog-mode-hook
-          (lambda () (dolist (replacement '(("TODO" . "Τ")
-                                       ("FIXME" . "Φ")))
-                  (push replacement prettify-symbols-alist))))
+(add-hook 'prog-mode-hook #'my/prettified-symbols)
+
+(defun my/prettified-symbols ()
+  (push '("TODO" . ?Τ) prettify-symbols-alist)
+  (push '("FIXME" . ?Φ) prettify-symbols-alist))
 
 ;; modeline
 (line-number-mode t)                    ; line num
 (column-number-mode t)                  ; col num
-(which-function-mode t)                 ; definition name
 (global-linum-mode t)                   ; line numbers
 
 ;; we don't need no stinkin gui
@@ -63,6 +74,20 @@
 ;; fonts
 (set-frame-font "Input Mono Condensed-9")
 (set-face-attribute 'variable-pitch nil :family "Input Serif")
+
+;; ** which-func
+;; Show definition name in modeline
+(use-package which-func
+  :init (which-function-mode t)
+  :config (setq which-func-format
+                `((:propertize (" ➤ " which-func-current)
+                               local-map ,which-func-keymap
+                               face which-func
+                               mouse-face mode-line-highlight
+                               help-echo "mouse-1: go to beginning\n\
+mouse-2: toggle rest visibility\n\
+mouse-3: go to end"))
+                which-func-unknown "?"))
 
 ;; ** whitespace
 ;; highlights whitespace and other potential style issues
@@ -96,9 +121,16 @@
 
 ;; ** linum-relative
 ;; Relative line numbers
-;; TODO enable the damn thing
-(use-package linum-relative :ensure t :disabled t
-  :config (linum-on))
+;; TODO visual line numbers
+(use-package linum-relative :ensure t ;:disabled t
+  :config
+  (set-face-attribute 'linum-relative-current-face nil
+                      :inherit 'linum
+                      :weight 'bold
+                      :background 'unspecified
+                      :foreground 'unspecified)
+  (setq linum-relative-current-symbol "") ; show real line number at cursor line
+  (linum-on))
 
 ;; ** winner
 ;; restore previous window configurations
@@ -107,6 +139,7 @@
 ;; ** popwin
 ;; Popup window for minor buffers.
 (use-package popwin :ensure t
+  :demand t
   :commands popwin-mode
   :config
   (popwin-mode t)
@@ -130,14 +163,16 @@
 ;; ** nyan-mode
 ;; Nyan cat displays file percentage.
 (use-package nyan-mode :ensure t
+  :demand t
   :commands nyan-mode
   :config
-  (setq nyan-wavy-trail t)
+  (setq-default nyan-wavy-trail t)
   (nyan-mode t))
 
 ;; ** smart-mode-line
 ;; better modeline
 (use-package smart-mode-line :ensure t
+  :demand t
   :commands (sml/faces-from-theme
              sml/theme-p)
   :config
@@ -154,20 +189,15 @@
 
 ;; ** color theme
 (use-package solarized-theme :ensure t :config (load-theme 'solarized-dark t))
-;; (use-package zenburn-theme :ensure t :config (load-theme 'hc-zenburn t))
+
+(use-package zenburn-theme :ensure t :disabled t
+  :config (load-theme 'hc-zenburn t))
 
 ;; * behavior
 ;; ** builtin
-;; *** user info
-(defvar my/user-dir "~/.emacs.d/.user/" "Temporary user storage dir.")
-(setq
- user-full-name "Kelly Stewart"
- user-mail-address "stewart.g.kelly@gmail.com")
-
 ;; *** system interaction
 (cd "~")                                ; start in home dir
 (setq
- custom-file (concat my/user-dir "custom.el") ; custom file location
  find-file-visit-truename t             ; follow symlinks
  delete-by-moving-to-trash t            ; use system trash for deletion
  smooth-scroll-margin 3)                ; fewer 3 lines visible at buffer ends
@@ -189,7 +219,7 @@
 
 
 ;; *** interface
-(fset 'yes-or-no-p 'y-or-n-p)            ; less annoying
+(fset 'yes-or-no-p #'y-or-n-p)            ; less annoying
 (setq
  save-interprogram-paste-before-kill t   ; save clipboard contents to kill-ring
  case-fold-search t                      ; ignore case when searching
@@ -197,6 +227,7 @@
  initial-buffer-choice user-init-file    ; open init file on startup
  initial-major-mode 'text-mode           ; start scratch in text mode
  line-move-visual t                      ; visual line movement
+ view-read-only t                        ; view read-only files in view-mode
  ;; don't ask before allowing these variables
  safe-local-variable-values '((eval whitespace-mode nil) (buffer-read-only \.t)))
 (mouse-wheel-mode t)                     ; mouse wheel enabled
@@ -223,7 +254,7 @@
 (use-package abbrev
   :delight abbrev-mode
   :config
-  (setq abbrev-file-name (concat my/user-dir "abbrevs.el" )
+  (setq abbrev-file-name (concat my/user-dir "elisp/abbrevs.el" )
         save-abbrevs t)                  ; save abbrevs when saving file
   (setq-default abbrev-mode t))
 
@@ -235,6 +266,20 @@
                 auto-revert-verbose nil)       ; no warnings on refresh
   (global-auto-revert-mode t))
 
+;; ** cus-edit
+;; Customize variables. I only use this for saving save theme vars and browsing
+;; possible package options.
+(use-package cus-edit
+  :defer t
+  :config (setq custom-file my/custom-file         ; where to save customization
+                custom-buffer-done-kill t          ; kill buffer when closing
+                ;; show real variable names
+                custom-unlispify-tag-names nil
+                custom-unlispify-menu-entries nil)
+  :init
+  (defvar my/custom-file (concat my/user-dir "elisp/custom.el"))
+  (load my/custom-file 'no-error 'no-message))
+
 ;; ** uniquify
 ;; Distinguish buffers with same name by adding folder path to buffer name
 (use-package uniquify
@@ -243,6 +288,7 @@
 ;; ** real-auto-save
 (use-package real-auto-save :ensure t
   :delight real-auto-save-mode " α"
+  :demand t
   :commands real-auto-save-mode
   :config (real-auto-save-mode t))
 
@@ -278,7 +324,8 @@
   :config (add-hook 'emacs-lisp-mode-hook 'turn-on-elisp-slime-nav-mode))
 
 ;; ** python
-(use-package elpy :ensure t :config (elpy-enable))
+(use-package python
+  :config (use-package elpy :ensure t :config (elpy-enable)))
 
 ;; ** vimrc
 ;; VimScript major mode. Also for editing Pentadactyl config files.
@@ -292,6 +339,7 @@
 
 ;; ** markdown
 (use-package markdown-mode :ensure t :disabled t)
+
 ;; * other major modes
 ;; ** dired
 ;; File browser
@@ -302,7 +350,7 @@
         dired-recursive-copies 'always  ; recursive copy by default
         dired-recursive-deletes 'top    ; confirm recursive delete
         dired-listing-switches "-lha")  ; human-readable listing
-  (add-hook 'dired-mode-hook 'auto-revert-mode))
+  (add-hook 'dired-mode-hook #'auto-revert-mode))
 
 
 ;; ** eshell
@@ -312,24 +360,37 @@
   :config
   (setenv "PAGER" "cat")                ; show extended output in other buffer
   (setq eshell-directory-name (concat my/user-dir ".eshell"))
-  (defun hl-line-mode-turn-off () (hl-line-mode -1))
-  (add-hook 'eshell-mode-hook 'hl-line-mode-turn-off))
+  (add-hook 'eshell-mode-hook #'my/turn-off-hl-line-mode))
 
+;; ** jabber
+;; XMPP Chat client
+(use-package jabber :ensure t :disabled t
+  :config
+  (setq jabber-account-list '(("kelly.stewart7737@chat.facebook.com"
+                               (:network-server . "chat.facebook.com")
+                               (:connection-type . starttls)
+                               (:port . 5222)
+                               (:password . ,my/ac-fb-pw)))))
 ;; ** magit
 ;; git command integration
 (use-package magit :ensure t
   :bind (("C-x m" . magit-status))
   :init (setq magit-last-seen-setup-instructions "1.4.0") ; hide startup msg
-  :config
-  (setq
-   magit-save-some-buffers 'dontask     ; don't ask before saving buffers
-   magit-auto-revert-mode nil))          ; don't revert
+  :config (setq magit-save-some-buffers 'dontask ; don't ask before saving
+                magit-auto-revert-mode nil))     ; don't revert
 
 ;; ** malyon
 ;; Z-machine text based adventure reader
 (use-package malyon)
 
 ;; * navigation
+;; ** desktop
+;; Save and restore Emacs session state
+(use-package desktop :disabled t
+  :config
+  (desktop-save-mode t)
+  (setq desktop-path `(,my/user-dir)))
+
 ;; ** savehist
 ;; Save command history
 (use-package savehist
@@ -340,9 +401,8 @@
 ;; ** saveplace
 ;; Save cursor place in file and return to it
 (use-package saveplace
-  :config
-  (setq save-place-file (concat my/user-dir "places"))
-  (setq-default save-place t))
+  :config (setq-default save-place-file (concat my/user-dir "places")
+                        save-place t))
 
 ;; ** recentf
 ;; List recent files
@@ -373,33 +433,55 @@
 ;; Fuzzy minibuffer completion.
 (use-package helm :ensure t
   :delight helm-mode
-  :commands helm-autoresize-mode
-  :defines (helm-M-x-fuzzy-match
-            helm-semantic-fuzzy-match
-            helm-imenu-fuzzy-match
-            helm-apropos-fuzzy-match)
-  :bind (;; helm replacements for builtins
+  :bind (;; Helm replacements
          ("M-x" . helm-M-x)
+         ("M-s o" . helm-occur)
          ("C-y" . helm-show-kill-ring)
+         ("C-x r i" . helm-register)
          ("C-x b" . helm-mini)
-         ("C-x C-f" . helm-find-files))
+         ("C-x C-f" . helm-find-files)
+         ("<help> C-a" . helm-apropos)
+         ("<help> r" . helm-info-emacs)
+         ("<help> C-l" . helm-locate-library)
+         ;; Additional bindings
+         ("<help> C-r" . helm-info-at-point)
+         ("<help> C-w" . helm-man-woman))
   :config
   (use-package helm-config)
-  (use-package helm-projectile :ensure t
-    :config
-    (setq projectile-completion-system 'helm)
-    (helm-projectile-on))
+  (use-package helm-buffers :config (setq helm-buffers-fuzzy-matching t))
+  (use-package helm-command :config (setq helm-M-x-fuzzy-match t))
+  (use-package helm-elisp :config (setq helm-apropos-fuzzy-match t))
+  (use-package helm-locate :config (setq helm-locate-fuzzy-match t))
+  (use-package helm-semantic :config (setq helm-semantic-fuzzy-match t))
+  (use-package helm-imenu :config (setq helm-imenu-fuzzy-match t))
 
-  (setq
-   helm-move-to-line-cycle-in-source t     ; cycle on buffer end
-   helm-ff-file-name-history-use-recentf t ; use recentf not history
-   ;; fuzzy matching
-   helm-buffers-fuzzy-matching t
-   helm-recentf-fuzzy-match t
-   helm-M-x-fuzzy-match t
-   helm-semantic-fuzzy-match t
-   helm-imenu-fuzzy-match t
-   helm-apropos-fuzzy-match t)
+  (use-package helm-files
+    :config (setq helm-recentf-fuzzy-match t
+                  helm-ff-file-name-history-use-recentf t ; use recentf
+                  helm-ff-search-library-in-sexp t)) ; get library from function
+
+  (use-package helm-projectile :ensure t
+    :config (with-eval-after-load 'projectile
+              (setq projectile-completion-system 'helm
+                     projectile-switch-project-action #'helm-projectile
+                     helm-projectile-fuzzy-match t)
+              (helm-projectile-on)))
+
+  (use-package helm-company :ensure t
+    :init (with-eval-after-load 'company
+            (bind-keys :map (company-mode-map company-active-map)
+                        ("C-:" . helm-company))))
+
+  (use-package helm-flycheck :ensure t
+    :config (with-eval-after-load 'flycheck
+              (bind-key "C-c ! l" #'helm-flycheck flycheck-mode-map)))
+
+  (use-package helm-flyspell :ensure t)
+  (use-package helm-descbinds :ensure t
+    :init (helm-descbinds-mode t))
+
+  (setq helm-move-to-line-cycle-in-source t     ; cycle on buffer end
+        helm-split-window-in-side-p t)          ; split inside current window
 
   (helm-autoresize-mode t)
   (helm-mode t))
@@ -452,69 +534,69 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
       (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
       (abort-recursive-edit)))
 
+;; ** hooks
+  (defun my/turn-off-hl-line-mode () (hl-line-mode -1))
+
 ;; * editing
 ;; ** outline
-;; Collapsible headings for organization
-(use-package outline
+(use-package outline                    ; Outline files
   :delight outline-minor-mode " o"
   :config
-  ;; org-mode style using outline mode
-  (use-package outshine :ensure t
+  (use-package outshine :ensure t       ; Org-mode style with outline-mode
     :config
     (setq outshine-fontify-whole-heading-line t
           outshine-startup-folded-p t
           outshine-org-style-global-cycling-at-bob-p t
           outshine-preserve-delimiter-whitespace t)
-    (add-hook 'outline-minor-mode-hook 'outshine-hook-function)
-    ;; modes to activate this for
-    (add-hook 'emacs-lisp-mode-hook 'outline-minor-mode)
-    (add-hook 'vimrc-mode 'outline-minor-mode)))
+    (add-hook 'outline-minor-mode-hook #'outshine-hook-function))
+  (add-hook 'prog-mode-hook #'outline-minor-mode))
+
 
 ;; ** auto-indent-mode
-;; Automatically indent things (including pasted lines)
-(use-package auto-indent-mode
+;; TODO get this working with indenting pasted code
+(use-package auto-indent-mode           ; Automatic indentation
   :delight auto-indent-mode
+  :demand t
   :commands (auto-indent-delete-backward-char
              auto-indent-global-mode
              auto-indent-remove-advice-p
              auto-indent-is-bs-key-p)
   :config (auto-indent-global-mode t))
 
-;; ** -diff-hl-mode
-;; diff with uncommited changes
-(use-package diff-hl :ensure t :disabled t)
-
 ;; ** flyspell
-;; Automatic spell checking when editing
-(use-package flyspell
+(use-package flyspell                   ; On-the-fly spell checking
   :delight flyspell-mode
   :config
-  ;; enable for appropriate modes
+  (setq flyspell-issue-welcome-flag nil
+        flyspell-issue-message-flag nil)
+
+  (use-package flyspell-lazy :ensure t  ; Lazier flyspell
+    :config (flyspell-lazy-mode t))
+
   (add-hook 'text-mode-hook 'flyspell-mode)
-  (add-hook 'org-mode-hook 'flyspell-mode)
   (add-hook 'prog-mode-hook 'flyspell-prog-mode))
 
 ;; ** smartparens
-;; Better parenthesis motions and matching
-(use-package smartparens-config :ensure smartparens
+(use-package smartparens-config :ensure smartparens ; Balanced parens
   :delight smartparens-mode
+  :demand t
   :commands sp-insert-pair
   :config
   (smartparens-global-mode t)
   (show-smartparens-mode t))
 
 ;; ** undo-tree
-;; Branching tree for undo actions
-(use-package undo-tree :ensure t
+(use-package undo-tree :ensure t        ; Branching undo tree
   :delight undo-tree-mode
   :config
   (global-undo-tree-mode t)
   (bind-key "C-x u" 'undo-tree-visualize undo-tree-map))
 
 ;; ** flycheck
-;; Syntax check buffers while editing.
-(use-package flycheck :ensure t
+(use-package flycheck :ensure t         ; On-the-fly syntax checking
+  :demand t
   :commands flycheck-count-errors
+  :init (global-flycheck-mode t)
   :config
   (setq-default flycheck-disabled-checkers '(emacs-lisp-checkdoc))
 
@@ -539,22 +621,20 @@ nil."
                   (`suspicious "?"))))
       (concat " Φ" text)))
 
-  ;; display errors by popup
-  ;; FIXME clobbers company popups
-  ;; (use-package flycheck-tip :ensure t :config (flycheck-tip-use-timer 'verbose))
-
-  (global-flycheck-mode t))
+  ;; FIXME may or may not clobber company popups
+  (use-package flycheck-tip :ensure t   ; display errors by popup
+    :config (flycheck-tip-use-timer 'verbose)))
 
 ;; ** company
 ;; Autocompletion in code
 ;; FIXME won't work (at least in elisp buffers anyway)
 (use-package company :ensure t
+  :demand t
   :config
   (setq company-idle-delay 0.2            ; delay before completions
         company-show-numbers t            ; show quick-access nums
         company-selection-wrap-around t)  ; wrap back around when selecting
   (global-company-mode t))
-
 ;; * text-based editing
 ;; ** typo
 ;; Insert typographical marks on multiple key-presses
@@ -587,12 +667,13 @@ nil."
 (use-package hl-sentence :ensure t
   :functions my/hl-sentence-only
   :config
-  (defun my/hl-sentence-only () (hl-sentence-mode t) (hl-line-mode -1))
-  (add-hook 'text-mode #'my/hl-sentence-only))
+  (add-hook 'text-mode #'hl-sentence-mode)
+  (add-hook 'text-mode #'my/turn-off-hl-line-mode))
 
 ;; ** page-break-lines
 ;; Display horizontal lines instead of page break character
 (use-package page-break-lines
+  :demand t
   :delight page-break-lines-mode
   :functions global-page-break-lines-mode
   :config (global-page-break-lines-mode t))
@@ -618,6 +699,7 @@ nil."
 ;; * evil
 ;; Vim keybindings and modal editing
 (use-package evil :ensure t
+  :demand t
   :commands (evil-yank
              evil-set-command-properties
              evil-insert
@@ -759,7 +841,6 @@ command. Uses jk as default combination."
                    minibuffer-local-must-match-map
                    minibuffer-local-isearch-map)
              ("<escape>" . minibuffer-keyboard-quit))
-
 ;; *** package-menu-mode
   (bind-keys :map package-menu-mode-map
              ("j" . next-line)
@@ -802,8 +883,8 @@ command. Uses jk as default combination."
   ;; TODO incorporate into a list to avoid repetition as this grows
   (defun my/evil-shiftwidth-lisp () (setq evil-shift-width 2))
   (add-hook 'emacs-lisp-mode-hook 'my/evil-shiftwidth-lisp)
-;; ** enable
-  (evil-mode t))
+;; ;; ** enable
+   (evil-mode t))
 
 
 ;; * cleanup
