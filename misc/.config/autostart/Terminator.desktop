@@ -9,4 +9,4 @@ Type=Application
 StartupNotify=false
 Terminal=false
 Hidden=true
-Name[en_AU]=terminator.desktop
+Name[en_AU]=Terminator
