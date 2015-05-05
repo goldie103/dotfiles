@@ -62,5 +62,5 @@ nmap -b l gt
 nmap -b y Y
 nmap -b Y y
 " *** disabled keybinds
-nmap -b <nop> gh
-nunmap gh
+map -b <nop> gh
+unmap gh
