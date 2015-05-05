@@ -1,8 +1,12 @@
 #!/bin/bash
 # Automates GNU Stow symlinking for every package in directory
 
-# TODO automate installing stow
+# Install stow if not already installed
+if [[ ! $(dpkg-query -s stow | grep "Status: install ok installed") ]]; then
+  apt install stow
+fi
 
-for package in *; do
-    [ ! ${package:0:1} == "."] && stow $package
+# Stow every package in directory
+for package in */; do
+  stow $package
 done
