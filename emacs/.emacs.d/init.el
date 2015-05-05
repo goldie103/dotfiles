@@ -10,7 +10,7 @@
   (add-to-list 'package-archives archive))
 (package-initialize)
 
-;; non-melpa packages
+;; non-MELPA packages
 (defconst my/dir-elisp (concat user-emacs-directory "elisp/"))
 (add-to-list 'load-path my/dir-elisp)
 
@@ -21,8 +21,12 @@
 (setq use-package-verbose t             ; log message after loading packages
       use-package-always-ensure t)      ; install all packages if necessary
 (eval-when-compile (require 'use-package))
+
 ;; ** bind-key
-(use-package bind-key)
+(use-package bind-key
+  :config
+  (bind-keys
+   ("RET" . newline-and-indent)))
 
 ;; ** delight
 (use-package delight
@@ -40,9 +44,72 @@
 (defconst my/dir (concat user-emacs-directory ".user/"))
 (defconst my/dir-autosave (concat my/dir "autosaves/"))
 (defconst my/dir-my-elisp (concat my/dir "elisp/"))
+(defconst my/custom-file (concat my/dir-my-elisp "custom.el"))
 (load (concat my/dir-my-elisp "private.el") t) ; passwords and sensitive info
 (setq user-full-name "Kelly Stewart")
 
+;; * basic settings
+;; ** settings
+(setq
+ read-file-name-completion-ignore-case t ; ignore case in completions
+ sentence-end-double-space nil          ; double space is dumb
+ tab-always-indent nil                  ; tab inserts a character
+ smooth-scroll-margin 3                 ; fewer lines visible at buffer ends
+ windmove-wrap-around t                 ; window movements wrap around the frame
+ apropos-compact-layout t               ; single line per binding
+ woman-imenu t                          ; add contents menu to menubar
+ save-interprogram-paste-before-kill t  ; save clipboard to kill-ring
+ kill-do-not-save-duplicates t          ; no duplicates in kill-ring
+ line-move-visual t                     ; visual line movement
+ ;; builtin
+ user-mail-address "stewart.g.kelly@gmail.com" ; manually define email address
+ frame-title-format "%b - emacs"        ; buffer name as frame title
+ window-combination-resize t            ; use proportional window resize
+ echo-keystrokes 0.1                    ; echo unfinished commands faster
+ x-underline-at-descent-line t          ; draw underline lower
+ ring-bell-function 'ignore             ; alarms
+ delete-by-moving-to-trash t            ; use system trash for deletion
+ tab-width 4                            ; tabs with width 4
+ ;; startup
+ inhibit-startup-screen t               ; no start screen
+ initial-scratch-message nil            ; no scratch message
+ initial-major-mode 'text-mode)         ; scratch text mode
+
+(setq-default indent-tabs-mode nil      ; turn tabs to spaces
+              fill-column 80)           ; recommended text width
+
+(fset 'yes-or-no-p #'y-or-n-p)          ; less annoying
+(set-frame-font "Input Mono Condensed-9") ; main font
+(set-face-attribute 'variable-pitch nil :family "Input Serif") ; headline fonts
+
+;; Hide the stupidly specific echo area message
+(defun display-startup-echo-area-message () nil)
+
+;; ** MS-Windows
+;; Keys intercepted by system
+;; s-L  lock screen
+;; s-d  display and hide desktop
+(when (equal window-system 'w32)
+  ;; Read left-window key as `super'
+  (setq w32-pass-lwindow-to-system nil
+        w32-lwindow-modifier 'super))
+
+;; ** modes
+(mouse-wheel-mode t)                    ; Mouse wheel enabled
+(goto-address-mode t)                   ; Highlight and buttonize URLs
+(file-name-shadow-mode t)               ; Dim expanded filename parts
+(show-paren-mode t)                     ; Highlight matching parens
+(electric-indent-mode t)                ; Auto indent
+(electric-pair-mode t)                  ; Auto add parens
+(global-prettify-symbols-mode t)        ; Pretty symbols
+(add-hook 'prog-mode-hook #'semantic-mode) ; Language-aware manipulations
+(add-hook 'prog-mode-hook (lambda()(line-number-mode -1))) ; Modeline line num
+(add-hook 'prog-mode-hook (lambda()(column-number-mode -1))) ; Modeline col num
+
+;; we don't need no stinkin GUI
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+(blink-cursor-mode -1)
 ;; * custom commands
 ;; ** my/cleanup
 (defun my/cleanup ()
@@ -80,6 +147,28 @@ the buffer to be read-only."
   (dir-locals-set-directory-class package-user-dir class))
 
 (my/source-class-apply 'readonly)       ; View packages in read-only mode
+
+;; ** my/handwrite
+(defun my/handwrite ()
+  "Sets fonts for emulating my handwritten words. For estimating length of text
+if it were handwritten."
+  (interactive)
+  (setq solarized-scale-org-headlines nil)
+  (set-face-attribute 'default nil
+                      :family "Kelly Normal"
+                      :height 240)
+  (set-face-attribute 'variable-pitch nil
+                      :height (lambda(inherited) (+ 90))))
+
+(defun my/handwrite-off ()
+  "Reset fonts to my defaults."
+  (interactive)
+  (setq solarized-scale-org-headlines t)
+  (set-face-attribute 'default nil
+                      :family "Input Mono Condensed"
+                      :height 90)
+  (set-face-attribute 'variable-pitch nil
+                      :height 'unspecified))
 
 ;; ** esc quits
 ;; From https://github.com/davvil/.emacs.d/blob/master/init.el
@@ -140,64 +229,6 @@ outside writeroom mode."
           mode-line-misc-info
           mode-line-end-spaces)))
 
-;; * basic settings
-;; ** settings
-(setq
- read-file-name-completion-ignore-case t ; ignore case in completions
- sentence-end-double-space nil          ; double space is dumb
- tab-always-indent nil                  ; tab inserts a character
- smooth-scroll-margin 3                 ; fewer lines visible at buffer ends
- windmove-wrap-around t                 ; window movements wrap around the frame
- apropos-compact-layout t               ; single line per binding
- woman-imenu t                          ; add contents menu to menubar
- ;; builtin
- user-mail-address "stewart.g.kelly@gmail.com" ; manually define email address
- frame-title-format "%b - emacs"        ; buffer name as frame title
- window-combination-resize t            ; use proportional window resize
- echo-keystrokes 0.1                    ; echo unfinished commands faster
- x-underline-at-descent-line t          ; draw underline lower
- ring-bell-function 'ignore             ; alarms
- delete-by-moving-to-trash t            ; use system trash for deletion
- tab-width 4                            ; tabs with width 4
- ;; startup
- inhibit-startup-screen t               ; no start screen
- initial-scratch-message nil            ; no scratch message
- initial-major-mode 'text-mode)         ; scratch text mode
-
-(setq-default indent-tabs-mode nil      ; turn tabs to spaces
-              fill-column 80)           ; recommended text width
-
-(fset 'yes-or-no-p #'y-or-n-p)          ; less annoying
-(set-frame-font "Input Mono Condensed-9") ; main font
-(set-face-attribute 'variable-pitch nil :family "Input Serif") ; headline fonts
-
-;; Hide the stupidly specific echo area message
-(defun display-startup-echo-area-message () nil)
-
-;; ** modes
-(mouse-wheel-mode t)                    ; Mouse wheel enabled
-(goto-address-mode t)                   ; Highlight and buttonize URLs
-(file-name-shadow-mode t)               ; Dim expanded filename parts
-(show-paren-mode t)                     ; Highlight matching parens
-(electric-indent-mode t)                ; Auto indent
-(electric-pair-mode t)                  ; Auto add parens
-(global-prettify-symbols-mode t)        ; Pretty symbols
-(add-hook 'prog-mode-hook #'semantic-mode) ; Language-aware manipulations
-
-;; we don't need no stinkin GUI
-(tool-bar-mode -1)
-(scroll-bar-mode -1)
-(blink-cursor-mode -1)
-;; ** simple
-(use-package simple :ensure nil         ; Misc builtin simple Emacs commands
-  :bind ("RET" . newline-and-indent)    ; auto-indent new lines
-  :config
-  (setq save-interprogram-paste-before-kill t  ; save clipboard to kill-ring
-        kill-do-not-save-duplicates t          ; no duplicates in kill-ring
-        line-move-visual t)                    ; visual line movement
-  (line-number-mode t)                  ; modeline line num
-  (column-number-mode t))               ; modeline col num
-
 ;; * evil
 ;; Vim keybindings and modal editing
 (use-package evil
@@ -226,6 +257,8 @@ outside writeroom mode."
   (use-package evil-args                ; Manipulate function arguments
     ;; cia - change inner argument
     ;; daa - delete an argument
+    :init
+    (add-hook 'emacs-lisp-mode-hook (lambda()(setq evil-args-delimiters '(" "))))
     :config
     (bind-keys :map (evil-normal-state-map evil-motion-state-map)
                ("L" . evil-forward-arg)
@@ -236,8 +269,7 @@ outside writeroom mode."
     (bind-key "a" #'evil-outer-arg evil-outer-text-objects-map))
 
   ;; *** evil-matchit
-  ;; Manipulate tags
-  (use-package evil-matchit
+  (use-package evil-matchit             ; Manipulate tags
     :defines evilmi-may-jump-percentage
     :config
     (setq evilmi-may-jump-percentage nil) ; num% jumps num times
@@ -296,7 +328,10 @@ command. Uses jk as default combination."
    ("C-l" . evil-window-right)
    ("C-k" . evil-window-up)
    ("C-h" . evil-window-left)
-   ("C-j" . evil-window-down))
+   ("C-j" . evil-window-down)
+   ;; scrolling
+   ("M-n" . evil-scroll-down)
+   ("M-p" . evil-scroll-up))
 
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map)
@@ -437,11 +472,12 @@ command. Uses jk as default combination."
 (use-package git-messenger :disabled t) ; Show commit message
 
 ;; ** helm
-(use-package helm              ; Fuzzy minibuffer completion
+(use-package helm-config :ensure helm   ; Fuzzy minibuffer completion
   :delight helm-mode
   :demand t
   :commands helm-autoresize-mode
-  ;; *** helm/bindings
+  :init (setq helm-command-prefix-key "C-c h")
+  ;; *** helm/global bindings
   :bind (;; Helm replacements
          ("M-x" . helm-M-x)
          ("M-s o" . helm-occur)
@@ -449,14 +485,24 @@ command. Uses jk as default combination."
          ("C-x r i" . helm-register)
          ("C-x b" . helm-mini)
          ("C-x C-f" . helm-find-files)
+         ("<help> l" . helm-locate-library)
          ("<help> C-a" . helm-apropos)
-         ("<help> C-l" . helm-locate-library)
+         ("<help> C-l" . view-lossage)
          ;; Additional Helm functions
          ("<help> C-r" . helm-info-at-point)
          ("<help> C-w" . helm-man-woman))
+  ;; *** helm/init
+  :init
+  (setq helm-move-to-line-cycle-in-source t     ; cycle on buffer end
+        helm-display-header-line nil            ; no header line
+        helm-scroll-amount 5                    ; scroll amount in other window
+        helm-split-window-in-side-p t)          ; split inside current window
   ;; *** helm/config
   :config
+
   ;; **** helm/builtins
+  ;; TODO move packages out of use-package declarations
+  ;;      no idea why I even put them in there ugh
   ;; ***** helm-adaptive
   (use-package helm-adaptive :ensure nil ; Adaptive search
     :config
@@ -471,10 +517,6 @@ command. Uses jk as default combination."
   (use-package helm-command :ensure nil
     :config (setq helm-M-x-fuzzy-match t           ; fuzzy matching
                   helm-M-x-always-save-history t)) ; save history even on fail
-
-  ;; ***** helm-config
-  (use-package helm-config :ensure nil
-    :config (setq helm-command-prefix-key "C-c h"))
 
   ;; ***** helm-elisp
   (use-package helm-elisp :ensure nil   ; Elisp
@@ -507,7 +549,10 @@ command. Uses jk as default combination."
   (use-package helm-imenu :ensure nil :config (setq helm-imenu-fuzzy-match t))
 
   ;; ***** helm-info
-  (use-package helm-info :ensure nil :bind ("<help> r" . helm-info-emacs))
+  (use-package helm-info :ensure nil
+    :bind (("<help> i" . helm-info-emacs)
+           ("<help> I" . helm-info-elisp)
+           ("<help> M-i" . helm-info-at-point)))
 
   ;; ***** helm-locate
   (use-package helm-locate :ensure nil :config (setq helm-locate-fuzzy-match t))
@@ -549,12 +594,21 @@ command. Uses jk as default combination."
             projectile-switch-project-action #'helm-projectile
             helm-projectile-fuzzy-match t)
       (helm-projectile-on)))
+
   ;; ***** -helm-swoop
   (use-package helm-swoop :disabled t   ; Find things among multiple buffers
     :bind ("C-M-s" . helm-swoop)
     :config
     (bind-key "M-i" #'helm-swoop-from-isearch isearch-mode-map)
     (bind-key "M-i" #'helm-multi-swoop-from-helm-swoop helm-swoop-map))
+
+  ;; **** helm/bindings
+  (bind-keys
+   :map helm-map
+   ("<C-S-up>" . helm-scroll-other-window)
+   ("<C-S-down>". helm-scroll-other-window-down)
+   ([tab] . helm-execute-persistent-action) ; execute action without closing
+   ("C-z" . helm-select-action))            ; list actions
 
   ;; **** helm/evil
   (bind-keys :map (evil-normal-state-map
@@ -563,21 +617,16 @@ command. Uses jk as default combination."
              (",b" . helm-mini)
              (",f" . helm-find-files)
              (",,hl" . helm-locate)
-             (",,ho" . helm-occur)
-             (",,hi" . helm-semantic-or-imenu))
+             (",,ho" . helm-occur))
 
   (bind-keys :map (evil-normal-state-map
                    evil-motion-state-map
                    evil-insert-state-map)
+             ("C-c C-h" . helm-resume)
              ("C-y" . helm-show-kill-ring)
              ("C-/" . helm-semantic-or-imenu))
 
-  ;; **** helm/settings and cleanup
-  ;; TODO remap `C-j' to something easier to use
-
-  (setq helm-move-to-line-cycle-in-source t     ; cycle on buffer end
-        helm-display-header-line nil            ; no header line
-        helm-split-window-in-side-p t)          ; split inside current window
+  ;; **** helm/enable
   (helm-autoresize-mode t))
 
 ;; ** linum
@@ -777,9 +826,9 @@ command. Uses jk as default combination."
 ;; ** -edit-list
 (use-package edit-list :disabled t)     ; Makes it easier to edit elisp lists
 
-;; ** -expand-region
+;; ** expand-region
 ;; Seems useful, need to get used to
-(use-package expand-region :disabled t  ; Expand functions block at a time
+(use-package expand-region               ; Expand functions block at a time
   :bind ("C-=" . er/expand-region))
 
 ;; ** flyspell
@@ -833,10 +882,7 @@ command. Uses jk as default combination."
              ("C-c l" . outline-demote))
 
   ;; *** outline/hooks
-  (add-hook 'prog-mode-hook #'outline-minor-mode)
-  ;; I never want to call outline-mode as a major mode, so alias it to
-  ;; always call the minor mode function.
-  (defalias #'outline-mode #'outline-minor-mode))
+  (add-hook 'prog-mode-hook #'outline-minor-mode))
 
 
 ;; ** smartparens
@@ -970,29 +1016,27 @@ command. Uses jk as default combination."
 ;; * tools
 ;; ** cus-edit
 (use-package cus-edit :ensure nil       ; Customize user variables
-  :defer t
   :defines my/custom-file
-  :init
+  :preface (load my/custom-file 'no-error 'no-message) ; load custom file
+  :config
   (add-to-list 'evil-motion-state-modes 'Custom-mode) ; Start in motion state
-  ;; define and load custom file
-  (defconst my/custom-file (concat my/dir-my-elisp "custom.el"))
-  (load my/custom-file 'no-error 'no-message)
-  :config (setq custom-file my/custom-file         ; where to save customization
-                custom-buffer-done-kill t          ; kill buffer when closing
-                custom-raised-buttons nil          ; use brackets for buttons
-                ;; show real variable names
-                custom-unlispify-tag-names nil
-                custom-unlispify-menu-entries nil))
+  (setq custom-file my/custom-file         ; where to save customization
+        custom-buffer-done-kill t          ; kill buffer when closing
+        custom-raised-buttons nil          ; use brackets for buttons
+        ;; show real variable names
+        custom-unlispify-tag-names nil
+        custom-unlispify-menu-entries nil))
 
 ;; ** flycheck
 (use-package flycheck          ; On-the-fly syntax checking
+  ;; FIXME doesn't work with my init file why
   :demand t
-  :functions my/flycheck-mode-line-status flycheck-mode-line-status-text
+  :functions my/flycheck-mode-line flycheck-mode-line-status-text
   :commands flycheck-count-errors
   :config
-  ;; *** flycheck modeline
-  (defalias #'flycheck-mode-line-status-text #'my/flycheck-mode-line-status)
-  (defun my/flycheck-mode-line-status (&optional status)
+  ;; *** flycheck/modeline
+  (defalias #'flycheck-mode-line-status-text #'my/flycheck-mode-line)
+  (defun my/flycheck-mode-line (&optional status)
     "Get a text describing STATUS for use in the mode line.
 
 STATUS defaults to `flycheck-last-status-change' if omitted or
@@ -1017,13 +1061,13 @@ nil."
     :commands flycheck-tip-use-timer
     :config (flycheck-tip-use-timer 'verbose))
 
-  ;; *** flycheck evil bindings
+  ;; *** flycheck/evil
   (bind-keys :map evil-normal-state-map
              (",,F" . helm-flycheck)
              (",,fj" . flycheck-next-error)
              (",,fl" . flycheck-previous-error))
 
-  ;; *** flycheck settings
+  ;; *** flycheck/hooks
   (add-hook 'prog-mode-hook #'flycheck-mode))
 
 
@@ -1033,10 +1077,11 @@ nil."
 ;; ** magit
 (use-package magit             ; Git version control management
   :bind (("C-x m" . magit-status))
-  :init (setq magit-last-seen-setup-instructions "1.4.0") ; hide startup msg
-  :config (setq magit-save-some-buffers 'dontask ; don't ask before saving
-                magit-diff-options '("-b")       ; ignore whitespace
-                magit-auto-revert-mode nil))     ; don't revert
+  :init
+  (setq
+   magit-save-some-buffers 'dontask           ; don't ask before saving
+   magit-last-seen-setup-instructions "1.4.0" ; clear startup message
+   magit-diff-options '("-b")))               ; ignore whitespace in diffs
 
 ;; ** org
 (use-package org
@@ -1130,6 +1175,7 @@ nil."
 ;; ** ispell
 (use-package ispell
   :config (setq ispell-silently-savep t       ; save without asking confirmation
+                ispell-quietly t              ; no messages please
                 ispell-personal-dictionary "~/.local/share/aspell/aspell.pws"))
 
 ;; * languages
@@ -1209,7 +1255,6 @@ nil."
 (setq confirm-kill-emacs (if (window-system) 'yes-or-no-p nil))
 
 ;; Local Variables:
-;; evil-args-delimiters: (" ")
 ;; no-byte-compile: t
 ;; outline-regexp: " *;; [*]\\{1,8\\} "
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
