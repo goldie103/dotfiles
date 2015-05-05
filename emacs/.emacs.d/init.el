@@ -721,23 +721,25 @@ command. Uses jk as default combination."
   :functions (projectile-project-p
               projectile-project-root
               projectile-current-project-dirs)
+;; *** projectile/init
+  :init
+  (setq
+   projectile-enable-caching t        ; cache projectile indexes
+   projectile-indexing-method 'alien  ; use faster OS methods
+   ;; don't clutter my .emacs.d please
+   projectile-cache-file (expand-file-name "projectile.cache" my/dir)
+   projectile-known-projects-file (expand-file-name
+                                   "projectile-known.eld" my/dir)
+   ;; pretty Greek symbols
+   projectile-mode-line '(:eval (format " π:%s" (projectile-project-name))))
+;; *** projectile/config
   :config
-  ;; *** projectile evil bindings
   (bind-keys :map (evil-normal-state-map
                    evil-motion-state-map)
              (",F" . helm-projectile-find-file-dwim)
-             (",,P" . helm-projectile)
-             (",,pF" . helm-projectile-find-file-in-known-projects))
+             (",p" . helm-projectile)
+             (",P" . projectile-dired))
 
-  ;; *** projectile settings
-  (setq
-   projectile-cache-file (concat my/dir "projectile.cache") ; cache file
-   projectile-enable-caching t        ; cache projectile indexes
-   projectile-indexing-method 'alien  ; use faster OS methods
-   ;; FIXME this isn't saving?
-   projectile-known-projects-file (concat my/dir "projectile-known.eld")
-   ;; pretty Greek symbols
-   projectile-mode-line '(:eval (format " π:%s" (projectile-project-name))))
   (projectile-global-mode t))
 
 ;; * editing
