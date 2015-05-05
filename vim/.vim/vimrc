@@ -1,5 +1,4 @@
 " Kelly Stewart
-" TODO turn off cursor blinking
 " TODO system clipboard ugh
 set nocompatible
 " Plugins {{{
@@ -10,6 +9,7 @@ call vundle#begin()
 
 Plugin 'gmarik/Vundle.vim'
 
+" TODO vim-args
 Plugin 'tpope/vim-commentary'           " comment manipulation
 Plugin 'tpope/vim-surround'             " deal with surrounding elements
 Plugin 'bling/vim-airline'              " status bar additions
@@ -60,7 +60,6 @@ let g:airline_symbols.whitespace = 'Ξ'
 " }}}
 " Appearance {{{
 syntax on
-set hlsearch
 color solarized
 set background=dark
 set showmatch                  " highlight matching brackets
@@ -147,19 +146,19 @@ noremap Y y$
 " easier to reach commands for common movements
 noremap a ^
 noremap s $
-noremap S %
+noremap " %
+noremap <TAB> za
+noremap <f1> :h 
+noremap <SPACE> :
+noremap gb :bn<CR>
+noremap gB :bp<CR>
+inoremap jk <ESC>
 " move through wrapped lines visually
 noremap j gj
 noremap k gk
 " ... and move linewise with old visual line commands
 noremap gj j
 noremap gk k
-" jk to exit insert mode
-inoremap jk <ESC>
-" clear search highlight through <CR> press
-nnoremap <silent><CR> :noh<CR><CR>
-" <SPACE> to command
-noremap <SPACE> :
 " split movement
 nnoremap <C-l> <C-w>l
 nnoremap <C-k> <C-w>k
