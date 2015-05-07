@@ -706,7 +706,7 @@ command. Uses jk as default combination."
 ;; * navigation
 ;; ** -ace-jump-mode
 ;; Consider as possible alternative to relative line numbers with evil-mode
-(use-package ace-jump-mode) ; Jump to specific lines with letters
+(use-package ace-jump-mode :disabled t) ; Jump to specific lines with letters
 
 ;; ** -desktop
 (use-package desktop :disabled t        ; Save and restore Emacs sessions state
@@ -1265,5 +1265,4 @@ nil."
 ;; Local Variables:
 ;; no-byte-compile: t
 ;; outline-regexp: " *;; [*]\\{1,8\\} "
-;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
 ;; End:
