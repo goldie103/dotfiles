@@ -78,12 +78,10 @@
 (setq-default indent-tabs-mode nil      ; turn tabs to spaces
               fill-column 80)           ; recommended text width
 
-(fset 'yes-or-no-p #'y-or-n-p)          ; less annoying
-(set-frame-font "Input Mono Condensed-9") ; main font
-(set-face-attribute 'variable-pitch nil :family "Input Serif") ; headline fonts
-
-;; Hide the stupidly specific echo area message
-(defun display-startup-echo-area-message () nil)
+(fset 'yes-or-no-p #'y-or-n-p)                   ; less annoying
+(defun display-startup-echo-area-message () nil) ; no message please
+(set-frame-font "Input Mono Condensed-9")        ; body font
+(set-face-attribute 'variable-pitch nil :family "Input Serif") ; headline font
 
 ;; ** MS-Windows
 ;; Keys intercepted by system
@@ -120,61 +118,52 @@
   (whitespace-cleanup))                    ; whitespace stuff
 
 ;; ** my/source-class
-(defvar my/source-class-base-vars
-  '((tab-width . 8)
-    (eval . (whitespace-mode -1))
-    (eval . (linum-mode -1)))
-  "Base local variables to apply to directories when `my/apply-source-class' is
-called.")
+(defun my/source-class-apply-readonly (readonlyp)
+  "Creates a directory class for source code containing sensible options for
+source packages, and a variable indicating the file is read-only depending on
+the given argument."
+  (let ((class-vars '((tab-width . 8)
+                      (eval . (whitespace-mode -1))
+                      (eval . (linum-mode -1))))
+        (readonly-var (if readonlyp
+                          '(buffer-read-only . t)
+                        '())))
 
-;; Actual class variables
-(dir-locals-set-class-variables
- 'readonly
- `((nil . ,(append '((buffer-read-only . t)) my/source-class-base-vars))))
+    (dir-locals-set-class-variables
+     'package
+     `((nil . ,(append readonly-var class-vars)))))
 
-(dir-locals-set-class-variables
- 'base
- `((nil . ,my/source-class-base-vars)))
-
-;; Need this to allow easily turning read-only off so packages can be installed
-;; and updated from package.el
-(defun my/source-class-apply (class)
-  "Interactively ask for a class to apply to `package-user-dir'. Currently can
-be either `base', which turns off whitespace and linum mode, or
-`readonly', which does the same as `source' with the addition of setting
-the buffer to be read-only."
-  (interactive "S")
-  (dir-locals-set-directory-class package-user-dir class))
-
-(my/source-class-apply 'readonly)       ; View packages in read-only mode
+  (dir-locals-set-directory-class package-user-dir 'package))
 
 ;; ** my/handwrite
-(defun my/handwrite ()
-  "Sets fonts for emulating my handwritten words. For estimating length of text
-if it were handwritten."
+(defun my/make-handwrite-frame ()
+  "Create a frame using handwriting faces and regular-sized org headlines."
   (interactive)
-  (setq solarized-scale-org-headlines nil)
-  (set-face-attribute 'default nil
-                      :family "Kelly Normal"
-                      :height 240)
-  (set-face-attribute 'variable-pitch nil
-                      :height (lambda(inherited) (+ 90))))
 
-(defun my/handwrite-off ()
-  "Reset fonts to my defaults."
-  (interactive)
-  (setq solarized-scale-org-headlines t)
-  (set-face-attribute 'default nil
-                      :family "Input Mono Condensed"
-                      :height 90)
-  (set-face-attribute 'variable-pitch nil
-                      :height 'unspecified))
+  (let ((new-family "Kelly Normal")
+        (new-height 220)
+        (default-family (internal-get-lisp-face-attribute 'default :family nil))
+        (default-height (internal-get-lisp-face-attribute 'default :height nil))
+        (default-solarized-scale-org-headlines solarized-scale-org-headlines))
+
+  ;; Apply handwriting frame settings
+  (setq solarized-scale-org-headlines nil)
+  (set-face-attribute 'default t :family new-family :height new-height)
+  (set-face-attribute 'variable-pitch t :height default-height)
+
+  ;; Create frame with current frame height and absolute width
+  (make-frame `((height . ,(frame-height)) (width . 60)))
+
+  ;; Reset to previous default frame settings
+  (setq solarized-scale-org-headlines default-solarized-scale-org-headlines)
+  (set-face-attribute 'default t :family default-family :height default-height)
+  (set-face-attribute 'variable-pitch t :height 'unspecified)))
 
 ;; ** esc quits
 ;; From https://github.com/davvil/.emacs.d/blob/master/init.el
 (defun minibuffer-keyboard-quit ()
   "Abort recursive edit.
-In Delete Selection mode, if the mark is active, just deactivete it;
+In Delete Selection mode, if the mark is active, just deactivate it;
 then it takes a second \\[keyboard-quit] to abort the minibuffer."
   (interactive)
   (if (and delete-selection-mode transient-mark-mode mark-active)
@@ -193,8 +182,9 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 ;; ** text-mode
 ;; *** my/prose-based-hook
 (defun my/prose-based-hook ()
-  "Enable and disable modes for prose-based editing."
+  "Apply modes and settings for editing text meant for humans to read."
   (interactive)
+  ;; (set-face-attribute 'default :family "Input Sans Condensed")
   (visual-line-mode t)
   (flyspell-mode t)
   (typo-mode t)
@@ -356,9 +346,9 @@ command. Uses jk as default combination."
    (",f" . find-file)
    (",b" . list-buffers)
    (",w" . save-buffer)
-   (",x" . eval-region)
-   (",X" . eval-buffer)
-   ([escape] . keyboard-quit))
+   (",x" . eval-defun)
+   (",X" . eval-region)
+   ("<escape>" . keyboard-quit))
 
   ;; *** evil/bindings/misc
   ;; ESC quits the minibuffer
@@ -370,7 +360,7 @@ command. Uses jk as default combination."
              ("<escape>" . minibuffer-keyboard-quit))
 
   ;; ** evil/settings
-  (setq evil-want-fine-undo t            ; undo tracks delete as well
+  (setq evil-want-fine-undo nil          ; undo insertions in single steps
         evil-want-change-word-to-end nil ; don't let cw behave like ce
         evil-echo-state nil              ; we have state in the modeline anyway
         evil-ex-substitute-global t)     ; global substitutions by default
@@ -439,6 +429,7 @@ command. Uses jk as default combination."
 
 ;; ** rainbow-mode
 (use-package rainbow-mode               ; Highlight color codes
+  :defer t
   :delight rainbow-mode
   :config (add-hook 'prog-mode-hook #'rainbow-turn-on))
 
@@ -449,10 +440,9 @@ command. Uses jk as default combination."
   (setq
    whitespace-action '(auto-cleanup)      ; clean bogus whitespace on write
    whitespace-line-column nil           ; use fill-column value
-   ;; only visualise trailing whitespace and tails of long lines
+   ;; only visualize trailing whitespace and tails of long lines
    whitespace-style '(face trailing lines-tail))
-  (add-hook 'prog-mode-hook 'whitespace-mode)
-  (whitespace-mode t))
+  (add-hook 'prog-mode-hook #'whitespace-mode))
 
 ;; ** writegood-mode
 (use-package writegood-mode             ; Highlight poor forms in writing
@@ -460,13 +450,9 @@ command. Uses jk as default combination."
   :bind (("C-c C-g" . writegood-grade-level)
          ("C-c C-S-g" . writegood-reading-ease)))
 
-;; ** color theme
-(use-package solarized-theme :config (load-theme 'solarized-dark))
-(use-package zenburn-theme :disabled t :config (load-theme 'hc-zenburn))
-
 ;; * interface
 ;; ** -anzu
-(use-package anzu :disabled t)          ; Search matche count in modeline
+(use-package anzu :disabled t)          ; Search match count in modeline
 
 ;; ** -git-messenger
 (use-package git-messenger :disabled t) ; Show commit message
@@ -670,6 +656,7 @@ command. Uses jk as default combination."
    sml/battery-format "%b%p[%t]"              ; battery format
    sml/mule-info nil                          ; don't show buffer encoding
    sml/projectile-replacement-format "[π:%s]" ; format for projectile prefixes
+   sml/no-confirm-load-theme t                ; TODO fix so this isn't required
    sml/use-projectile-p 'after-prefix) ; projectile file prefix if necessary
 
   (add-to-list 'sml/replacer-regexp-list
@@ -719,7 +706,7 @@ command. Uses jk as default combination."
 ;; * navigation
 ;; ** -ace-jump-mode
 ;; Consider as possible alternative to relative line numbers with evil-mode
-(use-package ace-jump-mode  :disabled t) ; Jump to specific lines with letters
+(use-package ace-jump-mode) ; Jump to specific lines with letters
 
 ;; ** -desktop
 (use-package desktop :disabled t        ; Save and restore Emacs sessions state
@@ -815,19 +802,18 @@ command. Uses jk as default combination."
 (use-package company                    ; Autocompletion in code
   ;; FIXME won't work in elisp buffers
   :demand t
-  :config
+  :init
   (setq company-idle-delay nil            ; attempt completion immediately
         company-show-numbers t            ; show quick-access nums
         company-auto-complete t           ; auto complete on special char insert
         company-lighter-base "Aψ"
         company-selection-wrap-around t)  ; wrap back around when selecting
-  (add-hook 'prog-mode-hook #'company-mode))
+  :config (add-hook 'prog-mode-hook #'company-mode))
 
 ;; ** -edit-list
 (use-package edit-list :disabled t)     ; Makes it easier to edit elisp lists
 
 ;; ** expand-region
-;; Seems useful, need to get used to
 (use-package expand-region               ; Expand functions block at a time
   :bind ("C-=" . er/expand-region))
 
@@ -893,10 +879,12 @@ command. Uses jk as default combination."
   :config
   ;; TODO add evil bindings for sp commands
   (use-package smartparens-config :ensure nil)
+  (electric-pair-mode -1)        ; disable so we don't get duplicate quote marks
   (smartparens-global-mode t)
   (show-smartparens-mode t))
 
 ;; ** typo
+;; TODO change EM-DASH character to second mark
 (use-package typo :delight typo-mode)  ; Insert typographical characters
 
 ;; ** undo-tree
@@ -1017,11 +1005,24 @@ command. Uses jk as default combination."
 ;; ** cus-edit
 (use-package cus-edit :ensure nil       ; Customize user variables
   :defines my/custom-file
-  :preface (load my/custom-file 'no-error 'no-message) ; load custom file
+  :init
+  (load my/custom-file 'no-error 'no-message) ; load custom file
+  (setq custom-file my/custom-file)     ; where to save customization
   :config
+
+  ;; *** theme
+  ;; custom file settings must be loaded before themes
+  (use-package solarized-theme
+    :init (setq solarized-height-plus-1 1.05
+                solarized-height-plus-2 1.1
+                solarized-height-plus-3 1.15
+                solarized-height-plus-4 1.2)
+    :config (load-theme 'solarized-dark))
+  (use-package zenburn-theme :disabled t :config (load-theme 'hc-zenburn))
+
+  ;; *** cus-edit/settings
   (add-to-list 'evil-motion-state-modes 'Custom-mode) ; Start in motion state
-  (setq custom-file my/custom-file         ; where to save customization
-        custom-buffer-done-kill t          ; kill buffer when closing
+  (setq custom-buffer-done-kill t          ; kill buffer when closing
         custom-raised-buttons nil          ; use brackets for buttons
         ;; show real variable names
         custom-unlispify-tag-names nil
@@ -1094,8 +1095,15 @@ nil."
   (use-package org-indent :ensure nil
     :delight org-indent-mode)
 
-  (set-face-attribute 'org-done nil :strike-through t)
-  (set-face-attribute 'org-headline-done nil :strike-through t)
+  (set-face-attribute 'org-done nil
+                      :inherit 'variable-pitch
+                      :height 'unspecified
+                      :strike-through t)
+  (set-face-attribute 'org-headline-done nil
+                      :inherit 'org-done)
+  (set-face-attribute 'org-todo nil
+                      :inherit 'variable-pitch
+                      :height 'unspecified)
 
   (setq
    org-startup-folded t
