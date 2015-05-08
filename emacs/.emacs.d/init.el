@@ -560,6 +560,7 @@ command. Uses jk as default combination."
          ("<help> C-a" . helm-apropos)
          ("<help> C-l" . view-lossage)
          ;; Additional Helm functions
+         ("C-/" . helm-semantic-or-imenu)
          ("<help> C-r" . helm-info-at-point)
          ("<help> C-w" . helm-man-woman)
          ("<help> i" . helm-info-emacs)
@@ -873,27 +874,31 @@ command. Uses jk as default combination."
 (use-package outline :ensure nil        ; Hierarchical outlining support
   :delight outline-minor-mode
   :bind (("C-c o" . outline-insert-heading))
-
+  ;; *** outline/init
+  :init (bind-keys :map (evil-normal-state-map
+                         evil-motion-state-map)
+                   ("gh" . outline-up-heading)
+                   ("gj" . outline-next-heading)
+                   ("gk" . outline-previous-heading)
+                   ("gl" . outline-forward-same-level)
+                   ("za" . outline-toggle-children)
+                   ("C-c v" . outline-mark-subtree))
   :config
   ;; *** outline/outshine
-  (use-package outshine
-    :config
-    (bind-keys :map (evil-normal-state-map evil-motion-state-map)
+  (use-package outshine                 ; Org-mode style with outline-mode
+    :demand t
+    :commands outshine-hook-function
+    :bind (("C-c t" . outshine-todo)
+           ("C-c h" . outline-promote)
+           ("C-c l" . outline-demote))
+    :init
+    (setq outshine-org-style-global-cycling-at-bob-p t
+          outshine-fontify-whole-heading-line t)
+
+    (bind-keys :map (evil-normal-state-map
+                     evil-motion-state-map)
                ([tab] . outline-cycle))
-
-    (add-hook 'outline-minor-mode #'outshine-hook-function))
-
-  ;; *** outline/bindings
-  (bind-keys
-   :map (evil-normal-state-map evil-visual-state-map evil-motion-state-map)
-   ("gh" . outline-up-heading)
-   ("gj" . outline-next-heading)
-   ("gk" . outline-previous-heading)
-   ("gl" . outline-forward-same-level)
-   ("za" . outline-toggle-children))
-
-  (bind-keys :map (evil-normal-state-map evil-motion-state-map)
-             ("C-c v" . outline-mark-subtree))
+    :config (add-hook 'outline-minor-mode-hook #'outshine-hook-function))
 
   ;; *** outline/hooks
   (add-hook 'prog-mode-hook #'outline-minor-mode))
