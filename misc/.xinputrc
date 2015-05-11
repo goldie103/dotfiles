@@ -4,9 +4,9 @@ xinput disable 11                                # disable touchscreen
 # Key mappings
 options[0]="terminate:ctrl_alt_bksp"              # ctrl+alt+bksp restarts xorg
 options[1]="caps:ctrl_modifier ctrl:nocaps"       # caps lock to ctrl
-# apply each option only if not already applied
+# apply each option if not already applied
 for option in $options; do
-    [[ $(setxkbmap -query | grep $option) ]] || setxkbmap -option $option
+  [[ $(setxkbmap -query | grep $option) ]] || setxkbmap -option $option
 done
 
 # Wacom tablet mappings
