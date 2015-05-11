@@ -43,7 +43,7 @@
   (delight '((emacs-lisp-mode "Elisp" :major)))
   (delight visual-line-mode))
 
-;; ** TODO user info
+;; ** user info
 (defconst my/dir (concat user-emacs-directory ".user/"))
 (defconst my/dir-my-elisp (concat my/dir "elisp/"))
 (load (concat my/dir-my-elisp "private.el") t) ; passwords and sensitive info
@@ -379,9 +379,8 @@ command. Uses jk as default combination."
          magit-last-seen-setup-instructions "1.4.0" ; clear startup message
          magit-diff-options '("-b")))               ; ignore whitespace in diffs
 
-;; ** TODO org
+;; ** org
 (use-package org
-  ;; figure out how to set file path for exports
   :delight org-indent-mode
   :defines (org-export-in-background org-odt-preferred-output-format)
   :init (setq
