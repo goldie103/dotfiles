@@ -1,19 +1,16 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
-;; TODO company not working in elisp buffers
 ;;; Code:
 ;; * setup
 ;; ** package
 (require 'package)
 (setq package-enable-at-startup nil         ; we will manually initialize
-      load-prefer-newer t)                  ; don't load outdated byte code
-
-;; add package archives
-(dolist (archive '(("melpa" . "http://melpa.milkbox.net/packages/")
-                   ("org" . "http://orgmode.org/elpa/")
-                   ("elpy" . "http://jorgenschaefer.github.io/packages/")))
-  (add-to-list 'package-archives archive))
-
+      load-prefer-newer t                   ; don't load outdated byte code
+      package-archives
+      (append package-archives
+              '(("melpa" . "http://melpa.milkbox.net/packages/")
+                ("org" . "http://orgmode.org/elpa/")
+                ("elpy" . "http://jorgenschaefer.github.io/packages/"))))
 (package-initialize)                    ; manually initialize
 
 ;; non-MELPA packages
@@ -30,7 +27,15 @@
         use-package-always-ensure t))     ; install all packages if necessary
 
 ;; ** bind-key
-(use-package bind-key :bind ("RET" . newline-and-indent))
+(use-package bind-key
+  :bind (
+         ("RET" . newline-and-indent)
+         ;; window movement
+         ("C-l" . other-window)
+         ("C-h" . other-frame)
+         ;; scrolling
+         ("C-k" . scroll-down)
+         ("C-j" . scroll-up)))
 
 ;; ** delight
 (use-package delight
@@ -38,10 +43,9 @@
   (delight '((emacs-lisp-mode "Elisp" :major)))
   (delight visual-line-mode))
 
-;; ** user info
+;; ** TODO user info
 (defconst my/dir (concat user-emacs-directory ".user/"))
 (defconst my/dir-my-elisp (concat my/dir "elisp/"))
-;; TODO why this not work
 (load (concat my/dir-my-elisp "private.el") t) ; passwords and sensitive info
 (setq user-full-name "Kelly Stewart")
 
@@ -75,13 +79,23 @@
               fill-column 80)           ; recommended text width
 
 (fset 'yes-or-no-p #'y-or-n-p)          ; less annoying
-
-(set-frame-font "Input Mono Condensed-9")
-(set-face-attribute 'variable-pitch nil :family "Input Serif") ; headline font
-
 (defun display-startup-echo-area-message () "Remove dumb start message." nil)
 
+;; (when (eq system-type 'windows-nt)
+;;   (setq w32-pass-apps-to-system nil
+;;         w32-apps-modifier 'hyper
+;;         ;; Super is Windows key
+;;         ;; Taken mappings: s-l s-r
+;;         w32-lwindow-modifier 'super
+;;         w32-pass-lwindow-to-system nil))
+
+;; ** fonts
+(set-frame-font "Input Mono Condensed-9")
+(set-face-attribute 'variable-pitch nil :family "Fantasque Sans Mono")
+
 ;; ** modes
+
+;; global modes
 (mouse-wheel-mode t)                    ; Mouse wheel enabled
 (goto-address-mode t)                   ; Highlight and buttonize URLs
 (file-name-shadow-mode t)               ; Dim expanded filename parts
@@ -89,14 +103,22 @@
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
 (global-prettify-symbols-mode t)        ; Pretty symbols
-(add-hook 'prog-mode-hook #'semantic-mode) ; Language-aware manipulations
-(add-hook 'prog-mode-hook (lambda()(line-number-mode -1))) ; Modeline line num
-(add-hook 'prog-mode-hook (lambda()(column-number-mode -1))) ; Modeline col num
 
 ;; we don't need no stinkin GUI
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
 (blink-cursor-mode -1)
+(unless (window-system) (menu-bar-mode -1)) ; disable menu bar in terminal
+
+;; *** prog-mode hooks
+(dolist (func '((lambda()(column-number-mode t)) ; Modeline col num
+                (lambda()(line-number-mode t))   ; Modeline line num
+                semantic-mode))             ; Language-aware manipulations
+  (add-hook 'prog-mode-hook func))
+
+;; *** text-mode hooks
+(add-hook 'text-mode-hook #'my/prose-based-hook)
+
 ;; * custom commands
 ;; ** my/cleanup
 (defun my/cleanup ()
@@ -121,26 +143,19 @@ Set `buffer-read-only' to the value of READONLYP."
 
   (dir-locals-set-directory-class package-user-dir 'package))
 
-;; ** my/handwrite
-(defun my/make-handwrite-frame ()
-  "Create a frame using handwriting faces and regular-sized org headlines."
-  (interactive)
-
-  (let ((new-family "Kelly Normal")
-        (new-height 220)
-        (default-family (internal-get-lisp-face-attribute 'default :family nil))
-        (default-height (internal-get-lisp-face-attribute 'default :height nil)))
-
-    ;; Apply handwriting frame settings
-    (set-face-attribute 'default t :family new-family :height new-height)
-    (set-face-attribute 'variable-pitch t :height default-height)
-
-    ;; Create frame with current frame height and absolute width
-    (make-frame `((height . ,(frame-height)) (width . 60)))
-
-    ;; Reset to previous default frame settings
-    (set-face-attribute 'default t :family default-family :height default-height)
-    (set-face-attribute 'variable-pitch t :height 'unspecified)))
+;; ** my/english-count-lines
+(use-package face-remap
+  :commands face-remap-remove-relative
+  :init
+  (defun my/english-count-lines ()
+    "Count screen lines in a region with handwriting font activated."
+    (interactive)
+    (let ((handwriting '(:family "Kelly Normal" :height 220)))
+      (unless (member `(default ,handwriting default) face-remapping-alist)
+        (face-remap-add-relative 'default handwriting))
+      (message "%s" (count-screen-lines (region-beginning) (region-end)))
+      (face-remap-remove-relative
+       (face-remap-add-relative 'default handwriting)))))
 
 ;; ** esc quits
 ;; From https://github.com/davvil/.emacs.d/blob/master/init.el
@@ -154,12 +169,13 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
     (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
     (abort-recursive-edit)))
 
-;; ** text-mode
-;; *** my/prose-based-hook
+;; ** my/prose-based-hook
 (defun my/prose-based-hook ()
   "Apply modes and settings for editing text meant for humans to read."
   (interactive)
+  (face-remap-add-relative 'default :family "Input Sans Condensed" :height 100)
   (visual-line-mode t)
+  (visual-fill-column-mode t)
   (flyspell-mode t)
   (typo-mode t)
   (writegood-mode t)
@@ -170,16 +186,17 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
   (linum-mode -1)
   (hl-line-mode -1))
 
-(add-hook 'text-mode-hook #'my/prose-based-hook)
 
-;; *** my/writeroom-effect
+;; ** my/writeroom-effect
 (defun my/writeroom-effect ()
   "Apply effects designed for distraction-free writing for human beings to read.
 Can be used outside writeroom mode."
   (interactive)
   (display-time-mode t)
   (display-battery-mode t)
-  (nyan-mode nil)
+  (which-function-mode -1)
+  (size-indication-mode -1)
+  ;; (nyan-mode nil) ; may not be needed with modeline format
   (setq mode-line-format
         '("%e"
           mode-line-front-space
@@ -195,6 +212,7 @@ Can be used outside writeroom mode."
   :demand t
   :functions maybe-exit
   :commands (evil-set-command-properties
+             evil-yank
              evil-refresh-cursor
              evil-normal-state-p
              evil-motion-state-p
@@ -264,30 +282,23 @@ command. Uses jk as default combination."
          (t (setq unread-command-events (append unread-command-events
                                                 (list evt))))))))
 
+  ;; **** my/evil-yank-to-eol
+  (evil-define-command my/evil-yank-to-eol ()
+    "Call `evil-yank' with point to end of line."
+    (evil-yank (point) (point-at-eol)))
+
   ;; *** evil/bindings
-  ;; **** evil/bindings/state
+  ;; **** evil/bindings/insert
   (bind-key "j" #'maybe-exit evil-insert-state-map) ; jk exits insert state
 
-  (bind-keys
-   :map global-map
-   ;; window movement
-   ("C-l" . evil-window-right)
-   ("C-k" . evil-window-up)
-   ("C-h" . evil-window-left)
-   ("C-j" . evil-window-down)
-   ;; scrolling
-   ("M-n" . evil-scroll-down)
-   ("M-p" . evil-scroll-up))
-
+  ;; **** evil/bindings/normal motion
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map)
-   ;; In a different mapping to exclude visual state
-   ("Y" . (lambda()(evil-yank (point) (point-at-eol))))) ; more consistent
+   ("Y" . my/evil-yank-to-eol)) ; more consistent
 
+  ;; **** evil/bindings/normal motion visual
   (bind-keys
-   :map (evil-normal-state-map
-         evil-visual-state-map
-         evil-motion-state-map)
+   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
    ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
    ("Q" . evil-record-macro)            ; Q replaces old q action
    ;; visual line movement
@@ -316,7 +327,8 @@ command. Uses jk as default combination."
              ("<escape>" . minibuffer-keyboard-quit))
 
   ;; *** evil/enable
-  (add-to-list 'evil-motion-state-modes 'package-menu-mode)
+  (setq evil-motion-state-modes
+        (append evil-motion-state-modes '(package-menu-mode)))
   (evil-mode t))
 
 ;; * tools
@@ -335,15 +347,13 @@ command. Uses jk as default combination."
 ;; ** flycheck
 (use-package flycheck                   ; On-the-fly syntax checking
   :demand t
-  :config
-  ;; *** flycheck/modeline
-  (setq flycheck-mode-line
+  :init (setq flycheck-mode-line
         '(:eval (replace-regexp-in-string
                  "FlyC" "Φ" (flycheck-mode-line-status-text))))
 
+  :config
   ;; *** flycheck-tip
   (use-package flycheck-tip       ; display errors by popup
-    ;; FIXME may or may not clobber company popups
     :commands flycheck-tip-use-timer
     :config (flycheck-tip-use-timer 'verbose))
 
@@ -369,30 +379,26 @@ command. Uses jk as default combination."
          magit-last-seen-setup-instructions "1.4.0" ; clear startup message
          magit-diff-options '("-b")))               ; ignore whitespace in diffs
 
-;; ** org
+;; ** TODO org
 (use-package org
+  ;; figure out how to set file path for exports
   :delight org-indent-mode
   :defines (org-export-in-background org-odt-preferred-output-format)
   :init (setq
-         org-modules '(docview info inlinetask)
+         org-modules '(org-docview org-info org-gnus org-inlinetask)
          org-export-backends '(ascii html odt)
-         org-export-in-background t
          org-odt-preferred-output-format 'doc
          org-startup-folded t
          org-src-fontify-natively t     ; syntax highlight code in org buffer
-         org-fontify-done-headline t    ; fontify whole done headline
          org-list-allow-alphabetical t) ; allow single-char alphabetical lists
 
   :config
-  (set-face-attribute 'org-done nil
-                      :inherit 'variable-pitch
-                      :height 'unspecified
-                      :strike-through t)
-  (set-face-attribute 'org-headline-done nil
-                      :inherit 'org-done)
   (set-face-attribute 'org-todo nil
-                      :inherit 'variable-pitch
-                      :height 'unspecified))
+                      :height 'unspecified
+                      :inherit 'variable-pitch)
+  (set-face-attribute 'org-done nil :strike-through t
+                      :height 'unspecified
+                      :inherit 'variable-pitch))
 
 ;; * faces
 ;; ** fic-ext
@@ -404,16 +410,16 @@ command. Uses jk as default combination."
   (add-to-list 'fic-highlighted-words "FIXME?")
   (add-hook 'prog-mode-hook #'fic-ext-mode))
 
-;; ** golden-ratio
+;; ** TODO golden-ratio
 (use-package golden-ratio               ; Resize windows to golden ratio
   ;; TODO get this to play nice with Helm
   :delight golden-ratio-mode
-  :init (golden-ratio-mode t)
-  :config (setq golden-ratio-exclude-modes '("helm-mode"
-                                             "magit-log-mode"
-                                             "magit-reflog-mode"
-                                             "magit-status-mode")
-                golden-ratio-auto-scale t))     ; auto scale with screen size
+  :init (setq golden-ratio-exclude-modes '("helm-mode"
+                                           "magit-log-mode"
+                                           "magit-reflog-mode"
+                                           "magit-status-mode")
+              golden-ratio-auto-scale t) ; auto scale with screen size
+  :config (golden-ratio-mode t))
 
 ;; ** hl-line
 (use-package hl-line :ensure nil        ; Highlight current cursor line
@@ -438,35 +444,21 @@ command. Uses jk as default combination."
   :functions global-page-break-lines-mode
   :config (global-page-break-lines-mode t))
 
-;; ** nyan-mode
-(use-package nyan-mode         ; Nyan cat scroll bar
+;; ** TODO nyan-mode
+(use-package nyan-mode                  ; Nyan cat scroll bar
+  ;; TODO nyan music ☹
   :demand t
-  :commands (nyan-start
-             nyan-stop
-             nyan-start-music
-             nyan-stop-music
-             nyan-start-animation
-             nyan-stop-animation
-             nyan-mode)
+  :commands nyan-mode
   :functions my/turn-off-nyan-mode
+  :init (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time
   :config
-  (defun nyan-start ()
-    (interactive) (nyan-start-music) (nyan-start-animation)
-    "Start the Nyan ☻.")
-
-  (defun nyan-stop ()
-    (interactive) (nyan-stop-music) (nyan-stop-animation)
-    "Stop the Nyan ☹.")
-
   (defun my/turn-off-nyan-mode () (nyan-mode nil))
-
-  (setq-default nyan-wavy-trail t)      ; TODO wavy nyan trail all the time
   (nyan-mode t))
 
 ;; ** rainbow-mode
 (use-package rainbow-mode               ; Highlight color codes
-  :delight rainbow-mode
   :commands rainbow-turn-on
+  :delight rainbow-mode
   :config (add-hook 'prog-mode-hook #'rainbow-turn-on))
 
 ;; ** whitespace
@@ -483,18 +475,22 @@ command. Uses jk as default combination."
 (use-package writegood-mode             ; Highlight poor forms in writing
   :delight writegood-mode
   :bind (("C-c C-g" . writegood-grade-level)
-         ("C-c C-S-g" . writegood-reading-ease)))
+         ("C-c C-S-g" . writegood-reading-ease))
+  :config (setq writegood-weasel-words (append writegood-weasel-words
+                                               '("thing" "different"))))
 
 ;; ** color theme
 (use-package solarized-theme
   :init (setq
          solarized-scale-org-headlines nil
-         solarized-height-plus-1 1.05
-         solarized-height-plus-2 1.05
-         solarized-height-plus-3 1.05
-         solarized-height-plus-4 1.05)
-  :config (load-theme 'solarized-dark))
-(use-package zenburn-theme :disabled t :config (load-theme 'hc-zenburn))
+         solarized-height-plus-1 1.0
+         solarized-height-plus-2 1.0
+         solarized-height-plus-3 1.0
+         solarized-height-plus-4 1.0))
+
+(use-package zenburn-theme :defer t)
+
+(load-theme 'solarized-dark)
 
 ;; * interface
 ;; ** -anzu
@@ -503,7 +499,7 @@ command. Uses jk as default combination."
 ;; ** helm
 (use-package helm-config :ensure helm   ; Fuzzy minibuffer completion
   :demand t
-  :commands helm-info-emacs
+  :commands helm-info-emacs helm-resume
   :defines (helm-semantic-fuzzy-match
             helm-completion-in-region-fuzzy-match
             helm-imenu-fuzzy-match
@@ -539,7 +535,7 @@ command. Uses jk as default combination."
          helm-ff-file-name-history-use-recentf t ; use recentf
          helm-ff-search-library-in-sexp t        ; get library from functions
          helm-ff-skip-boring-files t             ; skip irrelevant files
-         helm-findutils-search-full-path t  ; search in full path with shell
+         helm-findutils-search-full-path t ; search in full path with shell
          helm-findutils-skip-boring-files t ; skip irrelevant files in shell
          helm-adaptive-history-file (concat my/dir "helm-adaptive-history")
          ;; fuzzy matching everywhere
@@ -553,6 +549,7 @@ command. Uses jk as default combination."
          helm-imenu-fuzzy-match t
          helm-file-cache-fuzzy-match t
          helm-recentf-fuzzy-match t)
+
   ;; *** helm/config
   :config
   ;; silence byte compiler
@@ -560,7 +557,7 @@ command. Uses jk as default combination."
   (use-package helm-adaptive :ensure nil :commands helm-adaptive-mode)
   (use-package helm-info :ensure nil :commands helm-info-emacs helm-info-elisp)
 
-  ;; **** helm/third-party
+  ;; **** helm/packages
   ;; ***** helm-company
   (with-eval-after-load 'company
     (use-package helm-company
@@ -605,20 +602,13 @@ command. Uses jk as default combination."
    ("C-z" . helm-select-action))            ; list actions
 
   ;; **** helm/evil
-  (bind-keys :map (evil-normal-state-map
-                   evil-motion-state-map)
-             ("SPC" . helm-M-x)
-             (",b" . helm-mini)
-             (",f" . helm-find-files)
-             (",,hl" . helm-locate)
-             (",,ho" . helm-occur))
-
-  (bind-keys :map (evil-normal-state-map
-                   evil-motion-state-map
-                   evil-insert-state-map)
-             ("C-c C-h" . helm-resume)
-             ("C-y" . helm-show-kill-ring)
-             ("C-/" . helm-semantic-or-imenu))
+  (bind-keys
+   :map (evil-normal-state-map evil-motion-state-map)
+   ("SPC" . helm-M-x)
+   (",b" . helm-mini)
+   (",f" . helm-find-files)
+   (",,hl" . helm-locate)
+   (",,ho" . helm-occur))
 
   ;; **** helm/enable
   (helm-adaptive-mode t)
@@ -656,7 +646,6 @@ command. Uses jk as default combination."
    sml/shorten-mode-string ""           ; no indication for all modes displayed
    sml/mode-width 'right                ; move modes to right and expand to fill
    sml/mule-info nil                    ; don't show buffer encoding
-   sml/no-confirm-load-theme t          ; TODO fix so this isn't required
    sml/use-projectile-p t               ; projectile file prefix takes precedent
    sml/projectile-replacement-format "[π:%s]") ; format for projectile prefixes
   :config
@@ -666,12 +655,15 @@ command. Uses jk as default combination."
                   ("^:\\.:emacs/\\.emacs\\.d/" ":.ε:"))))
 
   (sml/setup)
+  ;; Probably a horrible hack, but allows using `smart-mode-line' regexp
+  ;; replacers with `powerline' appearance, since `smart-mode-line-powerline'
+  ;; doesn't provide theme-compliant colors.
   (use-package powerline :config (powerline-default-theme)))
 
-;; ** wc-mode
-(use-package my/wc-mode                 ; TODO fix this
+;; ** TODO wc-mode
+(use-package my/wc-mode :disabled t     ; So broken I don't even
   :load-path "~/.emacs.d/elisp/" :ensure nil
-  :functions my/wc-mode
+  :commands my/wc-mode
   :config (my/wc-mode t))
 
 ;; ** which-func
@@ -679,12 +671,13 @@ command. Uses jk as default combination."
   :demand t
   :config
   (defun my/which-func-current ()
-    (let ((current (or (gethash (selected-window) which-func-table) "")))
-      (truncate-string-to-width
-       (concat
-        " ➤ "
-        (replace-regexp-in-string "%" "%%" current))
-       20 nil nil "⋯")))
+    "Return a formatted which-func string if possible, or nil if not."
+    (-if-let (current (gethash (selected-window) which-func-table))
+      (truncate-string-to-width (concat
+                                 " ➤ "
+                                 (replace-regexp-in-string "%" "%%" current))
+                                20 nil nil "⋯")
+    nil))
 
   (setq which-func-format
         `((:propertize (:eval (my/which-func-current))
@@ -695,7 +688,6 @@ command. Uses jk as default combination."
 
 ;; ** winner
 (use-package winner                     ; Window configuration undo
-  ;; FIXME? may have to get super bindings working on MS-Windows
   :bind (("s-j" . winner-undo)
          ("s-k" . winner-redo))
   :config (winner-mode t))
@@ -734,7 +726,7 @@ command. Uses jk as default combination."
 
 ;; ** ibuffer
 (use-package ibuffer
-  :bind ("C-x b" . ibuffer)
+  :bind ("C-x C-b" . ibuffer)
   :init
   (setq ibuffer-default-shrink-to-minimum-size t ; minimize window size
         ibuffer-old-time 5           ; hours before a buffer is old
@@ -790,9 +782,10 @@ command. Uses jk as default combination."
   :config
   (abbrev-mode t))
 
-;; ** auto-indent-mode
+;; ** TODO auto-indent-mode
 (use-package auto-indent-mode           ; Automatic indentation
   ;; TODO get this working with indenting pasted code
+  ;;      probably has something to do with Evil command hijacking
   :delight auto-indent-mode
   :commands (auto-indent-delete-backward-char
              auto-indent-remove-advice-p
@@ -802,13 +795,11 @@ command. Uses jk as default combination."
 
 ;; ** company
 (use-package company                    ; Autocompletion in code
-  :demand t
-  :init
-  (setq company-idle-delay nil            ; attempt completion immediately
-        company-show-numbers t            ; show quick-access nums
-        company-auto-complete t           ; auto complete on special char insert
-        company-lighter-base "Aψ"
-        company-selection-wrap-around t)  ; wrap back around when selecting
+  :init (setq company-idle-delay 0      ; attempt completion immediately
+              company-show-numbers t    ; allow M-num selection
+              company-auto-complete t   ; auto complete on special char insert
+              company-lighter-base "ψ"
+              company-selection-wrap-around t) ; wrap back around when selecting
   :config (global-company-mode t))
 
 ;; ** expand-region
@@ -817,7 +808,7 @@ command. Uses jk as default combination."
 
 ;; ** flyspell
 (use-package flyspell                   ; On-the-fly spell checking
-  :delight flyspell-mode
+  :delight flyspell-mode " σ"
   :init (setq flyspell-issue-welcome-flag nil  ; no start message
               flyspell-issue-message-flag nil) ; no checking message
   :config
@@ -836,30 +827,27 @@ command. Uses jk as default combination."
 (use-package outline :ensure nil        ; Hierarchical outlining support
   :delight outline-minor-mode
   :bind (("C-c o" . outline-insert-heading))
-  ;; *** outline/init
-  :init (bind-keys :map (evil-normal-state-map
-                         evil-motion-state-map)
-                   ("gh" . outline-up-heading)
-                   ("gj" . outline-next-heading)
-                   ("gk" . outline-previous-heading)
-                   ("gl" . outline-forward-same-level)
-                   ("za" . outline-toggle-children)
-                   ("C-c v" . outline-mark-subtree))
-  :config
-  ;; *** outline/outshine
-  (use-package outshine                 ; Org-mode style with outline-mode
-    :demand t
-    :commands outshine-hook-function
-    :bind (("C-c t" . outshine-todo)
-           ("C-c h" . outline-promote)
-           ("C-c l" . outline-demote))
-    :init
-    (setq outshine-org-style-global-cycling-at-bob-p t)
 
-    (bind-keys :map (evil-normal-state-map
-                     evil-motion-state-map)
-               ([tab] . outline-cycle))
-    :config (add-hook 'outline-minor-mode-hook #'outshine-hook-function))
+  :config
+  ;; *** outline/outline-magic
+  (use-package outshine :disabled t)    ; clobbers `company-mode' popups
+  (use-package outline-magic            ; More `outline-mode' manipulations
+    :demand t
+    :bind (("C-c h" . outline-promote)
+           ("C-c l" . outline-demote))
+    :config
+    (bind-keys :map (evil-normal-state-map evil-motion-state-map)
+               ([tab] . outline-cycle)))
+
+  ;; *** outline/bindings
+  (bind-keys :map (evil-normal-state-map
+                   evil-motion-state-map)
+             ("gh" . outline-up-heading)
+             ("gj" . outline-next-heading)
+             ("gk" . outline-previous-heading)
+             ("gl" . outline-forward-same-level)
+             ("za" . outline-toggle-children)
+             ("C-c v" . outline-mark-subtree))
 
   ;; *** outline/hooks
   (add-hook 'prog-mode-hook #'outline-minor-mode))
@@ -869,15 +857,22 @@ command. Uses jk as default combination."
   :ensure smartparens
   :delight smartparens-mode
   :bind ("M-=" . sp-indent-defun)
+  :init (setq sp-show-pair-from-inside t)
   :config
-  ;; TODO add evil bindings for sp commands
-  (electric-pair-mode -1)        ; disable so we don't get duplicate quote marks
+  ;; *** evil-smartparens
+  (use-package evil-smartparens             ; Evil smartparen bindings
+    :config
+    (smartparens-global-strict-mode t)
+    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
+  ;; *** smartparens/enable
+  (electric-pair-mode -1)        ; disable to prevent duplicate quote marks
+  (show-paren-mode -1)           ; disable to prevent showing two sets of parens
   (smartparens-global-mode t)
   (show-smartparens-mode t))
 
 ;; ** typo
-;; TODO change EM-DASH character to second mark
-(use-package typo :delight typo-mode)  ; Insert typographical characters
+(use-package typo                       ; Insert typographical characters
+  :delight typo-mode)
 
 ;; ** undo-tree
 (use-package undo-tree                  ; Branching undo tree
@@ -954,13 +949,16 @@ command. Uses jk as default combination."
   (use-package image-dired :ensure nil  ; Image manipulation in dired
     :init (setq image-dired-dir (concat my/dir "image-dired/")))
   (auto-image-file-mode t))                  ; view images in Emacs
+
 ;; ** pandoc
 (use-package pandoc-mode                ; Markup conversion tool
   :defer t
-  :config (add-hook 'org-mode-hook 'pandoc-mode))
+  :delight pandoc-mode '(:eval (concat " Π:" (pandoc--get 'write)))
+  :config (add-hook 'org-mode-hook #'pandoc-mode))
 
 ;; ** real-auto-save
 (use-package real-auto-save    ; Auto save buffers
+  :demand t
   :commands real-auto-save-mode
   :delight real-auto-save-mode " α"
   :config (real-auto-save-mode t))
@@ -980,17 +978,15 @@ command. Uses jk as default combination."
 ;; * applications
 ;; ** calc
 (use-package calc                       ; Advanced calculator
-  ;; don't clutter my .emacs.d
-  :config (setq calc-settings-file (concat my/dir-my-elisp "calc.el")))
+  :init (setq calc-settings-file (concat my/dir-my-elisp "calc.el")))
 
 ;; ** calendar
 (use-package calendar
-  ;; need to get used to using
-  :config (setq calendar-date-style 'european)) ; logical date display please
+  :init (setq calendar-date-style 'european)) ; logical date display please
 
 ;; ** doc-view
 (use-package doc-view :ensure nil       ; In-buffer document viewer
-  :config (setq doc-view-continuous t))        ; reaching page end advances page
+  :init (setq doc-view-continuous t))        ; reaching page end advances page
 
 ;; ** -elim
 (use-package garak :disabled t          ; ELIM messenger front-end
@@ -1000,76 +996,63 @@ command. Uses jk as default combination."
 ;; ** eshell
 (use-package eshell                     ; Emacs shell
   :bind (("<f12>" . eshell))
+  :defines (eshell-cmpl-ignore-case
+            eshell-prompt-regexp
+            eshell-prompt-function)
+  :init (setq
+         ;; eshell-prompt-regexp "t"
+         ;; eshell-prompt-function "t"
+         eshell-directory-name (concat my/dir "eshell/")
+         eshell-cmpl-ignore-case t)
   :config
-  ;; *** esh-module
-  (use-package esh-module :ensure nil   ; Eshell module loader
-    :config
-    (setq
-     ;; Add eshell-smart, remove eshell-banner
-     eshell-modules-list
-     '(eshell-smart eshell-alias eshell-basic eshell-cmpl eshell-dirs
-                    eshell-glob eshell-hist eshell-ls eshell-pred eshell-prompt
-                    eshell-script eshell-term eshell-unix)))
-
-  ;; *** eshell-cmpl
-  (use-package em-cmpl :ensure nil            ; Eshell completion
-    :config (setq eshell-cmpl-ignore-case t)) ; ignore case in file completion
   (add-to-list 'eshell-modules-list 'eshell-smart)
-
-  ;; *** eshell-prompt
-  (use-package em-prompt :ensure nil :disabled t
-    :config
-    (setq
-     eshell-prompt-regexp "t"
-     eshell-prompt-function "t"))
-
-  ;; *** eshell settings
-  (setenv "PAGER" "cat")                ; show extended output in other buffer
-  (setq eshell-directory-name (concat my/dir "eshell/")))
+  (delete 'eshell-banner 'eshell-modules-list)
+  (setenv "PAGER" "cat"))               ; show extended output in other buffer
 
 ;; ** fortune
-(use-package fortune
-  :config
-  ;; Use UNIX system fortunes
-  (setq fortune-dir "/USSR/share/games/fortunes"
-        fortune-file "~/.local/share/fortunes"))
+(use-package fortune                    ; prints messages from fortune files
+  :init (setq fortune-dir "/usr/share/games/fortunes"
+              fortune-file "~/.local/share/fortunes"))
 
 ;; ** malyon
 (use-package malyon :ensure nil)         ; Z-machine text-based-adventure reader
 
 ;; ** jabber
-;; XMPP Chat client
-(use-package jabber  :disabled t
-  :config
-  (setq jabber-account-list '(("kelly.stewart7737@chat.facebook.com"
-                               (:network-server . "chat.facebook.com")
-                               (:connection-type . starttls)
-                               (:port . 5222)
-                               (:password . ,my/ac-fb-pw)))))
+(use-package jabber  :disabled t        ; XMPP chat client
+  :init (setq jabber-account-list '(("kelly.stewart7737@chat.facebook.com"
+                                     (:network-server . "chat.facebook.com")
+                                     (:connection-type . starttls)
+                                     (:port . 5222)
+                                     (:password . ,my/ac-fb-pw)))))
 ;; ** ispell
 (use-package ispell
-  :config (setq ispell-silently-savep t       ; save without asking confirmation
-                ispell-quietly t              ; no messages please
-                ispell-personal-dictionary "~/.local/share/aspell/aspell.pws"))
+  :init (setq ispell-silently-savep t       ; save without asking confirmation
+              ispell-quietly t              ; no messages please
+              ispell-personal-dictionary "~/.local/share/aspell/aspell.pws"))
 
 ;; * languages
 ;; ** BBCode
-(use-package bbcode-mode )
+(use-package bbcode-mode :defer t)
 
 ;; ** generic-x
 (use-package generic-x :ensure nil      ; Collection of generic modes
-  :config (dolist (mode generic-mswindows-modes)            ; define extra modes
-          (add-to-list 'generic-extras-enable-list mode)))
+  :config
+  (setq generic-extras-enable-list
+        (append generic-extras-enable-list generic-mswindows-modes))
+
+;; *** conkyrc
+  (use-package conkyrc-mode             ; System monitor setup language
+    :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 ;; ** gitignore
-(use-package gitignore-mode)
+(use-package gitignore-mode :defer t)
 
 ;; ** lisp
 ;; *** eldoc-mode
 (use-package eldoc                      ; Documentation in echo area
-  :config
-  (setq eldoc-idle-delay 0.3)
-  (add-hook 'emacs-lisp-mode-hook #'eldoc-mode t))
+  :delight eldoc-mode
+  :init (setq eldoc-idle-delay 0.3)
+  :config (add-hook 'emacs-lisp-mode-hook #'eldoc-mode t))
 
 ;; *** highlight-quoted
 (use-package highlight-quoted  ; Faces for lisp quotes and quoted symbols
@@ -1084,29 +1067,32 @@ command. Uses jk as default combination."
              ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
              ("gd" . elisp-slime-nav-find-elisp-thing-at-point))
 
-  (add-hook 'emacs-lisp-mode-hook 'turn-on-elisp-slime-nav-mode))
+  (add-hook 'emacs-lisp-mode-hook #'turn-on-elisp-slime-nav-mode))
 
 
 ;; ** lua
 (use-package lua-mode)
 
-;; ** markdown
+;; ** -markdown
 (use-package markdown-mode  :disabled t)
 
-;; ** python
+;; ** TODO python
 (use-package python
+  :defer t
   :init (setq
          python-shell-interpreter "python3" ; use Python 3
          python-indent-offset 4)            ; TODO? is this being overridden
   :config
 ;; *** python/elpy
-  (use-package elpy
-    :config
-    (setq elpy-modules (delete 'elpy-module-yasnippet elpy-modules))
-    (elpy-enable)))
+(use-package elpy
+  :defer t
+  :config
+  (setq elpy-modules (delete 'elpy-module-yasnippet elpy-modules))
+  (elpy-enable)))
 
 ;; ** sh
 (use-package sh-script
+  :defer t
   :init (setq sh-learn-basic-offset t         ; guess indentation when obvious
               sh-basic-offset 2))             ; indent by 2
 
@@ -1114,23 +1100,16 @@ command. Uses jk as default combination."
 ;; VimScript major mode. Also for editing Pentadactyl config files.
 (use-package vimrc-mode :mode "[._]pentadactylrc\\'" "\\.penta\\'")
 
-;; ** web
+;; ** -web
 (use-package web-mode :disabled t
   :mode "\\.html?\\'")
-
-;; * unsorted
-;; ** -handlebars
-(use-package handlebars-mode :disabled t) ; What.
-
-;; ** -try
-(use-package try :disabled t)           ; No idea what this does
 
 ;; * cleanup
 ;; Confirm before killing Emacs in GUI sessions.
 ;; At end of file to make init debugging easier.
-(setq confirm-kill-emacs (if (window-system) 'yes-or-no-p nil))
+(when (window-system) (setq confirm-kill-emacs 'yes-or-no-p))
 
 ;;; init.el ends here
 ;; Local Variables:
-;; outline-regexp: " *;; [*]"
+;; outline-regexp: " *;; ?[*]\\{1,8\\}"
 ;; End:
