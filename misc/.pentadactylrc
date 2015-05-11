@@ -48,19 +48,23 @@ nmap -b ,u :set usermode!
 nmap -b q d
 nmap -b Q q
 nmap -b <Space> :
-" **** GUI toggles
-nmap -b ,t :set guioptions!=T<CR>
-nmap -b ,Tn :set showtabline=never
-nmap -b ,Tm :set showtabline=multitab
-" **** Open hints in new tab by default
-nmap -b F f
-nmap -b f F
-" **** h and l to move tabs
+" **** Easier to reach
+" tab movement
 nmap -b h gT
 nmap -b l gt
-" **** copy selected text by default
+" next/previous page movement
+nmap -b < [[
+nmap -b > ]]
+" **** GUI toggles
+nmap -b ,t :set guioptions!=T<CR>
+nmap -b ,Tf :set showtabline=never
+nmap -b ,Tt :set showtabline=multitab
+" **** reverse defaults
+" hints
+nmap -b F f
+nmap -b f F
+" copying text
 nmap -b y Y
 nmap -b Y y
 " *** disabled keybinds
-map -b <nop> gh
-unmap gh
+map -b gh <nop>
