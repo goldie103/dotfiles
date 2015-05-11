@@ -1,69 +1,29 @@
 alignment top_right
-gap_y 10
+background yes
+border_inner_margin 5
+border_outer_margin 2
+border_width 1
+gap_y 15
+gap_x 15
 double_buffer yes
 own_window yes
 own_window_type desktop
-own_window_transparent yes
+own_window_colour 111
 own_window_argb_visual yes
 draw_shades no
-default_bar_size 150 2
+draw_borders yes
 
 use_xft yes
-xftfont Hallo:size=8:weight=light
+xftfont Fantasque Sans Mono:size=18
+xftalpha 1
+
+default_color 000
+color0 eee
+color1 d64937
 
 TEXT
-$font$alignr${time %D %l:%M %p}
-${font Hallo:size=20:weight=light}$alignr${voffset -5}It's-a ${time %A}.
-$font
+${color0}Things you must do
+${voffset -10}${offset 15}$color1${font Fantasque Sans Mono:size=10:italic}You really should do them.$color0
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-${font Hallo:size=10:weight=light}$alignr${wireless_essid wlan0}
-${voffset -5}$font$alignr${addr wlan0}
-$alignr$downspeed
-
-${alignr}CPU: $cpu%
-$font
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-${if_running banshee}${font Hallo:size=10:weight=light}$alignr${exec banshee --query-title | cut -c 7-}
-$alignr${voffset -5}${execbar echo "scale=3;$(banshee --query-position | cut -c 11-)/$(banshee --query-duration | cut -c 10-)*100" | bc}
-$font$alignr${voffset -10}${exec banshee --query-artist | cut -c 8-}
-$endif
+${font Input Sans Condensed:size=9}$color1${exec cat ~/Documents/todo.txt | grep !!}$color0
+${exec cat ~/Documents/todo.txt | grep -v !!} $font
