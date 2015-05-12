@@ -1,5 +1,6 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
+;; TODO get *scratch* buffer to never close
 ;;; Code:
 ;; * setup
 ;; ** package
@@ -859,7 +860,7 @@ command. Uses jk as default combination."
   :init (setq sp-show-pair-from-inside t)
   :config
   ;; *** evil-smartparens
-  (use-package evil-smartparens             ; Evil smartparen bindings
+  (use-package evil-smartparens         ; Evil smartparen bindings
     :config
     (smartparens-global-strict-mode t)
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
