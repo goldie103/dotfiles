@@ -1,5 +1,6 @@
 # -*-mode: shell-script-*
 cwhite='\[\e[37m\]'
+ccyan='\[\e[36m\]'
 cpurple='\[\e[35m\]'
 cblue='\[\e[34m\]'
 cyellow='\[\e[33m\]'
@@ -13,41 +14,65 @@ scheck='\342\234\223'
 
 # Display fortune message on shell start
 # Grabs only part of defined codes to prevent excess \[\] appearing in shell.
-# TODO get in an indented block
 echo -e ${cyellow:2:6}$(fortune -a)
 
-# prompt
+# * prompt
 set_prompt () {
-    last_cmd=$?
-    PS1=""
+  # exit status of last command
+  if [[ $? == 0 ]]; then PS1=$cgreen$scheck; else PS1=\ $cred$scross; fi
+  # working dir
+  PS1+=\ $cblue\\w
 
-    # last command status
-    if [[ $last_cmd == 0 ]]; then
-        PS1+=$cgreen$scheck
-    else
-        PS1+=" "$cred$scross
-    fi
+  # git status
+  source ~/dotfiles/.resources/git-prompt.sh
+  cgit=$cpurple
+  GIT_PS1_SHOWDIRTYSTATE=1
+  GIT_PS1_SHOWSTASHSTATE=1
+  GIT_PS1_SHOWUNTRACKEDFILES=1
+  GIT_PS1_SYMBOLDIRTYSTAGED=$cgreen$scheck$cgit
+  GIT_PS1_SYMBOLDIRTYMODIFIED=$cred$scross$cgit
+  GIT_PS1_SYMBOLUNTRACKED=$cyellow$scross$cgit
+  GIT_PS1_SYMBOLSTASHED=$cwhite"S"$cgit
+  GIT_PS1_SYMBOLUPSTREAMDIVERGED=$cwhite"-"$cgit
+  PS1+=$cgit$(__git_ps1)
 
-    # working dir
-    PS1+=\ $cblue\\w
-
-    # git status
-    # TODO symbols
-    source ~/dotfiles/.resources/git-prompt.sh
-    GIT_PS1_SHOWDIRTYSTATE=1
-    GIT_PS1_SHOWSTASHSTATE=1
-    GIT_PS1_SHOWUNTRACKEDFILES=1
-    GIT_PS1_SHOWCOLORHINTS=1
-    GIT_PS1_SHOWUPSTREAM="auto"
-    GIT_PS1_SYMBOLDIRTYSTAGED="$scheck"
-    GIT_PS1_SYMBOLDIRTYMODIFIED="$scross"
-    GIT_PS1_SYMBOLUNTRACKED="$scross"
-    GIT_PS1_SYMBOLSTASHED="σ"
-    GIT_PS1_SYMBOLUPSTREAMDIVERGED="-"
-    PS1+=$cpurple$(__git_ps1)
-
-    # cleanup; add end character and reset colour
-    PS1+=$cgreen" \$ "$creset
+  # cleanup; add end character and reset colour
+  PS1+=$ccyan" \$ "$creset
 }
 
 PROMPT_COMMAND='set_prompt'
+
+# * aliases
+alias ls="ls -h --color"        # colors and human-readable sizes by default
+alias ll="ls -lv --group-directories-first" # dirs first + alphanumeric sorting
+alias la="ll -A"                            # hidden files
+
+# * automatically run in background
+function firefox() { command firefox "$@" & }
+function emacs() { command emacs "$@" & }
+
+# * functions
+# identify archive type and extract
+extract () {
+  if [ -f $1 ] ; then
+      case $1 in
+        *.tar.bz2)        tar xjf $1        ;;
+        *.tar.gz)         tar xzf $1        ;;
+        *.bz2)            bunzip2 $1        ;;
+        *.rar)            unrar x $1        ;;
+        *.gz)             gunzip $1         ;;
+        *.tar)            tar xf $1         ;;
+        *.tbz2)           tar xjf $1        ;;
+        *.tgz)            tar xzf $1        ;;
+        *.zip)            unzip $1          ;;
+        *.Z)              uncompress $1     ;;
+        *)                echo "'$1' cannot be extracted via extract()" ;;
+      esac
+  else
+    echo "'$1' is not a valid file"
+  fi
+}
+
+# Local Variables:
+# outline-regexp: " *# ? \\*\\{1,8\\}"
+# End:
