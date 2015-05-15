@@ -14,6 +14,7 @@
                 ("elpy" . "http://jorgenschaefer.github.io/packages/"))))
 (package-initialize)                    ; manually initialize
 
+
 ;; non-MELPA packages
 (defconst my/dir-elisp (concat user-emacs-directory "elisp/"))
 (add-to-list 'load-path my/dir-elisp)
@@ -30,6 +31,7 @@
 ;; ** bind-key
 (use-package bind-key
   :bind (
+         ("<help> M-i" . info)
          ("RET" . newline-and-indent)
          ;; window movement
          ("C-l" . other-window)
@@ -38,11 +40,11 @@
          ("C-k" . scroll-down)
          ("C-j" . scroll-up)))
 
-;; ** delight
+;; ** TODO delight
 (use-package delight
   :config
-  (delight '((emacs-lisp-mode "Elisp" :major)))
-  (delight visual-line-mode))
+  (delight 'emacs-lisp-mode "Elisp" :major) ; FIXME this not working
+  (delight 'visual-line-mode))
 
 ;; ** user info
 (defconst my/dir (concat user-emacs-directory ".user/"))
@@ -55,26 +57,25 @@
 
 (setq
  read-file-name-completion-ignore-case t ; ignore case in completions
- sentence-end-base "[.?!][]\"'”)}\\n]*"  ; count newlines as sentence endings
- sentence-end-double-space nil          ; double space is dumb
- tab-always-indent nil                  ; tab inserts a character
- smooth-scroll-margin 3                 ; fewer lines visible at buffer ends
- save-interprogram-paste-before-kill t  ; save clipboard to kill-ring
- kill-do-not-save-duplicates t          ; no duplicates in kill-ring
- line-move-visual t                     ; visual line movement
+ sentence-end-double-space nil           ; double space is dumb
+ tab-always-indent nil                   ; tab inserts a character
+ smooth-scroll-margin 3                  ; fewer lines visible at buffer ends
+ save-interprogram-paste-before-kill t   ; save clipboard to kill-ring
+ kill-do-not-save-duplicates t           ; no duplicates in kill-ring
+ line-move-visual t                      ; visual line movement
  ;; builtin
  user-mail-address "stewart.g.kelly@gmail.com" ; manually define email address
- frame-title-format "%b - emacs"        ; buffer name as frame title
- window-combination-resize t            ; use proportional window resize
- echo-keystrokes 0.1                    ; echo unfinished commands faster
- x-underline-at-descent-line t          ; draw underline lower
- ring-bell-function 'ignore             ; alarms
- delete-by-moving-to-trash t            ; use system trash for deletion
- tab-width 4                            ; tabs with width 4
+ frame-title-format "%b - emacs"               ; buffer name as frame title
+ window-combination-resize t                   ; use proportional window resize
+ echo-keystrokes 0.1                           ; echo unfinished commands faster
+ x-underline-at-descent-line t                 ; draw underline lower
+ ring-bell-function 'ignore                    ; alarms
+ delete-by-moving-to-trash t                   ; use system trash for deletion
+ tab-width 4                                   ; tabs with width 4
  ;; startup
+ initial-major-mode 'text-mode          ; scratch text mode
  inhibit-startup-screen t               ; no start screen
- initial-scratch-message nil            ; no scratch message
- initial-major-mode 'text-mode)         ; scratch text mode
+ initial-scratch-message nil)           ; no scratch message
 
 (setq-default indent-tabs-mode nil      ; turn tabs to spaces
               fill-column 80)           ; recommended text width
@@ -111,16 +112,37 @@
 (blink-cursor-mode -1)
 (unless (window-system) (menu-bar-mode -1)) ; disable menu bar in terminal
 
-;; *** prog-mode hooks
-(dolist (func '((lambda()(column-number-mode t)) ; Modeline col num
-                (lambda()(line-number-mode t))   ; Modeline line num
-                semantic-mode))             ; Language-aware manipulations
-  (add-hook 'prog-mode-hook func))
+;; *** hooks
+(defmacro my/add-hooks (hook functions)
+  "Add to HOOK each item in list FUNCTIONS."
+  (dolist (func functions) (add-hook hook func)))
 
-;; *** text-mode hooks
-(add-hook 'text-mode-hook #'my/prose-based-hook)
+(my/add-hooks
+ prog-mode-hook
+ (column-number-mode                    ; Modeline col num
+  line-number-mode                      ; Modeline line num
+  semantic-mode))
+
+(defun my/text-mode-hook ()
+  "Various things to do upon entering `text-mode'."
+  (face-remap-add-relative 'default :family "Input Sans Condensed" :height 100)
+  (line-number-mode -1)
+  (column-number-mode -1)
+  (linum-mode -1)
+  (hl-line-mode -1))
+
+(my/add-hooks
+ text-mode-hook
+ (visual-line-mode
+  visual-fill-column-mode
+  my/text-mode-hook))
 
 ;; * custom commands
+;; ** my/with-face-color
+(defmacro my/with-face-color (str face)
+  "Call `propertize' on STR with the foreground value of FACE."
+  `(propertize ,str 'face `(:foreground ,(face-attribute ,face :foreground))))
+
 ;; ** my/cleanup
 (defun my/cleanup ()
   "Perform a lot of stuff on whitespace."
@@ -130,19 +152,34 @@
   (whitespace-cleanup))                    ; whitespace stuff
 
 ;; ** my/source-class
-(defun my/source-class-apply-readonly (readonlyp)
-  "Create and apply a directory class for source code.
-Set `buffer-read-only' to the value of READONLYP."
+(dir-locals-set-class-variables
+ 'source
+ '((nil . (
+           (tab-width . 8)
+           (eval . (whitespace-mode -1))
+           (eval . (linum-mode -1))
+           (eval . (real-auto-save-mode -1))))))
 
-  (dir-locals-set-class-variables
-   'package
-   '((nil . `((buffer-read-only . ,readonlyp)
-              (tab-width . 8)
-              (eval . (whitespace-mode -1))
-              (eval . (linum-mode -1))
-              (eval . (real-auto-save-mode -1))))))
+(dir-locals-set-class-variables
+ 'source-readonly
+ `((nil . ,(append (cdr (car (dir-locals-get-class-variables 'source)))
+                   '((buffer-read-only . t))))))
 
-  (dir-locals-set-directory-class package-user-dir 'package))
+(defun my/source-class-apply-readonly ()
+  "Toggle `buffer-read-only' for files in `package-user-dir'.
+If no directory class is applied for `package-user-dir', add `source-readonly'."
+  (interactive)
+  (dir-locals-set-directory-class
+   package-user-dir
+   (if (member
+        'source-readonly
+        ;; have to use an arbitrary file in `package-user-dir', since
+        ;; `dir-locals-find-file' won't work when given a directory.
+        (dir-locals-find-file "/home/kelly/.emacs.d/elpa/evil-readme.txt"))
+       'source
+     'source-readonly)))
+
+(my/source-class-apply-readonly)
 
 ;; ** my/english-count-lines
 (use-package face-remap
@@ -169,24 +206,6 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
       (setq deactivate-mark t)
     (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
     (abort-recursive-edit)))
-
-;; ** my/prose-based-hook
-(defun my/prose-based-hook ()
-  "Apply modes and settings for editing text meant for humans to read."
-  (interactive)
-  (face-remap-add-relative 'default :family "Input Sans Condensed" :height 100)
-  (visual-line-mode t)
-  (visual-fill-column-mode t)
-  (flyspell-mode t)
-  (typo-mode t)
-  (writegood-mode t)
-  (hl-sentence-mode t)
-  (wc-goal-mode t)
-  (line-number-mode -1)
-  (column-number-mode -1)
-  (linum-mode -1)
-  (hl-line-mode -1))
-
 
 ;; ** my/writeroom-effect
 (defun my/writeroom-effect ()
@@ -219,48 +238,14 @@ Can be used outside writeroom mode."
              evil-motion-state-p
              evil-ace-jump-exit-recursive-edit)
   ;; ** evil/init
-  :init
-  (setq evil-want-fine-undo nil    ; undo insertions in single steps
-        evil-want-change-word-to-end nil ; don't let cw behave like ce
-        evil-echo-state nil              ; state is in the modeline anyway
-        evil-ex-substitute-global t)     ; global substitutions by default
+  :init (setq
+         evil-want-fine-undo nil          ; undo insertions in single steps
+         evil-want-change-word-to-end nil ; don't let cw behave like ce
+         evil-echo-state nil              ; state is in the modeline anyway
+         evil-ex-substitute-global t)     ; global substitutions by default
 
   ;; ** evil/config
   :config
-  ;; *** evil/packages
-  ;; **** evil-surround
-  (use-package evil-surround :config (global-evil-surround-mode t))
-
-  ;; **** evil-commentary
-  (use-package evil-commentary          ; Manipulate comments
-    :delight evil-commentary-mode
-    :config (evil-commentary-mode t))
-
-  ;; **** evil-args
-  (use-package evil-args                ; Manipulate function arguments
-    ;; cia - change inner argument
-    ;; daa - delete an argument
-    :init
-    (add-hook 'emacs-lisp-mode-hook (lambda()(setq evil-args-delimiters '(" "))))
-    (bind-keys :map (evil-normal-state-map evil-motion-state-map)
-               ("L" . evil-forward-arg)
-               ("H" . evil-backward-arg)
-               ("ga" . evil-jump-out-args))
-
-    (bind-key "a" #'evil-inner-arg evil-inner-text-objects-map)
-    (bind-key "a" #'evil-outer-arg evil-outer-text-objects-map))
-
-  ;; **** evil-matchit
-  (use-package evil-matchit             ; Manipulate tags
-    :defines evilmi-may-jump-percentage
-    :init (setq evilmi-may-jump-percentage nil) ; allow count usage
-    :config (global-evil-matchit-mode t))
-
-  ;; **** evil-org
-  (use-package evil-org                 ; Evil org-mode bindings
-    :delight evil-org-mode
-    :init (bind-key "\t" 'org-back-to-heading evil-normal-state-map))
-
   ;; *** evil/helper functions
   ;; **** maybe-exit
   ;; Adapted from https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
@@ -288,6 +273,41 @@ command. Uses jk as default combination."
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
 
+  ;; *** evil/packages
+  ;; **** evil-surround
+  (use-package evil-surround :config (global-evil-surround-mode t))
+
+  ;; **** evil-commentary
+  (use-package evil-commentary          ; Manipulate comments
+    :delight evil-commentary-mode
+    :config (evil-commentary-mode t))
+
+  ;; **** evil-args
+  (use-package evil-args                ; Manipulate function arguments
+    ;; cia - change inner argument
+    ;; daa - delete an argument
+    :init
+    (add-hook 'emacs-lisp-mode-hook
+              (lambda()(setq evil-args-delimiters '(" "))))
+    (bind-keys :map (evil-normal-state-map evil-motion-state-map)
+               ("L" . evil-forward-arg)
+               ("H" . evil-backward-arg)
+               ("ga" . evil-jump-out-args))
+
+    (bind-key "a" #'evil-inner-arg evil-inner-text-objects-map)
+    (bind-key "a" #'evil-outer-arg evil-outer-text-objects-map))
+
+  ;; **** evil-matchit
+  (use-package evil-matchit             ; Manipulate tags
+    :defines evilmi-may-jump-percentage
+    :init (setq evilmi-may-jump-percentage nil) ; allow count usage
+    :config (global-evil-matchit-mode t))
+
+  ;; **** evil-org
+  (use-package evil-org                 ; Evil org-mode bindings
+    :delight evil-org-mode
+    :init (bind-key "\t" 'org-back-to-heading evil-normal-state-map))
+
   ;; *** evil/bindings
   ;; **** evil/bindings/insert
   (bind-key "j" #'maybe-exit evil-insert-state-map) ; jk exits insert state
@@ -295,28 +315,34 @@ command. Uses jk as default combination."
   ;; **** evil/bindings/normal motion
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map)
-   ("Y" . my/evil-yank-to-eol)) ; more consistent
+   ("Y" . my/evil-yank-to-eol))         ; more consistent
 
   ;; **** evil/bindings/normal motion visual
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
+   ("SPC" . execute-extended-command)
+   ("<escape>" . keyboard-quit)
    ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
    ("Q" . evil-record-macro)            ; Q replaces old q action
    ;; visual line movement
    ("j" . evil-next-visual-line)
    ("k" . evil-previous-visual-line)
-   ;; easier mappings for commands I use a lot
-   ("SPC" . execute-extended-command)
+   ;; movement
    ("a" . evil-last-non-blank)
    ("s" . evil-first-non-blank)
-   ("\"" . evil-jump-item)
-   ("," . nil)
-   (",f" . find-file)
-   (",b" . list-buffers)
-   (",w" . save-buffer)
-   (",x" . eval-defun)
-   (",X" . eval-region)
-   ("<escape>" . keyboard-quit))
+   ("\"" . evil-jump-item))
+
+  (bind-keys
+   :prefix-map my/evil-leader
+   :prefix ","
+   :prefix-docstring ""
+   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
+   ("" . nil)
+   ("f" . find-file)
+   ("b" . list-buffers)
+   ("w" . save-buffer)
+   ("x" . eval-defun)
+   ("X" . eval-region))
 
   ;; **** evil/bindings/minibuffer
   ;; ESC quits the minibuffer
@@ -431,7 +457,9 @@ command. Uses jk as default combination."
 
 ;; ** hl-sentence
 (use-package hl-sentence                ; Highlight current sentence
-  :config (set-face-attribute 'hl-sentence-face nil :inherit 'hl-line))
+  :config
+  (set-face-attribute 'hl-sentence-face nil :inherit 'hl-line)
+  (add-hook 'text-mode-hook #'hl-sentence-mode))
 
 ;; ** highlight-numbers
 (use-package highlight-numbers          ; Highlight numbers
@@ -476,8 +504,10 @@ command. Uses jk as default combination."
   :delight writegood-mode
   :bind (("C-c C-g" . writegood-grade-level)
          ("C-c C-S-g" . writegood-reading-ease))
-  :config (setq writegood-weasel-words (append writegood-weasel-words
-                                               '("thing" "different"))))
+  :config
+  (setq writegood-weasel-words (append writegood-weasel-words
+                                       '("thing" "different")))
+  (add-hook 'text-mode-hook #'writegood-mode))
 
 ;; ** color theme
 (use-package solarized-theme
@@ -521,8 +551,7 @@ command. Uses jk as default combination."
          ("<help> C-r" . helm-info-at-point)
          ("<help> C-w" . helm-man-woman)
          ("<help> i" . helm-info-emacs)
-         ("<help> I" . helm-info-elisp)
-         ("<help> M-i" . helm-info-at-point))
+         ("<help> I" . helm-info-elisp))
   ;; *** helm/init
   :init (setq
          helm-command-prefix-key "C-c h"
@@ -661,10 +690,13 @@ command. Uses jk as default combination."
   (use-package powerline :config (powerline-default-theme)))
 
 ;; ** TODO wc-mode
-(use-package my/wc-mode :disabled t     ; So broken I don't even
-  :load-path "~/.emacs.d/elisp/" :ensure nil
-  :commands my/wc-mode
-  :config (my/wc-mode t))
+(use-package wc-goal-mode
+  :config
+  (defun my/wc-format-toggle ()
+    (interactive)
+    (let ((a "wc:%tw%w") (b "lc:%tl%l"))
+      (setq wc-goal-modeline-format (if (eql wc-goal-modeline-format a) a b))))
+  (add-hook 'text-mode-hook #'wc-goal-mode))
 
 ;; ** which-func
 (use-package which-func :ensure nil     ; Modeline definition name
@@ -673,11 +705,12 @@ command. Uses jk as default combination."
   (defun my/which-func-current ()
     "Return a formatted which-func string if possible, or nil if not."
     (-if-let (current (gethash (selected-window) which-func-table))
-      (truncate-string-to-width (concat
-                                 " ➤ "
-                                 (replace-regexp-in-string "%" "%%" current))
-                                20 nil nil "⋯")
-    nil))
+        (truncate-string-to-width
+         (concat
+          " ➤ "
+          (replace-regexp-in-string "%" "%%" current))
+         20 nil nil "⋯")
+      nil))
 
   (setq which-func-format
         `((:propertize (:eval (my/which-func-current))
@@ -754,6 +787,7 @@ command. Uses jk as default combination."
   ;; *** projectile/init
   :init
   (setq
+   projectile-globally-ignored-files '("TAGS" "*.odt" "*.docx" "*.doc")
    projectile-enable-caching t          ; cache projectile indexes
    projectile-indexing-method 'alien    ; use faster OS methods
    ;; don't clutter my .emacs.d please
@@ -797,10 +831,9 @@ command. Uses jk as default combination."
 (use-package company                    ; Autocompletion in code
   :init (setq company-idle-delay 0      ; attempt completion immediately
               company-show-numbers t    ; allow M-num selection
-              company-auto-complete t   ; auto complete on special char insert
               company-lighter-base "ψ"
               company-selection-wrap-around t) ; wrap back around when selecting
-  :config (global-company-mode t))
+  :config (add-hook 'prog-mode-hook #'company-mode))
 
 ;; ** expand-region
 (use-package expand-region               ; Expand functions block at a time
@@ -829,24 +862,25 @@ command. Uses jk as default combination."
   :bind (("C-c o" . outline-insert-heading))
 
   :config
-  ;; *** outline/outline-magic
-  (use-package outshine :disabled t)    ; clobbers `company-mode' popups
-  (use-package outline-magic            ; More `outline-mode' manipulations
-    :demand t
-    :bind (("C-c h" . outline-promote)
-           ("C-c l" . outline-demote))
+  ;; *** outline/outshine
+  (use-package outshine
+    :load-path "~/.emacs.d/elisp/outshine" :ensure nil
     :config
     (bind-keys :map (evil-normal-state-map evil-motion-state-map)
-               ([tab] . outline-cycle)))
+               ([tab] . outline-cycle))
+
+    (add-hook 'outline-minor-mode #'outshine-hook-function))
 
   ;; *** outline/bindings
-  (bind-keys :map (evil-normal-state-map
-                   evil-motion-state-map)
-             ("gh" . outline-up-heading)
-             ("gj" . outline-next-heading)
-             ("gk" . outline-previous-heading)
-             ("gl" . outline-forward-same-level)
-             ("za" . outline-toggle-children)
+  (bind-keys
+   :map (evil-normal-state-map evil-visual-state-map evil-motion-state-map)
+   ("gh" . outline-up-heading)
+   ("gj" . outline-next-heading)
+   ("gk" . outline-previous-heading)
+   ("gl" . outline-forward-same-level)
+   ("za" . outline-toggle-children))
+
+  (bind-keys :map (evil-normal-state-map evil-motion-state-map)
              ("C-c v" . outline-mark-subtree))
 
   ;; *** outline/hooks
@@ -855,12 +889,15 @@ command. Uses jk as default combination."
 ;; ** smartparens
 (use-package smartparens-config         ; Balenced paren management
   :ensure smartparens
+  :demand t
   :delight smartparens-mode
   :bind ("M-=" . sp-indent-defun)
   :init (setq sp-show-pair-from-inside t)
   :config
   ;; *** evil-smartparens
   (use-package evil-smartparens         ; Evil smartparen bindings
+    :demand t
+    :delight evil-smartparens-mode
     :config
     (smartparens-global-strict-mode t)
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
@@ -872,7 +909,8 @@ command. Uses jk as default combination."
 
 ;; ** typo
 (use-package typo                       ; Insert typographical characters
-  :delight typo-mode)
+  :delight typo-mode
+  :config (add-hook 'text-mode-hook #'typo-mode))
 
 ;; ** undo-tree
 (use-package undo-tree                  ; Branching undo tree
@@ -996,18 +1034,51 @@ command. Uses jk as default combination."
 ;; ** eshell
 (use-package eshell                     ; Emacs shell
   :bind (("<f12>" . eshell))
+  :functions my/with-term-color eshell/pwd my/eshell-prompt
   :defines (eshell-cmpl-ignore-case
             eshell-prompt-regexp
             eshell-prompt-function)
   :init (setq
-         ;; eshell-prompt-regexp "t"
-         ;; eshell-prompt-function "t"
+         ;; eshell-prompt-regexp "^[^#$\n]* [#$] "
+         eshell-prompt-function #'my/eshell-prompt
          eshell-directory-name (concat my/dir "eshell/")
          eshell-cmpl-ignore-case t)
   :config
-  (add-to-list 'eshell-modules-list 'eshell-smart)
-  (delete 'eshell-banner 'eshell-modules-list)
-  (setenv "PAGER" "cat"))               ; show extended output in other buffer
+  (use-package eshell-module :ensure nil
+    :config
+    (add-to-list 'eshell-modules-list 'eshell-smart)
+    (delete 'eshell-banner 'eshell-modules-list))
+
+  (defun my/eshell-pwd ()
+    "Returns a modified current directory path for use with an eshell prompt.
+If possible, use `sml/replacer' to replace path components."
+    (if (fboundp #'sml/replacer)
+        ;; add trailing slash to match with those in `sml/replacer-regexp-list'
+        (sml/replacer (concat (abbreviate-file-name (eshell/pwd)) "/"))
+      (abbreviate-file-name (eshell/pwd))))
+
+  (defun my/eshell-prompt ()
+    (concat
+     ;; whether last command was successful
+     (if (= eshell-last-command-status 0)
+         (my/with-face-color "✓ " 'term-color-green)
+       (my/with-face-color "✗ " 'term-color-red))
+
+     ;; current working dir
+     (my/with-face-color (my/eshell-pwd) 'term-color-blue)
+
+     ;; current git branch
+     (when (and (fboundp #'magit-get-current-branch) (magit-get-current-branch))
+       (my/with-face-color (format " (%s)" (magit-get-current-branch))
+                           'term-color-yellow))
+
+     ;; end mark
+     (if (= (user-uid) 0)
+         (my/with-face-color " #" 'term-color-red)
+       (my/with-face-color " $" 'term-color-blue))
+     " "))
+
+  (setenv "PAGER" "cat"))               ; show extended output in other buffer)
 
 ;; ** fortune
 (use-package fortune                    ; prints messages from fortune files
