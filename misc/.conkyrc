@@ -1,8 +1,6 @@
 alignment top_right
 background yes
 border_inner_margin 5
-border_outer_margin 2
-border_width 1
 gap_y 15
 gap_x 15
 double_buffer yes
@@ -11,19 +9,19 @@ own_window_type desktop
 own_window_colour 111
 own_window_argb_visual yes
 draw_shades no
-draw_borders yes
 
 use_xft yes
-xftfont Fantasque Sans Mono:size=18
+xftfont Input Sans Condensed:size=8
 xftalpha 1
 
-default_color 000
-color0 eee
-color1 d64937
+default_color eee
+color1 d64937                   # headings/important info
+color2 DimGrey                  # dimmed info
 
 TEXT
-${color0}Things you must do
-${voffset -10}${offset 15}$color1${font Fantasque Sans Mono:size=10:italic}You really should do them.$color0
-
-${font Input Sans Condensed:size=9}$color1${exec cat ~/Documents/todo.txt | grep !!}$color0
-${exec cat ~/Documents/todo.txt | grep -v !!} $font
+${font Fantasque Sans Mono:size=18}Things you must do
+${voffset -10}${offset 15}$color1${font Fantasque Sans Mono:size=10:italic}BUT THOU MUST.$color
+$font
+$color1${exec cat ~/Documents/todo.txt | grep !}$color
+${exec cat ~/Documents/todo.txt | grep -v [!?]}
+$color2${exec cat ~/Documents/todo.txt | grep ?}$color
