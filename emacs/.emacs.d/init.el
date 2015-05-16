@@ -1075,15 +1075,10 @@ If possible, use `sml/replacer' to replace path components."
      ;; end mark
      (if (= (user-uid) 0)
          (my/with-face-color " #" 'term-color-red)
-       (my/with-face-color " $" 'term-color-blue))
+       (my/with-face-color " $" 'term-color-cyan))
      " "))
 
   (setenv "PAGER" "cat"))               ; show extended output in other buffer)
-
-;; ** fortune
-(use-package fortune                    ; prints messages from fortune files
-  :init (setq fortune-dir "/usr/share/games/fortunes"
-              fortune-file "~/.local/share/fortunes"))
 
 ;; ** malyon
 (use-package malyon :ensure nil)         ; Z-machine text-based-adventure reader
