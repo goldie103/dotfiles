@@ -637,7 +637,9 @@ command. Uses jk as default combination."
    (",b" . helm-mini)
    (",f" . helm-find-files)
    (",,hl" . helm-locate)
-   (",,ho" . helm-occur))
+   (",,ho" . helm-occur)
+   (",,hu" . helm-ucs)
+   (",,hc" . helm-colors))
 
   ;; **** helm/enable
   (helm-adaptive-mode t)
@@ -1049,14 +1051,6 @@ command. Uses jk as default combination."
     (add-to-list 'eshell-modules-list 'eshell-smart)
     (delete 'eshell-banner 'eshell-modules-list))
 
-  (defun my/eshell-pwd ()
-    "Returns a modified current directory path for use with an eshell prompt.
-If possible, use `sml/replacer' to replace path components."
-    (if (fboundp #'sml/replacer)
-        ;; add trailing slash to match with those in `sml/replacer-regexp-list'
-        (sml/replacer (concat (abbreviate-file-name (eshell/pwd)) "/"))
-      (abbreviate-file-name (eshell/pwd))))
-
   (defun my/eshell-prompt ()
     (concat
      ;; whether last command was successful
@@ -1065,12 +1059,19 @@ If possible, use `sml/replacer' to replace path components."
        (my/with-face-color "✗ " 'term-color-red))
 
      ;; current working dir
-     (my/with-face-color (my/eshell-pwd) 'term-color-blue)
+     (my/with-face-color
+      (if (fboundp #'sml/replacer)
+          ;; Use `smart-mode-line' replacers if possible
+          ;; trailing slash to match with `sml/replacer-regexp-list'
+          (sml/replacer (concat (abbreviate-file-name (eshell/pwd)) "/"))
+        (abbreviate-file-name (eshell/pwd)))
+      'term-color-blue)
 
      ;; current git branch
+     ;; TODO display dirty, stashed, staged states
      (when (and (fboundp #'magit-get-current-branch) (magit-get-current-branch))
        (my/with-face-color (format " (%s)" (magit-get-current-branch))
-                           'term-color-yellow))
+                           'term-color-cyan))
 
      ;; end mark
      (if (= (user-uid) 0)
