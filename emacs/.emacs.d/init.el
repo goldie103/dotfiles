@@ -14,7 +14,6 @@
                 ("elpy" . "http://jorgenschaefer.github.io/packages/"))))
 (package-initialize)                    ; manually initialize
 
-
 ;; non-MELPA packages
 (defconst my/dir-elisp (concat user-emacs-directory "elisp/"))
 (add-to-list 'load-path my/dir-elisp)
@@ -43,8 +42,9 @@
 ;; ** TODO delight
 (use-package delight
   :config
-  (delight 'emacs-lisp-mode "Elisp" :major) ; FIXME this not working
-  (delight 'visual-line-mode))
+  (delight '((emacs-lisp-mode "Elisp" :major) ; TODO
+             (visual-line-mode)
+             (auto-fill-mode "φ"))))
 
 ;; ** user info
 (defconst my/dir (concat user-emacs-directory ".user/"))
@@ -179,7 +179,7 @@ If no directory class is applied for `package-user-dir', add `source-readonly'."
        'source
      'source-readonly)))
 
-(my/source-class-apply-readonly)
+;; (my/source-class-apply-readonly)
 
 ;; ** my/english-count-lines
 (use-package face-remap
@@ -303,11 +303,6 @@ command. Uses jk as default combination."
     :init (setq evilmi-may-jump-percentage nil) ; allow count usage
     :config (global-evil-matchit-mode t))
 
-  ;; **** evil-org
-  (use-package evil-org                 ; Evil org-mode bindings
-    :delight evil-org-mode
-    :init (bind-key "\t" 'org-back-to-heading evil-normal-state-map))
-
   ;; *** evil/bindings
   ;; **** evil/bindings/insert
   (bind-key "j" #'maybe-exit evil-insert-state-map) ; jk exits insert state
@@ -327,6 +322,8 @@ command. Uses jk as default combination."
    ;; visual line movement
    ("j" . evil-next-visual-line)
    ("k" . evil-previous-visual-line)
+   ("gj" . evil-next-line)
+   ("gk" . evil-previous-line)
    ;; movement
    ("a" . evil-last-non-blank)
    ("s" . evil-first-non-blank)
@@ -411,6 +408,7 @@ command. Uses jk as default combination."
   :delight org-indent-mode
   :defines (org-export-in-background org-odt-preferred-output-format)
   :init (setq
+         org-todo-keywords '((sequence "☐" "☒"))
          org-modules '(org-docview org-info org-gnus org-inlinetask)
          org-export-backends '(ascii html odt)
          org-odt-preferred-output-format 'doc
@@ -419,12 +417,26 @@ command. Uses jk as default combination."
          org-list-allow-alphabetical t) ; allow single-char alphabetical lists
 
   :config
+  ;; **** org/evil
+  (use-package evil-org                 ; Evil org-mode bindings
+    :delight evil-org-mode
+    :init (bind-key "\t" 'org-back-to-heading evil-normal-state-map))
+
+  ;; *** org/settings
+  (defun my/org-insert-quote ()
+    "Insert an org quote block and position point for editing."
+    (interactive)
+    (insert "#+BEGIN_QUOTE\n\n#+END_QUOTE\n")
+    (forward-line -2)
+    (if (fboundp 'evil-insert-state) (evil-insert-state nil)))
+
+  (set-face-attribute 'org-table nil
+                      :family "Input Mono Condensed")
   (set-face-attribute 'org-todo nil
                       :height 'unspecified
                       :inherit 'variable-pitch)
-  (set-face-attribute 'org-done nil :strike-through t
-                      :height 'unspecified
-                      :inherit 'variable-pitch))
+  (set-face-attribute 'org-done nil
+                      :inherit 'org-todo))
 
 ;; * faces
 ;; ** fic-ext
@@ -738,7 +750,6 @@ command. Uses jk as default combination."
 
 ;; * navigation
 ;; ** ace-jump-mode
-;; Consider as possible alternative to relative line numbers with evil-mode
 (use-package ace-jump-mode              ; Jump to specific points with marks
   :bind ("C-SPC" . ace-jump-mode))
 
@@ -866,7 +877,6 @@ command. Uses jk as default combination."
   :config
   ;; *** outline/outshine
   (use-package outshine
-    :load-path "~/.emacs.d/elisp/outshine" :ensure nil
     :config
     (bind-keys :map (evil-normal-state-map evil-motion-state-map)
                ([tab] . outline-cycle))
@@ -901,11 +911,10 @@ command. Uses jk as default combination."
     :demand t
     :delight evil-smartparens-mode
     :config
-    (smartparens-global-strict-mode t)
+    (add-hook 'prog-mode-hook #'smartparens-global-strict-mode)
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
   ;; *** smartparens/enable
   (electric-pair-mode -1)        ; disable to prevent duplicate quote marks
-  (show-paren-mode -1)           ; disable to prevent showing two sets of parens
   (smartparens-global-mode t)
   (show-smartparens-mode t))
 
@@ -963,22 +972,21 @@ command. Uses jk as default combination."
 
 ;; ** files
 (use-package files :ensure nil          ; File-related actions
-  :init
-  (setq
-   require-final-newline t                ; newline at end of file
-   large-file-warning-threshold 20000000  ; only warn at 20MB files
-   find-file-visit-truename t             ; silently follow symlinks
-   view-read-only t                       ; view read-only files in view-mode
-   ;; autosave file location
-   auto-save-list-file-prefix (concat my/dir "autosaves/")
-   auto-save-file-name-transforms `((".*" ,auto-save-list-file-prefix t))
-   ;; backups
-   backup-directory-alist `(("." . ,(expand-file-name "backups" my/dir)))
-   backup-by-copying t                  ; copy file into backup dir
-   version-control t                    ; add version numbers
-   delete-old-versions t                ; delete old backups silently
-   kept-old-versions 5                  ; old versions to keep
-   kept-new-versions 8)                 ; new versions to keep
+  :init (setq
+         require-final-newline t         ; newline at end of file
+         large-file-warning-threshold 20000000 ; only warn at 20MB files
+         find-file-visit-truename t            ; silently follow symlinks
+         view-read-only t               ; view read-only files in view-mode
+         ;; autosave file location
+         auto-save-list-file-prefix (concat my/dir "autosaves/")
+         auto-save-file-name-transforms `((".*" ,auto-save-list-file-prefix t))
+         ;; backups
+         backup-directory-alist `(("." . ,(expand-file-name "backups" my/dir)))
+         backup-by-copying t            ; copy file into backup dir
+         version-control t              ; add version numbers
+         delete-old-versions t          ; delete old backups silently
+         kept-old-versions 5            ; old versions to keep
+         kept-new-versions 8)           ; new versions to keep
   :config (cd "~"))                     ; start in home dir
 
 ;; ** image
@@ -988,6 +996,7 @@ command. Uses jk as default combination."
   :config
   (use-package image-dired :ensure nil  ; Image manipulation in dired
     :init (setq image-dired-dir (concat my/dir "image-dired/")))
+  ;; (use-package image+)                  ; Image view additions
   (auto-image-file-mode t))                  ; view images in Emacs
 
 ;; ** pandoc
@@ -1167,14 +1176,23 @@ command. Uses jk as default combination."
 ;; VimScript major mode. Also for editing Pentadactyl config files.
 (use-package vimrc-mode :mode "[._]pentadactylrc\\'" "\\.penta\\'")
 
+;; ** vbnet
+(use-package vbnet-mode
+  :load-path "~/.emacs.d/elisp/" :ensure nil
+  :init (setq vbnet-funcall-face 'font-lock-function-name-face
+              vbnet-namespace-face 'font-lock-preprocessor-face))
+
 ;; ** -web
+(use-package css-mode
+  :init (setq css-indent-offset 2))
+
 (use-package web-mode :disabled t
   :mode "\\.html?\\'")
 
 ;; * cleanup
 ;; Confirm before killing Emacs in GUI sessions.
 ;; At end of file to make init debugging easier.
-(when (window-system) (setq confirm-kill-emacs 'yes-or-no-p))
+;; (when (window-system) (setq confirm-kill-emacs 'yes-or-no-p))
 
 ;;; init.el ends here
 ;; Local Variables:
