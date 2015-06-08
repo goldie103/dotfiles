@@ -1,6 +1,7 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
-;; TODO get *scratch* buffer to never close
+;; TODO semanticdb location
+;; TODO aspell messages
 ;;; Code:
 ;; * setup
 ;; ** package
@@ -82,6 +83,11 @@
 
 (fset 'yes-or-no-p #'y-or-n-p)          ; less annoying
 (defun display-startup-echo-area-message () "Remove dumb start message." nil)
+
+;; bury scratch buffer instead of killing
+(add-hook 'kill-buffer-query-functions
+          (lambda() (if (equal (buffer-name (current-buffer)) "*scratch*")
+                   (progn (bury-buffer) nil) t)))
 
 ;; (when (eq system-type 'windows-nt)
 ;;   (setq w32-pass-apps-to-system nil
