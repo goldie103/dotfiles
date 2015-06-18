@@ -1,22 +1,23 @@
 # -*-mode: shell-script-*
-cwhite='\[\e[37m\]'
-ccyan='\[\e[36m\]'
-cpurple='\[\e[35m\]'
-cblue='\[\e[34m\]'
-cyellow='\[\e[33m\]'
-cgreen='\[\e[32m\]'
-cred='\[\e[31m\]'
-cblack='\[\e[30m\]'
-creset='\[\e[00m\]'
 
-# Display fortune message on shell start
-# Grabs only part of defined codes to prevent excess \[\] appearing in shell.
-echo -e ${cyellow:2:6}$(fortune -a)
+# Display yellow fortune message on shell start
+echo -e '\e[33m'$(fortune -a)
 
 # * prompt
 set_prompt () {
+  local cwhite='\[\e[37m\]'
+  local ccyan='\[\e[36m\]'
+  local cpurple='\[\e[35m\]'
+  local cblue='\[\e[34m\]'
+  local cyellow='\[\e[33m\]'
+  local cgreen='\[\e[32m\]'
+  local cred='\[\e[31m\]'
+  local cblack='\[\e[30m\]'
+  local creset='\[\e[00m\]'
+
   # exit status of last command
-  if [[ $? == 0 ]]; then PS1=$cgreen$scheck; else PS1=\ $cred$scross; fi
+  if [[ $? == 0 ]]; then PS1=$cgreen$scheck; else PS1=$cred$scross; fi
+
   # working dir
   PS1+=\ $cblue\\w
 
@@ -26,12 +27,8 @@ set_prompt () {
   GIT_PS1_SHOWDIRTYSTATE=1
   GIT_PS1_SHOWSTASHSTATE=1
   GIT_PS1_SHOWUNTRACKEDFILES=1
-  GIT_PS1_SYMBOLDIRTYSTAGED=$cgreen"σ"$cgit
-  GIT_PS1_SYMBOLDIRTYMODIFIED=$cred"μ"$cgit
-  GIT_PS1_SYMBOLUNTRACKED=$cyellow"θ"$cgit
-  GIT_PS1_SYMBOLSTASHED=$cpurple"Σ"$cgit
-  GIT_PS1_SYMBOLUPSTREAMDIVERGED=$cwhite"δ"$cgit
-  PS1+=$cgit$(__git_ps1)
+  GIT_PS1_SHOWUPSTREAM="auto verbose"
+  PS1+=$cgit$(__git_ps1 " (%s"$cgit")")
 
   # cleanup; add end character and reset colour
   PS1+=$ccyan" \$ "$creset
@@ -40,11 +37,29 @@ set_prompt () {
 PROMPT_COMMAND='set_prompt'
 
 # * aliases
-alias ls="ls -h --color"        # colors and human-readable sizes by default
-alias ll="ls -lv --group-directories-first" # dirs first + alphanumeric sorting
-alias la="ll -A"                            # hidden files
+alias ls="ls -Ah --color"        # all files, colors and human-readable sizes
+alias gits="git status -s"
+alias gita="git add"
+alias gitc="git commit"
 
-# * automatically run in background
+# always colors
+alias grep="grep --color=always"
+
+# less with color code support
+alias less="less -R"
+# less is more
+alias more=less
+
+alias apti="apt install"
+function apts() {
+  apt search "$@" | less -R
+}
+
+# point vim to custom vimrc
+export VIMINIT='source $MYVIMRC'
+export MYVIMRC='/media/kelly/User/.vim/vimrc'
+
+# automatically run in background
 function firefox() { command firefox "$@" & }
 function emacs() { command emacs "$@" & }
 

@@ -57,6 +57,8 @@
 ;; ** settings
 
 (setq
+ browse-url-browser-function #'browse-url-generic
+ browse-url-generic-program "firefox"
  read-file-name-completion-ignore-case t ; ignore case in completions
  sentence-end-double-space nil           ; double space is dumb
  tab-always-indent nil                   ; tab inserts a character
@@ -89,17 +91,21 @@
           (lambda() (if (equal (buffer-name (current-buffer)) "*scratch*")
                    (progn (bury-buffer) nil) t)))
 
-;; (when (eq system-type 'windows-nt)
-;;   (setq w32-pass-apps-to-system nil
-;;         w32-apps-modifier 'hyper
-;;         ;; Super is Windows key
-;;         ;; Taken mappings: s-l s-r
-;;         w32-lwindow-modifier 'super
-;;         w32-pass-lwindow-to-system nil))
+(when (eq system-type 'windows-nt)
+  (setq w32-pass-apps-to-system nil
+        w32-apps-modifier 'hyper
+        ;; Super is Windows key
+        ;; Taken mappings: s-l s-r
+        w32-lwindow-modifier 'super
+        w32-pass-lwindow-to-system nil))
 
 ;; ** fonts
-(set-frame-font "Input Mono Condensed-9")
-(set-face-attribute 'variable-pitch nil :family "Fantasque Sans Mono")
+(if (eq (window-system) 'x)
+   (set-frame-font "Input Mono Condensed-8")
+  (set-frame-font "InputMonoCondensed:h8"))
+(set-face-attribute 'variable-pitch nil
+                    :family "Fantasque Sans Mono"
+                    :height 100)
 
 ;; ** modes
 
@@ -116,32 +122,25 @@
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
 (blink-cursor-mode -1)
-(unless (window-system) (menu-bar-mode -1)) ; disable menu bar in terminal
+(unless (display-graphic-p) (menu-bar-mode -1)) ; disable menu bar in terminal
 
 ;; *** hooks
-(defmacro my/add-hooks (hook functions)
-  "Add to HOOK each item in list FUNCTIONS."
-  (dolist (func functions) (add-hook hook func)))
+(add-hook
+ 'prog-mode-hook
+  (column-number-mode t)
+  (line-number-mode t)
+  (semantic-mode t))
 
-(my/add-hooks
- prog-mode-hook
- (column-number-mode                    ; Modeline col num
-  line-number-mode                      ; Modeline line num
-  semantic-mode))
-
-(defun my/text-mode-hook ()
-  "Various things to do upon entering `text-mode'."
-  (face-remap-add-relative 'default :family "Input Sans Condensed" :height 100)
-  (line-number-mode -1)
-  (column-number-mode -1)
-  (linum-mode -1)
-  (hl-line-mode -1))
-
-(my/add-hooks
- text-mode-hook
- (visual-line-mode
-  visual-fill-column-mode
-  my/text-mode-hook))
+(add-hook
+ 'text-mode-hook
+ (lambda()
+   (face-remap-add-relative 'default :family "Input Sans Condensed" :height 100)
+   (visual-line-mode t)
+   (visual-fill-column-mode t)
+   (line-number-mode -1)
+   (column-number-mode -1)
+   (linum-mode -1)
+   (hl-line-mode -1)))
 
 ;; * custom commands
 ;; ** my/with-face-color
@@ -164,6 +163,7 @@
            (tab-width . 8)
            (eval . (whitespace-mode -1))
            (eval . (linum-mode -1))
+           (eval . (outline-minor-mode -1))
            (eval . (real-auto-save-mode -1))))))
 
 (dir-locals-set-class-variables
@@ -181,7 +181,8 @@ If no directory class is applied for `package-user-dir', add `source-readonly'."
         'source-readonly
         ;; have to use an arbitrary file in `package-user-dir', since
         ;; `dir-locals-find-file' won't work when given a directory.
-        (dir-locals-find-file "/home/kelly/.emacs.d/elpa/evil-readme.txt"))
+        (dir-locals-find-file
+         (expand-file-name "elpa/evil-readme.txt" user-emacs-directory)))
        'source
      'source-readonly)))
 
@@ -400,8 +401,9 @@ command. Uses jk as default combination."
 ;; ** lorem-ipsum
 (use-package lorem-ipsum)              ; Insert filler text
 
-;; ** magit
+;; ** TODO magit
 (use-package magit             ; Git version control management
+  ;; TODO bind magit commit buffers so ,w becomes commit
   :delight magit-auto-revert-mode
   :bind (("C-x m" . magit-status))
   :init (setq
@@ -416,13 +418,15 @@ command. Uses jk as default combination."
   :init (setq
          org-todo-keywords '((sequence "☐" "☒"))
          org-modules '(org-docview org-info org-gnus org-inlinetask)
-         org-export-backends '(ascii html odt)
+         org-export-backends '(ascii html odt taskjuggler)
          org-odt-preferred-output-format 'doc
          org-startup-folded t
          org-src-fontify-natively t     ; syntax highlight code in org buffer
          org-list-allow-alphabetical t) ; allow single-char alphabetical lists
 
   :config
+  (use-package org-plus-contrib)
+
   ;; **** org/evil
   (use-package evil-org                 ; Evil org-mode bindings
     :delight evil-org-mode
@@ -555,7 +559,7 @@ command. Uses jk as default combination."
             helm-M-x-fuzzy-match)
   :delight helm-mode
   ;; *** helm/global bindings
-  :bind ( ;; Helm replacements
+  :bind* ( ;; Helm replacements
          ("M-x" . helm-M-x)
          ("M-s o" . helm-occur)
          ("C-y" . show-kill-ring)
@@ -860,11 +864,36 @@ command. Uses jk as default combination."
   :bind ("C-=" . er/expand-region))
 
 ;; ** flyspell
+;; ** ispell
 (use-package flyspell                   ; On-the-fly spell checking
   :delight flyspell-mode " σ"
-  :init (setq flyspell-issue-welcome-flag nil  ; no start message
-              flyspell-issue-message-flag nil) ; no checking message
+  :init (setq
+         ispell-silently-savep t       ; save without asking confirmation
+         ispell-quietly t              ; no messages please
+         ispell-dictionary "british"
+         ispell-program-name (if (not (eq system-type 'windows-nt))
+                                 "aspell"
+                               "C:\\Program Files (x86)\\Aspell\\bin\\aspell.exe")
+         ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB")
+         flyspell-issue-welcome-flag nil  ; no start message
+         flyspell-issue-message-flag nil) ; no checking message
   :config
+  ;; Adapted from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
+  (defun my/ispell-with-run-together (orig-func &rest args)
+    "Use ispell --run-together options while ORIG-FUNC is being called."
+    (let ((old-ispell-extra-args ispell-extra-args)
+          (run-together-args '("--run-together"
+                               "--run-together-limit=5"
+                               "--run-together-min=2")))
+      (ispell-kill-ispell t)
+      (setq ispell-extra-args (append ispell-extra-args run-together-args))
+      (apply orig-func args)
+      (setq ispell-extra-args old-ispell-extra-args)
+      (ispell-kill-ispell t)))
+
+  (advice-add #'ispell-word :around #'my/ispell-with-run-together)
+  (advice-add #'flyspell-auto-correct-word :around #'my/ispell-with-run-together)
+
   ;; *** flyspell-lazy
   ;; Don't mark words less than 3 chars
   (use-package flyspell-lazy
@@ -1111,11 +1140,6 @@ command. Uses jk as default combination."
                                      (:connection-type . starttls)
                                      (:port . 5222)
                                      (:password . ,my/ac-fb-pw)))))
-;; ** ispell
-(use-package ispell
-  :init (setq ispell-silently-savep t       ; save without asking confirmation
-              ispell-quietly t              ; no messages please
-              ispell-personal-dictionary "~/.local/share/aspell/aspell.pws"))
 
 ;; * languages
 ;; ** BBCode
@@ -1127,8 +1151,8 @@ command. Uses jk as default combination."
   (setq generic-extras-enable-list
         (append generic-extras-enable-list generic-mswindows-modes))
 
-;; *** conkyrc
-  (use-package conkyrc-mode             ; System monitor setup language
+  ;; *** conkyrc
+  (use-package conkyrc-mode :disabled t ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 ;; ** gitignore
@@ -1161,7 +1185,7 @@ command. Uses jk as default combination."
 (use-package lua-mode)
 
 ;; ** -markdown
-(use-package markdown-mode  :disabled t)
+(use-package markdown-mode)
 
 ;; ** TODO python
 (use-package python
@@ -1182,6 +1206,22 @@ command. Uses jk as default combination."
   :defer t
   :init (setq sh-learn-basic-offset t         ; guess indentation when obvious
               sh-basic-offset 2))             ; indent by 2
+
+(use-package tid-mode
+  :load-path "~/.emacs.d/elisp/" :ensure nil
+  :config
+
+  (defun open-wiki ()
+  "Opens a TiddlyWiki directory in Dired."
+  (interactive)
+  (dired "~/Dropbox/wiki/tiddlers/"))
+
+  (defun browse-wiki ()
+  "Opens TiddlyWiki in the browser."
+  (interactive)
+  (browse-url "127.0.0.1:8080/")))
+
+
 
 ;; ** vimrc
 ;; VimScript major mode. Also for editing Pentadactyl config files.
