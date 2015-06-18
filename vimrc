@@ -1,10 +1,13 @@
 " Kelly Stewart
-" TODO system clipboard ugh
 set nocompatible
+if has('win32') || has('win64')
+  set runtimepath=$HOME/.vim,$VIM/vimfiles,$VIMRUNTIME,$VIM/vimfiles/after,$HOME/.vim/after
+endif
+
 " Plugins {{{
 " Vundle setup {{{
 filetype off
-set rtp+=~/.vim/bundle/Vundle.vim
+set rtp+=$HOME/.vim/bundle/Vundle.vim
 call vundle#begin()
 
 Plugin 'gmarik/Vundle.vim'
@@ -76,9 +79,15 @@ set noeb novb 	               " don't beep or flash
 set cmdheight=2                " prevent frequent need to scroll long commands
 set number relativenumber      " show both relative and absolute line numbers
 
-set guifont=Input\ Mono\ 8     " GUI font
 set guicursor+=a:blinkon0      " turn off cursor blinking
 set guioptions-=T              " no toolbar
+
+" fonts
+if has("gui_win32")
+    set guifont=InputMonoCondensed:h8
+elseif has("gui_gtk2")
+    set guifont=Input\ Mono\ Condensed\ 8
+endif
 
 " }}}
 " Formatting {{{
@@ -99,6 +108,7 @@ augroup configgroup
 augroup END
 " }}}
 " Behavior {{{
+set viminfo+=n$HOME/.vim/viminfo " don't clutter my home directory
 set ignorecase smartcase   		" use case sensitive search when case is used
 set incsearch		    		" do incremental searching
 set confirm			         	" ask to confirm close without writing
@@ -112,9 +122,8 @@ set modelines=1                 " for vimrc-specific folding
 set encoding=utf-8              " unicode forever
 set gdefault                    " global substitutions as default
 set autochdir                   " change to dir of file in buffer
-set clipboard+=unnamed          " use system clipboards
+set clipboard=unnamedplus       " use system clipboards
 set paste                       " paste from system
-"set go+=a                       " auto copy visual selection to clipboard
 let mapleader = ','             " easier to reach
 cd ~
 
@@ -131,6 +140,8 @@ if !exists(":DiffOrig")
 endif
 " }}}
 " Mappings {{{
+" insert a single char
+nnoremap \ a_<Esc>r
 " file operations
 nnoremap <leader>w :w<CR>
 nnoremap <leader>e <C-p>
