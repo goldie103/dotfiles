@@ -59,6 +59,8 @@
 (setq
  browse-url-browser-function #'browse-url-generic
  browse-url-generic-program "firefox"
+ semanticdb-default-save-directory (expand-file-name
+                                    ".user/semanticdb" user-emacs-directory)
  read-file-name-completion-ignore-case t ; ignore case in completions
  sentence-end-double-space nil           ; double space is dumb
  tab-always-indent nil                   ; tab inserts a character
@@ -411,6 +413,7 @@ command. Uses jk as default combination."
          magit-last-seen-setup-instructions "1.4.0" ; clear startup message
          magit-diff-options '("-b")))               ; ignore whitespace in diffs
 
+
 ;; ** org
 (use-package org
   :delight org-indent-mode
@@ -426,6 +429,22 @@ command. Uses jk as default combination."
 
   :config
   (use-package org-plus-contrib)
+
+  (defun org-dblock-write:git-log-view (params)
+    (let ((repo (or (plist-get params :repo)
+                    (expand-file-name ".git"
+                                      (file-name-directory (buffer-file-name)))))
+          (format (or (format "--format='%s'" (plist-get params :format))
+                      "--pretty=oneline"))
+          (trunc-p (plist-get params :trunc))
+          (args (or (string-join (plist-get params :args)) "")))
+      (setq output
+            (shell-command-to-string
+             (format "git --git-dir=%s log %s %s" repo format args)))
+
+      (when trunc-p (setq output (replace-regexp-in-string "\\.\\." "" output)))
+
+      (insert output)))
 
   ;; **** org/evil
   (use-package evil-org                 ; Evil org-mode bindings
@@ -1233,13 +1252,15 @@ command. Uses jk as default combination."
   :init (setq vbnet-funcall-face 'font-lock-function-name-face
               vbnet-namespace-face 'font-lock-preprocessor-face))
 
-;; ** -web
+;; ** web
 (use-package css-mode
   :init (setq css-indent-offset 2))
 
-(use-package web-mode :disabled t
-  :mode "\\.html?\\'")
-
+(use-package web-mode
+  :mode "\\.html?\\'"
+  :init (setq-default web-mode-css-indent-offset 2
+              web-mode-code-indent-offset 2
+              web-mode-markup-indent-offset 2))
 ;; * cleanup
 ;; Confirm before killing Emacs in GUI sessions.
 ;; At end of file to make init debugging easier.
