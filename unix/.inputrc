@@ -1,0 +1,8 @@
+set completion-ignore-case on     # Tab completion ignores case
+set mark-symlinked-directories on # complete dir symlinks with trailing slash
+set skip-completed-text on        # complete intelligently on text after cursor
+
+# allow UTF-8 input and output
+set input-meta on
+set output-meta on
+set convert-meta off

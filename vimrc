@@ -108,7 +108,9 @@ augroup configgroup
 augroup END
 " }}}
 " Behavior {{{
+set formatoptions+=j            " delete comment char when joining lines
 set viminfo+=n$HOME/.vim/viminfo " don't clutter my home directory
+set ttimeout ttimeoutlen=100    " time out period for keypresses
 set ignorecase smartcase   		" use case sensitive search when case is used
 set incsearch		    		" do incremental searching
 set confirm			         	" ask to confirm close without writing

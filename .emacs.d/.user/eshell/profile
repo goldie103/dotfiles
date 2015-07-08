@@ -1,3 +1,0 @@
-(propertize
- (shell-command-to-string "fortune -a")
- 'face `(:foreground ,(face-attribute 'term-color-yellow :foreground)))

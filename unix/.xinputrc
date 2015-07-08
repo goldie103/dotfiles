@@ -10,7 +10,7 @@ for option in $options; do
 done
 
 # Wacom tablet mappings
-TABLET="Wacom Intuos PT S Finger pad"
+tablet="Wacom Intuos PT S Finger pad"
 xsetwacom set $tablet Button 3 "key ctrl z"       # top-left undo
 #xsetwacom set $tablet Button 9 ""                 # top-right
 #xsetwacom set $tablet Button 1 ""                 # bottom-left

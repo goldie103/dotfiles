@@ -1,0 +1,115 @@
+-*-mode: shell-script-*-
+# Liquid prompt configuration file
+# * LP_PS1 Template
+# LP_PS1="${LP_PS1_PREFIX}${LP_TIME}${LP_BATT}${LP_LOAD}${LP_JOBS}"
+# LP_PS1="${LP_PS1}${LP_BRACKET_OPEN}${LP_USER}${LP_HOST}${LP_PERM}"
+# LP_PS1="${LP_PS1}${LP_PWD}${LP_BRACKET_CLOSE}${LP_VENV}${LP_PROXY}"
+# LP_PS1="${LP_PS1}${LP_VCS}"
+# LP_PS1="${LP_PS1}${LP_RUNTIME}${LP_ERR}${LP_MARK_PREFIX}${LP_MARK}${LP_PS1_POSTFIX}"
+
+# LP_PS1=$LP_PS1_PREFIX           # user-defined general-purpose prefix
+# LP_PS1=${LP_PS1}${LP_HOST}${LP_USER:+${LP_USER}${LP_PERM}}
+# LP_PS1=${LP_PS1}${LP_PWD}${LP_VENV}${LP_PROXY}
+# LP_PS1=${LP_PS1}${LP_VCS}
+# LP_PS1=${LP_PS1}${LP_RUNTIME}
+# LP_PS1=${LP_PS1}${LP_ERR}${LP_BATT}${LP_JOBS}
+# LP_PS1=${LP_PS1}${LP_MARK_PREFIX}${LP_MARK}${LP_PS1_POSTFIX}
+
+# Get the current prompt on the fly and make it a title
+# LP_TITLE="$(_lp_title "$LP_PS1")"
+# LP_PS1="${LP_TITLE}${LP_PS1}"   # invisible; sets title to prompt
+
+# * theme
+# Be sure to use characters that exists in the font you use
+if [[ "$(locale -k LC_CTYPE | sed -n 's/^charmap="\(.*\)"/\1/p')" == *"UTF-8"* ]]; then
+    # If charset is UTF-8.
+    LP_MARK_BATTERY="⌁"        # in front of the battery charge
+    LP_MARK_ADAPTER="⏚"        # displayed when plugged
+    LP_MARK_LOAD="⌂"           # in front of the load
+    LP_MARK_TEMP="θ"           # in front of the temp
+    LP_MARK_PROXY="↥"          # indicate a proxy in use
+    LP_MARK_HG="☿"             # prompt mark in hg repositories
+    LP_MARK_SVN="‡"            # prompt mark in svn repositories
+    LP_MARK_GIT="±"            # prompt mark in git repositories
+    LP_MARK_FOSSIL="⌘"         # prompt mark in fossil repositories
+    LP_MARK_DISABLED="⌀"       # prompt mark in directory with disabled VCS info
+    LP_MARK_UNTRACKED="*"      # if git has untracked files
+    LP_MARK_STASH="+"          # if git has stashs
+    LP_MARK_COMMITS=""        # git upstream status
+    LP_MARK_SHORTEN_PATH=" … " # prompt mark in shortened paths
+else
+    # If charset is anything else, fallback to ASCII chars
+    LP_MARK_BATTERY="b"
+    LP_MARK_ADAPTER="p"
+    LP_MARK_LOAD="c"
+    LP_MARK_TEMP="T"
+    LP_MARK_PROXY="^"
+    LP_MARK_HG="m"
+    LP_MARK_SVN="="
+    LP_MARK_GIT="+"
+    LP_MARK_FOSSIL="f"
+    LP_MARK_DISABLED="!"
+    LP_MARK_UNTRACKED="*"
+    LP_MARK_STASH="+"
+    LP_MARK_COMMITS=""
+    LP_MARK_SHORTEN_PATH=" ... "
+fi
+
+LP_MARK_BRACKET_OPEN="["   # open bracket
+LP_MARK_BRACKET_CLOSE="]"  # close bracket
+# LP_MARK_DEFAULT=""         # default prompt mark
+LP_MARK_PREFIX=" "         # prompt mark prefix
+LP_PS1_PREFIX=""
+LP_PS1_POSTFIX=""
+# * Configuration
+# ** Settings
+LP_BATTERY_THRESHOLD=75         # 75 max value to show battery level
+LP_LOAD_THRESHOLD=60            # 60 min value to show load average
+LP_TEMP_THRESHOLD=60            # 60 min value to show temperature (degrees C)
+LP_RUNTIME_THRESHOLD=2          # 2 min runtime to display
+
+LP_PATH_LENGTH=35               # 35 max percentage of screen width for path
+LP_PATH_KEEP=2                  # 2 directories to keep at start of short path
+
+# List of complete, colon-separated paths to disable VCS info
+LP_DISABLED_VCS_PATH=""
+
+# Analog display. Accurate to nearest 30 minutes.
+# Requires unicode-capable terminal and font with CLOCK characters.
+LP_TIME_ANALOG=0
+
+# ** Features
+LP_ENABLE_PERM=1                # 1 permissions
+LP_ENABLE_PROXY=1               # 1 proxy
+LP_ENABLE_JOBS=1                # 1 running jobs
+LP_ENABLE_LOAD=1                # 1 load
+LP_ENABLE_BATT=1                # 1 battery
+LP_ENABLE_VIRTUALENV=1          # 1 activated virtualenv
+LP_ENABLE_TIME=0                # 0 time of last prompt display
+LP_ENABLE_RUNTIME=0             # 0 runtime of last command
+LP_ENABLE_TEMP=1                # 1 average system temperature
+LP_ENABLE_SCLS=1                # 1 enabled software collections
+LP_PERCENTS_ALWAYS=1            # 1 percentages with corresponding mark
+
+LP_HOSTNAME_ALWAYS=0            # 0 hostname even if local connection
+LP_USER_ALWAYS=0                # 1 user even if same as login user
+LP_ENABLE_SHORTEN_PATH=1        # 1 shortened paths
+LP_ENABLE_SSH_COLORS=0          # 0 different colors for different SSH hosts
+
+# *** Title
+# Use prompt as the title of the terminal window
+# The content is not customizable, the implementation is very basic,
+# and this may not work properly on exotic terminals, thus the
+# recommended value is 0
+# See LP_TITLE_OPEN and LP_TITLE_CLOSE to change escape characters to adapt this
+# feature to your specific terminal.
+LP_ENABLE_TITLE=0
+LP_ENABLE_SCREEN_TITLE=0        # 0 Title for screen and byobu
+
+# *** VCS features
+LP_ENABLE_VCS_ROOT=0            # 0 VCS features with root
+LP_ENABLE_GIT=1                 # 1 Git
+LP_ENABLE_SVN=1                 # 1 SVN
+LP_ENABLE_HG=1                  # 1 Mercurial
+LP_ENABLE_FOSSIL=1              # 1 Fossil
+LP_ENABLE_BZR=1                 # 1 Bazaar

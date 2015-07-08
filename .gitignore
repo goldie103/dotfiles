@@ -1,3 +1,6 @@
+# existing files
+\.old
+# sources
+\src
+# autosave files
 \.#.*
-git-prompt.sh
-/emacs/.emacs.d/flycheck_init.el
