@@ -1,8 +1,8 @@
+;; -*- outline-regexp: ";;; \\*\\{1,8\\}"; -*-
 ;;; * init.el
 ;; TODO aspell messages
 ;; TODO eshell prompt
-;; TODO split files oyah
-;; DOING add :defer and :demand keywords correctly
+;; DONE? add :defer and :demand keywords correctly
 ;; DONE? fix evil bindings
 ;;; ** setup
 (defconst my-dir (expand-file-name  ".user/" user-emacs-directory))
@@ -113,37 +113,45 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 ;;; ** basic settings
 ;;; *** general
 (setq
+ disabled-command-function nil          ; no disabld
  comment-auto-fill-only-comments t
- smooth-scroll-margin 3                  ; fewer lines visible at buffer ends
- frame-title-format "%b emacs"                 ; buffer name as frame title
- window-combination-resize t                   ; use proportional window resize
+ smooth-scroll-margin 3                 ; fewer lines visible at buffer ends
+ frame-title-format "%b emacs"          ; buffer name as frame title
+ window-combination-resize t            ; use proportional window resize
  echo-keystrokes 0.1                    ; echo unfinished commands faster
  x-underline-at-descent-line t          ; draw underline lower
  ring-bell-function 'ignore             ; disable alarms
  initial-major-mode 'text-mode          ; scratch in text mode
- save-interprogram-paste-before-kill t   ; don't overwrite clipboard contents
+ save-interprogram-paste-before-kill t  ; don't overwrite clipboard contents
  kill-do-not-save-duplicates t
  line-move-visual t
+ ;; compilation
+ compilation-always-kill t        ; kill old processes before starting new ones
+ compilation-skip-threshold 2     ; skip warning and info messages
+ compilation-context-lines 3      ; show 3 lines of context around message
+ compilation-scroll-output 'first-error
+ compilation-auto-jump-to-first-error t
+ compilation-ask-about-save nil
  ;; formatting
- tab-always-indent nil              ; tab inserts a character
+ tab-always-indent nil                  ; tab inserts a character
  require-final-newline t
  tab-width 4
  sentence-end-double-space nil
  ;; files
  read-file-name-completion-ignore-case t
- vc-handled-backends '(SVN Git)          ; remove unnecessary vc backends
- delete-by-moving-to-trash t           ; use system trash for deletion
- large-file-warning-threshold 20000000 ; larger warning threshold
- find-file-visit-truename t            ; silently follow symlinks
- view-read-only t                      ; view read-only files in view-mode
+ vc-handled-backends '(SVN Git)         ; remove unnecessary vc backends
+ delete-by-moving-to-trash t            ; use system trash for deletion
+ large-file-warning-threshold 20000000  ; larger warning threshold
+ find-file-visit-truename t             ; silently follow symlinks
+ view-read-only t                       ; view read-only files in view-mode
  ;; autosave file location
  auto-save-list-file-prefix (expand-file-name "autosaves/" my-dir)
  auto-save-file-name-transforms `((".*" ,auto-save-list-file-prefix t))
  ;; backups
  backup-directory-alist `(("." . ,(expand-file-name "backups" my-dir)))
  backup-by-copying t
- version-control t                  ; add version numbers
- delete-old-versions t              ; delete old backups silently
+ version-control t                      ; add version numbers
+ delete-old-versions t                  ; delete old backups silently
  kept-old-versions 5
  kept-new-versions 8
  ;; user info
@@ -165,7 +173,7 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 ;;; remove startup messages
 (setq inhibit-startup-screen t
       initial-scratch-message nil)
-(defun display-startup-echo-area-message () nil)
+(fset display-startup-echo-area-message #'ignore)
 
 (defun my-bury-scratch ()
   "Bury the scratch buffer instead of killing it."
@@ -189,14 +197,21 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
      (line-beginning-position) (line-end-position))))
 (advice-add #'comment-dwim :before-until #'my-comment-dwim-line)
 
+(defun my-change-word-case (arg)
+  "Advice for functions to change case. First moves to beginning of word."
+  (unless (looking-back "\\b") (backward-word)))
+(dolist (func '(upcase-word downcase-word capitalize-word))
+  (advice-add func :before #'my-change-word-case))
+
 
 ;;; *** modes and hooks
 
 (mouse-wheel-mode t)                    ; Mouse wheel enabled
-(global-prettify-symbols-mode t)        ; Pretty symbols
 (show-paren-mode t)                     ; Highlight matching parens
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
+(aut-insert-mode t)                     ; Auto insert text based on filetype
+
 ;; we don't need no stinkin GUI
 (size-indication-mode -1)
 (tool-bar-mode -1)
@@ -205,18 +220,46 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (unless (display-graphic-p) (menu-bar-mode -1)) ; no menu bar in terminal
 
 (my-add-hooks 'prog-mode-hook
-              '(hl-line-mode
-                auto-fill-mode
-                goto-address-prog-mode
-                column-number-mode
+              '(hl-line-mode            ; Highlight current line
+                prettify-symbols-mode   ; Replace words with symbols
+                auto-fill-mode          ; Automatically fill text past fill-col
+                goto-address-prog-mode  ; Buttonize URLs in comments and string
+                column-number-mode      ; Numbers in modeline
                 line-number-mode))
 
 (my-add-hooks 'text-mode-hook
-              '(visual-line-mode
-                goto-address-mode
-                visual-fill-column-mode))
+              '(visual-line-mode        ; Visually wrap text by words
+                goto-address-mode       ; Buttonize URLs
+                visual-fill-column-mode)) ; Wrap to fill-column
 
 ;;; *** bindings
+
+;; Adapted from http://www.reddit.com/r/emacs/comments/25v0eo/you_emacs_tips_and_tricks/chldur
+(defun my-vsplit-last-buffer (prefix)
+  "Split window vertically and display the previous buffer."
+  (interactive "p")
+  (split-window-vertically)
+  (other-window 1 nil)
+  (when (= prefix 1) (switch-to-next-buffer)))
+
+(defun my-hsplit-last-buffer (prefix)
+  "Split window horizontally and display previous buffer."
+  (interactive "p")
+  (split-window-horizontally)
+  (other-window 1 nil)
+  (when (= prefix 1) (switch-to-next-buffer)))
+
+
+(bind-keys
+ ("S-SPC" . cycle-spacing)              ; M-SPC is taken in Linux Mint
+ ("RET" . newline-and-indent)           ; indent new lines automatically
+ ("C-x C-M-x" . revert-buffer)
+ ([remap evil-window-split] . my-hsplit-last-buffer)
+ ([remap evil-window-vsplit] . my-vsplit-last-buffer)
+ ([remap evil-window-new] . my-vsplit-last-buffer))
+
+(bind-key "q" #'kill-buffer package-menu-mode-map)
+
 
 ;; https://github.com/davvil/.emacs.d/blob/master/init.el
 (defun minibuffer-keyboard-quit ()
@@ -350,15 +393,9 @@ command. Uses jk as default combination."
    ("<escape>" . keyboard-quit)
    ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
    ("Q" . evil-record-macro)            ; Q replaces old q action
-   ;; window movement
-   ("C-h" . evil-window-left)
-   ("C-j" . evil-window-down)
-   ("C-k" . evil-window-up)
-   ("C-l" . evil-window-right)
-   ;; visual line movement
+   ;; movement
    ("j" . evil-next-visual-line)
    ("k" . evil-previous-visual-line)
-   ;; movement
    ("s" . evil-last-non-blank)
    ("a" . evil-first-non-blank)
    ("\"" . evil-jump-item)
@@ -376,7 +413,7 @@ command. Uses jk as default combination."
     :config
     (global-evil-matchit-mode t)
     (evil-define-key 'normal evil-matchit-mode-map
-      "\"" 'evilmi-jump-items)))
+      "\"" #'evilmi-jump-items)))
 
 
 (use-package helm-config            ; Fuzzy minibuffer completion
@@ -431,6 +468,45 @@ command. Uses jk as default combination."
   (defalias #'ibuffer #'helm-mini)
   (helm-autoresize-mode t)
 
+  (bind-keys*
+   ;; Helm replacements
+   ([remap execute-extended-command] . helm-M-x)
+   ;; ("M-s o" . helm-occur)
+   ;; ("C-x r i" . helm-register)
+   ([remap list-buffers]. helm-mini)
+   ([remap ibuffer]. helm-mini)
+   ([remap find-files] . helm-find-files)
+   ([remap locate-library] . helm-locate-library)
+   ([remap apropos] . helm-apropos)
+   ([remap manual-entry] . helm-man-woman)
+   ;; Additional Helm functions
+   ("M-/" . helm-do-grep)
+   ("C-y" . helm-show-kill-ring)
+   ("C-/" . helm-semantic-or-imenu)
+   ("<help> C-r" . helm-info-at-point)
+   ("<help> i" . helm-info-emacs)
+   ("<help> I" . helm-info-elisp))
+
+  (bind-keys
+   :map helm-map
+   ("<C-S-up>" . helm-scroll-other-window)
+   ("<C-S-down>". helm-scroll-other-window-down)
+   ("<tab>" . helm-execute-persistent-action) ; execute action without closing
+   ("C-z" . helm-select-action))            ; list actions
+
+  (bind-keys
+   :map (evil-normal-state-map
+         evil-motion-state-map
+         evil-visual-state-map)
+   (",hy" . helm-show-kill-ring)
+   (",hs" . helm-do-grep)
+   (",hu" . helm-ucs)
+   (",hc" . helm-colors)
+   (",H" . helm-resume))
+
+  (use-package imenu-anywhere
+    :bind ([remap helm-semantic-or-imenu] . imenu-anywhere))
+
   (use-package helm-dash            ; TODO Language documentation viewer
     :init (setq
            helm-dash-browser-func 'eww
@@ -445,46 +521,21 @@ command. Uses jk as default combination."
     (setq helm-descbinds-window-style 'split-window)
     (helm-descbinds-mode t))
 
-  (bind-keys*
-   ;; Helm replacements
-   ("M-x" . helm-M-x)
-   ("M-s o" . helm-occur)
-   ("C-y" . helm-show-kill-ring)
-   ("C-x r i" . helm-register)
-   ("C-x b" . helm-mini)
-   ("C-x C-f" . helm-find-files)
-   ("<help> l" . helm-locate-library)
-   ("<help> C-a" . helm-apropos)
-   ("<help> C-l" . view-lossage)
-   ;; Additional Helm functions
-   ("C-/" . helm-semantic-or-imenu)
-   ("<help> C-r" . helm-info-at-point)
-   ("<help> w" . helm-man-woman)
-   ("<help> i" . helm-info-emacs)
-   ("<help> I" . helm-info-elisp))
-
-  (bind-keys
-   :map helm-map
-   ("<C-S-up>" . helm-scroll-other-window)
-   ("<C-S-down>". helm-scroll-other-window-down)
-   ([tab] . helm-execute-persistent-action) ; execute action without closing
-   ("C-z" . helm-select-action))            ; list actions
-
-  (bind-keys
-   :map (evil-normal-state-map
-         evil-motion-state-map
-         evil-visual-state-map)
-   ("SPC" . helm-M-x)
-   (",b" . helm-mini)
-   (",f" . helm-find-files)
-   (",hy" . helm-show-kill-ring)
-   (",ha" . helm-apropos)
-   (",hg" . helm-do-grep)
-   (",hu" . helm-ucs)
-   (",hc" . helm-colors)
-   (",hr" . helm-resume)))
+  (use-package helm-swoop :disabled t   ; Fast searching and navigation
+    :bind (("M-/" . helm-swoop)
+           ("C-c h s" . helm-swoop)
+           ("C-c h S" . helm-multi-swoop)
+           ("C-c h C-s" . helm-multi-swoop-all)
+           ("C-c h M-s" . helm-multi-swoop-current-mode))
+    :init
+    (bind-key "M-i" #'helm-swoop-from-isearch)
+    (bind-key ",hs" #'helm-swoop evil-normal-state-map)
+    :config (bind-key "M-i" #'helm-multi-swoop-from-helm-swoop helm-swoop-map)))
 
 ;;; ** appearance
+
+(use-package hl-line+ :disabled t)     ; TODO what.
+
 ;;; *** highlight fic
 ;; DONE? fixme todo highlight
 (defface font-lock-fic-face
@@ -571,6 +622,8 @@ command. Uses jk as default combination."
                                         b a)))))
 
 ;;; *** face packages
+
+
 (use-package hl-sentence                ; Highlight current sentence
   :defer t
   :init (add-hook 'text-mode-hook #'hl-sentence-mode)
@@ -742,6 +795,36 @@ Can be used outside writeroom mode."
   :bind ("C-SPC" . ace-jump-mode))
 
 
+(use-package ace-window
+  :bind ("M-o" . ace-window)
+  :init (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
+
+
+(use-package ag                         ; Fast search and navigation
+  :config
+  (use-package helm-ag
+    :bind (("M-/" . helm-do-ag-this-file)
+           ("C-M-/" . helm-do-ag-project-root)
+           ("C-M-?" . helm-do-ag-buffers)
+           ("C-c h s" . helm-do-ag-this-file)
+           ("C-c h C-s" . helm-do-ag-project-root)
+           ("C-c h M-s" . helm-do-ag-buffers))
+    :init
+    (bind-key ",hs" #'helm-do-ag-this-file evil-normal-state-map)
+    (setq helm-ag-insert-at-point 'symbol  ; symbol at point as default pattern
+          ;; helm-ag-source-type 'file-line
+          helm-ag-fuzzy-match t)))
+
+(use-package desktop                    ; Save buffers, windows and frames
+  :defer t
+  :init
+  (setq desktop-auto-save-timeout 60
+        desktop-dirname (expand-file-name "desktop" my-dir))
+  (desktop-save-mode t)
+  :config
+  (my-append-to-list 'desktop-not-to-save '(magit-mode git-commit-mode)))
+
+
 (use-package expand-region               ; Expand functions block at a time
   :bind ("C-=" . er/expand-region))
 
@@ -818,14 +901,15 @@ Can be used outside writeroom mode."
 
 ;;; ** editing
 
-
+(use-package adaptive-wrap)             ; Choose wrapping mode intelligently
 (use-package flycheck                   ; On-the-fly syntax checking
   :defer t
   :init
   (setq flycheck-mode-line
         '(:eval (replace-regexp-in-string
                  "FlyC" "Φ" (flycheck-mode-line-status-text)))
-        flycheck-disabled-checkers '(emacs-lisp-checkdoc))
+        flycheck-disabled-checkers '(emacs-lisp-checkdoc)
+        flycheck-indication-mode 'right-fringe)
   (add-hook 'prog-mode-hook #'flycheck-mode)
   (add-hook 'sh-mode-hook (lambda() (flycheck-mode -1)))
 
@@ -859,7 +943,8 @@ Can be used outside writeroom mode."
   :defer t
   :delight writegood-mode
   :init (add-hook 'text-mode-hook #'writegood-mode)
-  :config (my-append-to-list 'writegood-weasel-words '("thing" "different")))
+  :config (my-append-to-list 'writegood-weasel-words
+                             '("thing" "different" "probably" "really")))
 
 
 (use-package abbrev    ; Auto-correct words after typing
@@ -884,6 +969,7 @@ Can be used outside writeroom mode."
   :init
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
+        company-tooltip-align-annonation t
         company-lighter-base "ψ"
         company-selection-wrap-around t)
   (add-hook 'prog-mode-hook #'company-mode)
@@ -899,7 +985,10 @@ Can be used outside writeroom mode."
                      ("C-:" . helm-company)))
 
   (use-package company-web-html
-    :ensure nil))
+    :ensure nil)
+
+  (use-package company-statistics       ; Sort candidates by statistics
+    :init (company-statistics-mode)))
 
 
 (use-package ispell
@@ -1082,13 +1171,18 @@ Can be used outside writeroom mode."
 
 ;;; ** applications
 
+(use-package paradox
+  :init
+  (setq paradox-execute-asynchronously t)
+  (use-package async))
+
 
 (use-package calendar
   :defer t
   :init (setq calendar-date-style 'european))
 
 
-(use-package dired    ; Emacs file browser
+(use-package dired                      ; Emacs file browser
   :ensure nil
   :bind (("C-x d" . dired-jump)
          ("C-x C-d" . list-directory))
@@ -1101,13 +1195,25 @@ Can be used outside writeroom mode."
    dired-no-confirm '(copy move symlink) ; don't confirm these operations
    dired-recursive-copies 'always        ; recursive copy by default
    dired-recursive-deletes 'top          ; confirm recursive delete
-   dired-listing-switches "-lha")        ; human-readable listing
+   dired-listing-switches "-lhaF")       ; human-readable listing
   (add-to-list 'evil-emacs-state-modes 'dired-mode) ; Evil initial state
   :config
+
   (use-package dired+                   ; Dired extensions and syntax highlight
-    :init (setq diredp-dwim-any-frame-flag t) ; allow dwim target other frame
-    :config (dired-omit-mode t))              ; omit uninteresting files
+    :init
+    (setq diredp-dwim-any-frame-flag t  ; allow dwim target other frame
+          dired-omit-verbose nil)
+    (add-hook 'dired-mode-hook #'dired-omit-mode)  ; omit uninteresting files
+    :config
+    ;; https://github.com/lunaryorn/.emacs.d/blob/master/init.el
+    ;; Hack for diminishing mode lighter. Can't just use `:delight' because
+    ;; lighter isn't there yet after `dired-omit-mode' is loaded.
+    ;; (advice-add #'dired-omit-startup :after
+    ;;             (lambda () (delight 'dired-omit-mode)))
+    )
+
   (bind-keys :map dired-mode-map
+             ("q" . kill-buffer)
              ("C-M-u" . dired-up-directory)
              ("C-w" . wdired-change-to-wdired-mode)))
 
@@ -1126,9 +1232,9 @@ Can be used outside writeroom mode."
   :defer t
   :init (setq ediff-diff-options "-w")  ; ignore whitespace
   :config
-  (bind-keys :map ediff-mode-map
-             ("j" . ediff-next-difference)
-             ("k" . ediff-previous-difference)))
+  (evil-define-key 'normal ediff-mode
+    "j" #'ediff-next-difference
+    "k" #'ediff-previous-difference))
 
 
 (use-package garak :disabled t   ; ELIM messenger front-end
@@ -1143,6 +1249,7 @@ Can be used outside writeroom mode."
          comint-scroll-to-bottom-on-input t
          comint-completion-autolist t)
   :config
+
   (defun my-comint-evil-insert ()
     "Enter insert state after the process mark."
     (interactive)
@@ -1211,14 +1318,15 @@ Can be used outside writeroom mode."
 
 (use-package magit                      ; Git version control management
   :delight magit-auto-revert-mode
-  :bind ("M-m" . magit-status)
+  :bind ("<f10>" . magit-status)
   :init (setq
          magit-save-some-buffers 'dontask           ; don't ask before saving
          magit-last-seen-setup-instructions "1.4.0" ; clear startup message
          magit-diff-options '("-b"))    ; ignore whitespace in diffs
   :config
+
   ;; http://writequit.org/org/settings.html
-  (defun magit-browse ()
+  (defun my-git-browse-url ()
     "Browse to the project's github URL, if available"
     (interactive)
     (let ((url (with-temp-buffer
@@ -1233,13 +1341,21 @@ Can be used outside writeroom mode."
         (error "Can't find repository URL"))
       (browse-url url)))
 
+  (use-package git-wip-mode :disabled t)          ; TODO what does this do
+
   (bind-keys :map magit-status-mode-map
+             ("SPC" . helm-M-x)
+             ("<C-tab>" . magit-section-cycle)
              ("j" . next-line)
              ("k" . previous-line)
              ("<down>" . magit-goto-next-sibling-section)
              ("<up>" . magit-goto-previous-sibling-section)
              ("K" . magit-discard-item)
-             (",b" . ibuffer)))
+             (",b" . ibuffer))
+
+  (use-package git-timemachine
+    :bind (("C-<f10>" . git-timemachine)
+           ("S-<f10>" . git-timemachine-toggle))))
 
 
 ;;; ** languages
@@ -1354,16 +1470,18 @@ Can be used outside writeroom mode."
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 
-(use-package lisp-mode
+(use-package elisp-mode
   :defer t :ensure nil
   :config
   (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map)
 
-  (defun my-imenu-use-package ()
-    "Set `imenu-generic-expression' to list `use-package' declarations."
-    (add-to-list 'imenu-generic-expression
-                 '("Packages" "\\(^\\s-*(use-package +\\)\\(\\_<.+\\_>\\)" 2)))
-  (add-hook 'emacs-lisp-mode-hook #'my-imenu-use-package)
+  (defun my-imenu-decls ()
+    "Add custom declarations to `imenu-generic-expression'."
+    (setq imenu-generic-expression
+          (append imenu-generic-expression
+                  `(("Packages" "\\(^\\s-*(use-package +\\)\\(\\_<.+\\_>\\)" 2)
+                    (nil ,(concat outline-regexp "\\(.+\\)$") 1)))))
+  (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
 
   (use-package eldoc                      ; Documentation in echo area
     :defer t
@@ -1398,8 +1516,8 @@ Can be used outside writeroom mode."
 
 (use-package sh-script
   :defer t
-  :init (setq sh-learn-basic-offset t         ; guess indentation when obvious
-              sh-basic-offset 2))             ; indent by 2
+  :init (setq sh-indentation 2
+              sh-basic-offset 2))
 
 
 (use-package vbnet-mode
@@ -1418,18 +1536,9 @@ Can be used outside writeroom mode."
   (setq-default js-indent-level 2))
 
 
-(use-package web-mode
+(use-package css-mode
   :defer t
-  :mode ("\\.html?$" "\\.s?css$")
-  :init (setq
-         web-mode-enable-block-face t
-         web-mode-enable-part-face t
-         web-mode-enable-comment-keywords t
-         web-mode-enable-current-element-highlight t
-         web-mode-enable-current-column-highlight t
-         web-mode-css-indent-offset 2
-         web-mode-code-indent-offset 2
-         web-mode-markup-indent-offset 2)
+  :mode "\\.s?css$"
   :config
   (defvar my-sass-output-dir "../"
     "Directory to store compiled sass files.")
@@ -1447,8 +1556,24 @@ Can be used outside writeroom mode."
         (file-name-nondirectory
          (file-name-sans-extension buffer-file-name))))))
 
-  (add-hook 'web-mode-hook #'rainbow-mode))
+  ;; Run `prog-mode-hook' manually since `css-mode' doesn't derive from it
+  (add-hook 'css-mode-hook (lambda () (run-hooks 'prog-mode-hook)))
 
-;; Local Variables:
-;; outline-regexp: ";;; \\*\\{1,8\\}"
-;; End:
+  (use-package css-eldoc                ; Basic minibuffer display help for CSS
+    :init (add-hook 'css-mode-hook #'css-eldoc-enable)))
+
+
+(use-package web-mode
+  :defer t
+  :mode "\\.html?$"
+  :init (setq
+         web-mode-enable-block-face t
+         web-mode-enable-part-face t
+         web-mode-enable-comment-keywords t
+         web-mode-enable-current-element-highlight t
+         web-mode-enable-current-column-highlight t
+         web-mode-css-indent-offset 2
+         web-mode-code-indent-offset 2
+         web-mode-markup-indent-offset 2)
+  :config (add-hook 'web-mode-hook #'rainbow-mode))
+
