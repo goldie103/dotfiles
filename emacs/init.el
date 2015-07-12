@@ -19,50 +19,17 @@
 
 ;;; *** functions
 
+;;; **** helper functions
 (defun my-add-hooks (hook functions)
   "Add each function in FUNCTIONS to HOOK if the function has been bound."
   (dolist (func functions)
     (when (fboundp func) (add-hook hook func))))
 
 
-;; http://www.writequit.org/org/settings.html#sec-1-38
-(defun my-narrow-or-widen-dwim (p)
-  "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
-Intelligently means: region, org-src-block, org-subtree, or defun,
-whichever applies first.
-Narrowing to org-src-block actually calls `org-edit-src-code'.
-
-With prefix P, don't widen, just narrow even if buffer is already
-narrowed."
-  (interactive "P")
-  (declare (interactive-only))
-  (cond ((and (buffer-narrowed-p) (not p)) (widen))
-        ((region-active-p)
-         (narrow-to-region (region-beginning) (region-end)))
-        ((derived-mode-p 'org-mode)
-         (cond ((org-in-src-block-p)
-                (org-edit-src-code)
-                (delete-other-windows))
-               ((org-at-block-p)
-                (org-narrow-to-block))
-               (t (org-narrow-to-subtree))))
-        (t (narrow-to-defun))))
-
-
 ;; http://stackoverflow.com/questions/24356401/how-to-append-multiple-elements-to-a-list-in-emacs-lisp
-(defun my-append-to-list (list-var elements)
-  "Add to the end of LIST-VAR each item in ELEMENTS.
-
-Return the new value of LIST-VAR."
-  (unless (consp elements)
-    (error "ELEMENTS must be a list"))
-
-  (let ((list (symbol-value list-var)))
-    (if list
-        (setcdr (last list) elements)
-      (set list-var elements)))
-
-  (symbol-value list-var))
+(defmacro my-setq-append (list-var elements)
+  "Set LIST-VAR to LIST-VAR with each item in ELEMENTS appended."
+  `(setq ,list-var (append ,list-var ,elements)))
 
 
 (defun my-cleanup ()
@@ -90,7 +57,7 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (setq package-enable-at-startup nil         ; we will manually initialize
       load-prefer-newer t)                  ; don't load outdated byte code
 
-(my-append-to-list 'package-archives
+(my-setq-append package-archives
                    '(("melpa" . "http://melpa.milkbox.net/packages/")
                      ("org" . "http://orgmode.org/elpa/")
                      ("elpy" . "http://jorgenschaefer.github.io/packages/")))
@@ -168,12 +135,12 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (set-selection-coding-system 'utf-8)
 (prefer-coding-system 'utf-8)
 
-(fset 'yes-or-no-p #'y-or-n-p)
+(fset #'yes-or-no-p #'y-or-n-p)
 
 ;;; remove startup messages
 (setq inhibit-startup-screen t
       initial-scratch-message nil)
-(fset display-startup-echo-area-message #'ignore)
+(fset #'display-startup-echo-area-message #'ignore)
 
 (defun my-bury-scratch ()
   "Bury the scratch buffer instead of killing it."
@@ -210,7 +177,7 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (show-paren-mode t)                     ; Highlight matching parens
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
-(aut-insert-mode t)                     ; Auto insert text based on filetype
+(auto-insert-mode t)                     ; Auto insert text based on filetype
 
 ;; we don't need no stinkin GUI
 (size-indication-mode -1)
@@ -234,6 +201,29 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 
 ;;; *** bindings
 
+;; http://www.writequit.org/org/settings.html#sec-1-38
+(defun my-narrow-or-widen-dwim (p)
+  "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
+Intelligently means: region, org-src-block, org-subtree, or defun,
+whichever applies first.
+Narrowing to org-src-block actually calls `org-edit-src-code'.
+
+With prefix P, don't widen, just narrow even if buffer is already
+narrowed."
+  (interactive "P")
+  (declare (interactive-only))
+  (cond ((and (buffer-narrowed-p) (not p)) (widen))
+        ((region-active-p)
+         (narrow-to-region (region-beginning) (region-end)))
+        ((derived-mode-p 'org-mode)
+         (cond ((org-in-src-block-p)
+                (org-edit-src-code)
+                (delete-other-windows))
+               ((org-at-block-p)
+                (org-narrow-to-block))
+               (t (org-narrow-to-subtree))))
+        (t (narrow-to-defun))))
+
 ;; Adapted from http://www.reddit.com/r/emacs/comments/25v0eo/you_emacs_tips_and_tricks/chldur
 (defun my-vsplit-last-buffer (prefix)
   "Split window vertically and display the previous buffer."
@@ -249,16 +239,24 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
   (other-window 1 nil)
   (when (= prefix 1) (switch-to-next-buffer)))
 
+(global-unset-key (kbd "C-x ESC ESC"))
 
 (bind-keys
  ("S-SPC" . cycle-spacing)              ; M-SPC is taken in Linux Mint
  ("RET" . newline-and-indent)           ; indent new lines automatically
  ("C-x C-M-x" . revert-buffer)
+ ("C-x n" . my-narrow-or-widen-dwim)
  ([remap evil-window-split] . my-hsplit-last-buffer)
  ([remap evil-window-vsplit] . my-vsplit-last-buffer)
  ([remap evil-window-new] . my-vsplit-last-buffer))
 
 (bind-key "q" #'kill-buffer package-menu-mode-map)
+
+(bind-keys :map help-map
+           ("k" . describe-key-briefly)
+           ("C-k" . describe-key)
+           ("i" . info-lookup-symbol)
+           ("C-i" . info-emacs-manual))
 
 
 ;; https://github.com/davvil/.emacs.d/blob/master/init.el
@@ -344,13 +342,10 @@ Used with `my-font' to get the first valid entry of each font pairing.")
    evil-want-change-word-to-end nil ; don't let cw behave like ce
    evil-echo-state nil              ; state is in the modeline anyway
    evil-ex-substitute-global t)     ; global substitutions by default
+  (my-setq-append evil-emacs-state-modes '(shell-mode term-mode multi-term-mode))
   (evil-mode t)
 
   :config
-  (my-append-to-list 'evil-emacs-state-modes
-                     '(shell-mode
-                       term-mode
-                       multi-term-mode))
   (add-to-list 'evil-insert-state-modes 'insert)
   (add-to-list 'evil-motion-state-modes 'motion)
 
@@ -471,21 +466,24 @@ command. Uses jk as default combination."
   (bind-keys*
    ;; Helm replacements
    ([remap execute-extended-command] . helm-M-x)
-   ;; ("M-s o" . helm-occur)
-   ;; ("C-x r i" . helm-register)
+   ([remap occur]. helm-occur)
    ([remap list-buffers]. helm-mini)
    ([remap ibuffer]. helm-mini)
    ([remap find-files] . helm-find-files)
+   ([remap info-emacs-manual] . helm-info-emacs)
    ([remap locate-library] . helm-locate-library)
+   ([remap apropos-command] . helm-apropos)
+   ([remap apropos-documentation] . helm-apropos)
    ([remap apropos] . helm-apropos)
    ([remap manual-entry] . helm-man-woman)
    ;; Additional Helm functions
    ("M-/" . helm-do-grep)
    ("C-y" . helm-show-kill-ring)
-   ("C-/" . helm-semantic-or-imenu)
    ("<help> C-r" . helm-info-at-point)
    ("<help> i" . helm-info-emacs)
    ("<help> I" . helm-info-elisp))
+
+  (bind-key "C-/" #'helm-semantic-or-imenu emacs-lisp-mode-map)
 
   (bind-keys
    :map helm-map
@@ -736,12 +734,12 @@ command. Uses jk as default combination."
 (use-package popwin    ; Popup window for minor buffers
   :demand t
   :commands popwin-mode
-  :init (setq popwin:popup-window-position 'right)
-  :config
-  (my-append-to-list 'popwin:special-display-config
-                     '(("*Backtrace*" :noselect t)
-                       ("*Python Help*" :stick t :height 20)
-                       ("*Help*" :stick t :noselect t :height 20)))
+  :init
+  (setq popwin:popup-window-position 'right)
+  (my-setq-append popwin:special-display-config
+                  '(("*Backtrace*" :noselect t)
+                    ("*Python Help*" :stick t :height 20)
+                    ("*Help*" :stick t :noselect t :height 20)))
   (popwin-mode t))
 
 
@@ -796,11 +794,15 @@ Can be used outside writeroom mode."
 
 
 (use-package ace-window
-  :bind ("M-o" . ace-window)
+  :bind (("M-w" . ace-window)
+         ("M-o" . ace-window))
   :init (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
 
 
 (use-package ag                         ; Fast search and navigation
+  :init
+  (setq ag-reuse-buffers t
+        ag-reuse-window t)
   :config
   (use-package helm-ag
     :bind (("M-/" . helm-do-ag-this-file)
@@ -820,13 +822,17 @@ Can be used outside writeroom mode."
   :init
   (setq desktop-auto-save-timeout 60
         desktop-dirname (expand-file-name "desktop" my-dir))
-  (desktop-save-mode t)
-  :config
-  (my-append-to-list 'desktop-not-to-save '(magit-mode git-commit-mode)))
+  (my-setq-append desktop-modes-not-to-save '(magit-mode git-commit-mode))
+  (desktop-save-mode t))
 
 
 (use-package expand-region               ; Expand functions block at a time
-  :bind ("C-=" . er/expand-region))
+  :bind ("C-z" . er/expand-region)
+  :init
+  (bind-keys :map (evil-normal-state-map
+                   evil-visual-state-map)
+             ("zz" . er/expand-region))
+  (setq expand-region-contract-fast-key "x"))
 
 
 (use-package savehist                   ; Save command history
@@ -943,8 +949,8 @@ Can be used outside writeroom mode."
   :defer t
   :delight writegood-mode
   :init (add-hook 'text-mode-hook #'writegood-mode)
-  :config (my-append-to-list 'writegood-weasel-words
-                             '("thing" "different" "probably" "really")))
+  (my-setq-append writegood-weasel-words
+                  '("thing" "different" "probably" "really")))
 
 
 (use-package abbrev    ; Auto-correct words after typing
@@ -1000,14 +1006,12 @@ Can be used outside writeroom mode."
    ;; no messages please
    ispell-silently-savep t
    ispell-quietly t)
+  (my-setq-append ispell-skip-region-alist
+                  '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
+                    ("#\\+BEGIN_SRC" . "#\\+END_SRC")
+                    ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
 
   :config
-  ;; regions not to spell check
-  (my-append-to-list 'ispell-skip-region-alist
-                     '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
-                       ("#\\+BEGIN_SRC" . "#\\+END_SRC")
-                       ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
-
   ;; Adapted from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
   (defun my-ispell-run-together (orig-func &rest args)
     "Use ispell --run-together options while ORIG-FUNC is being called."
@@ -1071,7 +1075,7 @@ Can be used outside writeroom mode."
               1 (quote ,face) t))
           faces))))
     (font-lock-fontify-buffer))
-  (add-hook 'outline-minor-mode-hook #'my-outline-fontify-headlines)
+  ;; (add-hook 'outline-minor-mode-hook #'my-outline-fontify-headlines)
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
@@ -1344,13 +1348,13 @@ Can be used outside writeroom mode."
   (use-package git-wip-mode :disabled t)          ; TODO what does this do
 
   (bind-keys :map magit-status-mode-map
-             ("SPC" . helm-M-x)
              ("<C-tab>" . magit-section-cycle)
              ("j" . next-line)
              ("k" . previous-line)
              ("<down>" . magit-goto-next-sibling-section)
              ("<up>" . magit-goto-previous-sibling-section)
-             ("K" . magit-discard-item)
+             ("d" . magit-discard-item)
+             ("C-=" . magit-diff-working-tree)
              (",b" . ibuffer))
 
   (use-package git-timemachine
@@ -1416,7 +1420,7 @@ Can be used outside writeroom mode."
              ("C-1" . org-clock-in)
              ("C-2" . org-clock-out)
              ("S-<return>" . org-insert-heading-after-current))
-  (evil-define-key 'normal org-mode-map "RET" #'org-insert-heading)
+  (evil-define-key 'normal org-mode-map "<return>" #'org-insert-heading)
 
   (use-package org-plus-contrib
     :config
@@ -1463,18 +1467,17 @@ Can be used outside writeroom mode."
 
 (use-package generic-x                  ; Collection of generic modes
   :ensure nil :defer t
-  :config
-  (my-append-to-list 'generic-extras-enable-list generic-mswindows-modes)
+  :init
+  (my-setq-append generic-extras-enable-list generic-mswindows-modes)
 
+  :config
   (use-package conkyrc-mode :disabled t   ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 
 (use-package elisp-mode
   :defer t :ensure nil
-  :config
-  (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map)
-
+  :init
   (defun my-imenu-decls ()
     "Add custom declarations to `imenu-generic-expression'."
     (setq imenu-generic-expression
@@ -1501,7 +1504,9 @@ Can be used outside writeroom mode."
     :config
     (evil-define-key 'normal elisp-slime-nav-mode-map
       "K" #'elisp-slime-nav-describe-elisp-thing-at-point
-      "gd" #'elisp-slime-nav-find-elisp-thing-at-point)))
+      "gd" #'elisp-slime-nav-find-elisp-thing-at-point))
+  :config
+  (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map))
 
 
 (use-package python
