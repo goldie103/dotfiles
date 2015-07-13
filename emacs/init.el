@@ -1,36 +1,13 @@
-;; -*- outline-regexp: ";;; \\*\\{1,8\\}"; -*-
-;;; * init.el
+;;; init.el
 ;; TODO aspell messages
 ;; TODO eshell prompt
 ;; DONE? add :defer and :demand keywords correctly
 ;; DONE? fix evil bindings
-;;; ** setup
-(defconst my-dir (expand-file-name  ".user/" user-emacs-directory))
-(defconst my-dir-elisp (expand-file-name "my-elisp" user-emacs-directory))
-(defconst my-dir-packages (expand-file-name "elisp/" user-emacs-directory))
+;;;; helper functions
 
-(add-to-list 'load-path my-dir-packages) ; location for non-MELPA packages
-(add-to-list 'load-path my-dir-elisp) ; location for personal elisp files
-
-;; load custom file
-(setq custom-file (expand-file-name "custom.el" my-dir))
-(load custom-file 'no-error 'no-message)
-
-
-;;; *** functions
-
-;;; **** helper functions
-(defun my-add-hooks (hook functions)
-  "Add each function in FUNCTIONS to HOOK if the function has been bound."
-  (dolist (func functions)
-    (when (fboundp func) (add-hook hook func))))
-
-
-;; http://stackoverflow.com/questions/24356401/how-to-append-multiple-elements-to-a-list-in-emacs-lisp
-(defmacro my-setq-append (list-var elements)
+(defun my-setq-append (list-var elements)
   "Set LIST-VAR to LIST-VAR with each item in ELEMENTS appended."
-  `(setq ,list-var (append ,list-var ,elements)))
-
+  (setq list-var (append list-var elements)))
 
 (defun my-cleanup ()
   "Clean up the current buffer.
@@ -39,7 +16,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
   (untabify (point-min) (point-max))
   (indent-region (point-min) (point-max))
   (when (fboundp 'whitespace-cleanup) (whitespace-cleanup)))
-
 
 (defun my-english-count-lines ()
   "Count screen lines in a region with handwriting font activated."
@@ -51,34 +27,46 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
     (face-remap-remove-relative
      (face-remap-add-relative 'default handwriting))))
 
+;;;; setup
+(defconst my-dir (expand-file-name  ".user/" user-emacs-directory))
+(defconst my-dir-elisp (expand-file-name "my-elisp" user-emacs-directory))
+(defconst my-dir-packages (expand-file-name "elisp/" user-emacs-directory))
 
-;;; *** package
+(add-to-list 'load-path my-dir-packages) ; location for non-MELPA packages
+(add-to-list 'load-path my-dir-elisp)    ; location for personal elisp files
+
+;; load custom file
+(setq custom-file (expand-file-name "custom.el" my-dir))
+(load custom-file 'no-error 'no-message)
+
+;;;;; package
 (require 'package)
-(setq package-enable-at-startup nil         ; we will manually initialize
-      load-prefer-newer t)                  ; don't load outdated byte code
+(setq package-enable-at-startup nil     ; we will manually initialize
+      load-prefer-newer t)              ; don't load outdated byte code
 
 (my-setq-append package-archives
-                   '(("melpa" . "http://melpa.milkbox.net/packages/")
-                     ("org" . "http://orgmode.org/elpa/")
-                     ("elpy" . "http://jorgenschaefer.github.io/packages/")))
+                '(("melpa" . "http://melpa.milkbox.net/packages/")
+                  ("org" . "http://orgmode.org/elpa/")
+                  ("elpy" . "http://jorgenschaefer.github.io/packages/")))
 
-(package-initialize)                     ; manually initialize
+(package-initialize)                    ; manually initialize
 
 
-;;; *** use-package
+;;;;; use-package
 (unless (package-installed-p 'use-package)
   (package-refresh-contents)
   (package-install 'use-package))
 (eval-when-compile (require 'use-package))
-(setq use-package-verbose t            ; log message after loading a package
-      use-package-always-ensure t)     ; ensure all packages are installed
+(setq use-package-verbose t             ; log message after loading a package
+      use-package-always-ensure t)      ; ensure all packages are installed
 
 
 (use-package delight)
 (use-package bind-key)
 
-;;; ** basic settings
-;;; *** general
+
+;;;; basic settings
+;;;;; general
 (setq
  disabled-command-function nil          ; no disabld
  comment-auto-fill-only-comments t
@@ -92,13 +80,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
  save-interprogram-paste-before-kill t  ; don't overwrite clipboard contents
  kill-do-not-save-duplicates t
  line-move-visual t
- ;; compilation
- compilation-always-kill t        ; kill old processes before starting new ones
- compilation-skip-threshold 2     ; skip warning and info messages
- compilation-context-lines 3      ; show 3 lines of context around message
- compilation-scroll-output 'first-error
- compilation-auto-jump-to-first-error t
- compilation-ask-about-save nil
  ;; formatting
  tab-always-indent nil                  ; tab inserts a character
  require-final-newline t
@@ -137,16 +118,18 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 
 (fset #'yes-or-no-p #'y-or-n-p)
 
-;;; remove startup messages
+;; remove startup messages
 (setq inhibit-startup-screen t
       initial-scratch-message nil)
 (fset #'display-startup-echo-area-message #'ignore)
 
+;; never kill *scratch*
 (defun my-bury-scratch ()
   "Bury the scratch buffer instead of killing it."
   (if (equal (buffer-name) "*scratch*") (progn (bury-buffer) nil) t))
 (add-to-list 'kill-buffer-query-functions #'my-bury-scratch)
 
+;; auto close compilation buffer on success
 (defun my-compilation-close-on-success (buf result)
   "Close window if compilation did not exit abnormally."
   (let ((win (get-buffer-window buf 'visible)))
@@ -154,6 +137,7 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
       (delete-window win))))
 (add-to-list 'compilation-finish-functions #'my-compilation-close-if-success)
 
+;; toggle line comment
 (defun my-comment-dwim-line (&rest args)
   "Advice for `comment-dwim'. Toggle current line comment if no active region."
   (when (and (not (region-active-p))
@@ -164,21 +148,18 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
      (line-beginning-position) (line-end-position))))
 (advice-add #'comment-dwim :before-until #'my-comment-dwim-line)
 
-(defun my-change-word-case (arg)
-  "Advice for functions to change case. First moves to beginning of word."
-  (unless (looking-back "\\b") (backward-word)))
+;; make `upcase-word' `downcase-word' and `capitalize-word' act on whole word
 (dolist (func '(upcase-word downcase-word capitalize-word))
-  (advice-add func :before #'my-change-word-case))
+  (advice-add func :before
+              (lambda (arg) (unless (looking-back "\\b") (backward-word)))))
 
-
-;;; *** modes and hooks
+;;;;; modes and hooks
 
 (mouse-wheel-mode t)                    ; Mouse wheel enabled
 (show-paren-mode t)                     ; Highlight matching parens
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
-(auto-insert-mode t)                     ; Auto insert text based on filetype
-
+(auto-insert-mode t)                    ; Auto insert text based on filetype
 ;; we don't need no stinkin GUI
 (size-indication-mode -1)
 (tool-bar-mode -1)
@@ -186,20 +167,66 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (blink-cursor-mode -1)
 (unless (display-graphic-p) (menu-bar-mode -1)) ; no menu bar in terminal
 
-(my-add-hooks 'prog-mode-hook
-              '(hl-line-mode            ; Highlight current line
+(dolist (func '(hl-line-mode            ; Highlight current line
                 prettify-symbols-mode   ; Replace words with symbols
                 auto-fill-mode          ; Automatically fill text past fill-col
                 goto-address-prog-mode  ; Buttonize URLs in comments and string
-                column-number-mode      ; Numbers in modeline
+                ;; numbers in modelines
+                column-number-mode
                 line-number-mode))
+  (add-hook 'prog-mode-hook func))
 
-(my-add-hooks 'text-mode-hook
-              '(visual-line-mode        ; Visually wrap text by words
-                goto-address-mode       ; Buttonize URLs
-                visual-fill-column-mode)) ; Wrap to fill-column
+(add-hook 'text-mode-hook #'goto-address-mode) ; Buttonize URLs
 
-;;; *** bindings
+;;;;; delighted modes
+
+(delight '((emacs-listp-mode "Elisp" :major)
+           (visual-line-mode)
+           (auto-fill-mode)))
+;; WTF.
+(delight #'auto-fill-mode)
+(use-package simple
+  :ensure nil :defer t
+  :delight auto-fill-mode
+  :init
+  (delight #'auto-fill-mode)
+  :config
+  (delight #'auto-fill-mode))
+
+;;;;; fonts
+;; DONE? check this works properly on Windows
+(require 'dash)
+
+(defvar my-fonts
+  '((proportional
+     . ("Fira Sans" "FiraSans"
+        "Input Sans Condensed" "InputSansCondensed" "Input Sans" "InputSans"
+        "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
+    (mono
+     . ("Input Mono Condensed" "InputMonoCondensed" "Input Mono" "InputMono"
+        "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
+  "Alist of font types paired with an ordered list of preferences.
+Used with `my-font' to get the first valid entry of each font pairing.")
+
+(add-to-list 'my-fonts
+             `(header . ,(append '("Fantasque Sans Mono" "FantasqueSansMono")
+                                  (cdr (assoc 'proportional my-fonts)))))
+
+(defun my-font (font)
+  "Return the first valid entry for FONT in `my-fonts'."
+  (--first (find-font (font-spec :name it)) (cdr (assoc font my-fonts))))
+
+(defun my-font-use-proportional ()
+  "Set current buffer's font to proportional.'"
+  (interactive)
+  (face-remap-add-relative
+   'default :family (my-font 'proportional) :height 100))
+(add-hook 'text-mode-hook #'my-font-use-proportional)
+
+(set-frame-font (concat (my-font 'mono) "-8"))
+(set-face-attribute 'variable-pitch nil :family (my-font 'header))
+
+;;;; bindings
 
 ;; http://www.writequit.org/org/settings.html#sec-1-38
 (defun my-narrow-or-widen-dwim (p)
@@ -252,13 +279,6 @@ narrowed."
 
 (bind-key "q" #'kill-buffer package-menu-mode-map)
 
-(bind-keys :map help-map
-           ("k" . describe-key-briefly)
-           ("C-k" . describe-key)
-           ("i" . info-lookup-symbol)
-           ("C-i" . info-emacs-manual))
-
-
 ;; https://github.com/davvil/.emacs.d/blob/master/init.el
 (defun minibuffer-keyboard-quit ()
   "Abort recursive edit.
@@ -278,7 +298,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
            ("<escape>" . minibuffer-keyboard-quit))
 
 
-;;; **** windows super key
+;;;;;; windows super key
 (when (eq system-type 'windows-nt)
   (setq w32-apps-modifier 'hyper
         ;; Super is Windows key
@@ -286,68 +306,54 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
         w32-lwindow-modifier 'super
         w32-pass-lwindow-to-system nil))
 
-;;; *** delighted modes
+;;;; help
 
-(delight '((emacs-listp-mode "Elisp" :major)
-           (visual-line-mode)
-           (auto-fill-mode)))
-;; WTF.
-(delight #'auto-fill-mode)
-(use-package simple
-  :ensure nil :defer t
-  :delight auto-fill-mode
+
+(use-package discover-my-major          ; List current major mode bindings
+  :bind ("<help> m" . discover-my-major))
+
+
+(use-package guide-key                  ; Delayed completion for possible keys
+  :delight guide-key-mode
   :init
-  (delight #'auto-fill-mode)
+  (setq guide-key/recursive-key-sequence-flag t
+        guide-key/guide-key-sequence '("C-x" "C-c" ","))
+  (guide-key-mode t))
+
+
+(use-package help-mode
+  :ensure nil :defer t
   :config
-  (delight #'auto-fill-mode))
+  (use-package help+)
+  (use-package help-fns+ :bind ("<help> M-m" . describe-mode))
+  (bind-keys :map help-mode-map
+             ("H" . help-go-back)
+             ("L" . help-go-forward))
 
-;;; *** fonts
-;; DONE? check this works properly on Windows
-(require 'dash)
+  (bind-keys :map help-map
+             ("k" . describe-key-briefly)
+             ("K" . describe-key)
+             ("C-k" . describe-bindings)
+             ("M-k" . view-lossage)
+             ("l" . locate-library)
+             ("i" . info-lookup-symbol)
+             ("C-i" . info-emacs-manual)))
 
-(defvar my-fonts
-  '((proportional
-     . ("Input Sans Condensed" "InputSansCondensed" "Input Sans" "InputSans"
-        "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
-    (mono
-     . ("Input Mono Condensed" "InputMonoCondensed" "Input Mono" "InputMono"
-        "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
-  "Alist of font types paired with an ordered list of preferences.
-Used with `my-font' to get the first valid entry of each font pairing.")
-
-(defun my-font (font)
-  "Return the first valid entry for FONT in `my-fonts'."
-  (--first (find-font (font-spec :name it)) (cdr (assoc font my-fonts))))
-
-(add-to-list 'my-fonts
-             `(header . ,(append '("Fantasque Sans Mono" "FantasqueSansMono")
-                                  (cdr (assoc 'proportional my-fonts)))))
-
-
-(defun my-font-use-proportional ()
-  "Set current buffer's font to `my-font-proprortional'."
-  (face-remap-add-relative 'default
-                           :family (my-font 'proportional) :height 100))
-
-(set-frame-font (concat (my-font 'mono) "-8"))
-(set-face-attribute 'variable-pitch nil :family (my-font 'header))
-
-;;; ** major packages
-(use-package evil    ; Vim keybindings and modal editing
+;;;; major packages
+(use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :init
   (setq
-   evil-want-fine-undo nil          ; undo insertions in single steps
-   evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
-   evil-want-change-word-to-end nil ; don't let cw behave like ce
-   evil-echo-state nil              ; state is in the modeline anyway
-   evil-ex-substitute-global t)     ; global substitutions by default
+   evil-want-fine-undo nil              ; undo insertions in single steps
+   evil-want-C-w-in-emacs-state t       ; prefix window commands with C-w
+   evil-want-change-word-to-end nil     ; don't let cw behave like ce
+   evil-echo-state nil                  ; state is in the modeline anyway
+   evil-ex-substitute-global t)         ; global substitutions by default
   (my-setq-append evil-emacs-state-modes '(shell-mode term-mode multi-term-mode))
+  (my-setq-append evil-insert-state-modes '(git-commit-mode))
   (evil-mode t)
 
   :config
-  (add-to-list 'evil-insert-state-modes 'insert)
-  (add-to-list 'evil-motion-state-modes 'motion)
 
   ;; Adapted from https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
   (evil-define-command maybe-exit ()
@@ -366,24 +372,29 @@ command. Uses jk as default combination."
           (delete-char -1)
           (set-buffer-modified-p modified)
           (push 'escape unread-command-events))
-         (t (setq unread-command-events (append unread-command-events
-                                                (list evt))))))))
+         (t (setq unread-command-events
+                  (append unread-command-events (list evt))))))))
 
   (evil-define-command my-evil-yank-to-eol ()
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
 
+  (bind-key "y" #'evil-yank evil-motion-state-map) ; Add yanking to motion map
 
   (bind-keys :map (evil-insert-state-map evil-replace-state-map)
-             ("j" . maybe-exit)) ; jk exits insert state
+             ("j" . maybe-exit))        ; jk exits insert state
 
   (bind-keys :map (evil-normal-state-map evil-motion-state-map)
-             ("Y" . my-evil-yank-to-eol))         ; more consistent
+             ("Y" . my-evil-yank-to-eol)) ; more consistent
+
+  (bind-keys :map evil-window-map
+             ("d" . delete-window)
+             ("D" . delete-other-windows))
 
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
    (":" . comment-dwim)
-   ("M-;" . evil-ex)
+   ("C-;" . evil-ex)
    ("SPC" . execute-extended-command)
    ("<escape>" . keyboard-quit)
    ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
@@ -398,7 +409,7 @@ command. Uses jk as default combination."
    ("," . nil)
    (",f" . find-file)
    (",b" . list-buffers)
-   (",w" . save-buffer))
+   (",w" . save-buffer)))
 
   (use-package evil-surround :init (global-evil-surround-mode t))
 
@@ -411,7 +422,7 @@ command. Uses jk as default combination."
       "\"" #'evilmi-jump-items)))
 
 
-(use-package helm-config            ; Fuzzy minibuffer completion
+(use-package helm-config                ; Fuzzy minibuffer completion
   :ensure helm :demand t
   :delight helm-mode
   :defines (helm-M-x-always-save-history
@@ -435,17 +446,17 @@ command. Uses jk as default combination."
   (setq
    helm-quick-update t
    helm-command-prefix-key "C-c h"
-   helm-move-to-line-cycle-in-source t       ; cycle on buffer end
-   helm-display-header-line nil              ; no header line
-   helm-scroll-amount 5                      ; scroll amount in other window
-   helm-split-window-in-side-p t             ; split inside current window
-   helm-M-x-always-save-history t            ; save history even on fail
-   helm-ff-auto-update-initial-value t       ; auto update when only one match
-   helm-ff-file-name-history-use-recentf t   ; use recentf
-   helm-ff-search-library-in-sexp t          ; get library from functions
-   helm-ff-skip-boring-files t               ; skip irrelevant files
-   helm-findutils-search-full-path t         ; search in full path with shell
-   helm-findutils-skip-boring-files t        ; skip irrelevant files in shell
+   helm-move-to-line-cycle-in-source t     ; cycle on buffer end
+   helm-display-header-line nil            ; no header line
+   helm-scroll-amount 5                    ; scroll amount in other window
+   helm-split-window-in-side-p t           ; split inside current window
+   helm-M-x-always-save-history t          ; save history even on fail
+   helm-ff-auto-update-initial-value t     ; auto update when only one match
+   helm-ff-file-name-history-use-recentf t ; use recentf
+   helm-ff-search-library-in-sexp t        ; get library from functions
+   helm-ff-skip-boring-files t             ; skip irrelevant files
+   helm-findutils-search-full-path t       ; search in full path with shell
+   helm-findutils-skip-boring-files t      ; skip irrelevant files in shell
    ;; fuzzy matching everywhere
    helm-semantic-fuzzy-match t
    helm-completion-in-region-fuzzy-match t
@@ -463,34 +474,56 @@ command. Uses jk as default combination."
   (defalias #'ibuffer #'helm-mini)
   (helm-autoresize-mode t)
 
+  (defun my-helm-imenu-transformer (candidates)
+    "Custom imenu transformer with added headings and faces."
+    (cl-loop for (k . v) in candidates
+             for types = (or (helm-imenu--get-prop k) (list "Function" k))
+             collect
+             (cons (mapconcat (lambda (x)
+                                (propertize
+                                 x 'face (cond ((string= x "Variables")
+                                                'font-lock-variable-name-face)
+                                               ((string= x "Function")
+                                                'font-lock-function-name-face)
+                                               ((string= x "Types")
+                                                'font-lock-type-face)
+                                               ((string= x "Packages")
+                                                'font-lock-doc-face)
+                                               ((string= x "Headings")
+                                                'font-lock-keyword-face))))
+                              types helm-imenu-delimiter)
+                   (cons k v))))
+
+  (defalias #'helm-imenu-transformer #'my-helm-imenu-transformer)
+
   (bind-keys*
-   ;; Helm replacements
    ([remap execute-extended-command] . helm-M-x)
    ([remap occur]. helm-occur)
+   ([remap find-files] . helm-find-files)
    ([remap list-buffers]. helm-mini)
    ([remap ibuffer]. helm-mini)
-   ([remap find-files] . helm-find-files)
+
+   ;; help
    ([remap info-emacs-manual] . helm-info-emacs)
    ([remap locate-library] . helm-locate-library)
+   ([remap manual-entry] . helm-man-woman)
+   ([remap apropos] . helm-apropos)
    ([remap apropos-command] . helm-apropos)
    ([remap apropos-documentation] . helm-apropos)
-   ([remap apropos] . helm-apropos)
-   ([remap manual-entry] . helm-man-woman)
-   ;; Additional Helm functions
+   ("<help> I" . helm-info-at-point))
+
+  (bind-keys
    ("M-/" . helm-do-grep)
-   ("C-y" . helm-show-kill-ring)
-   ("<help> C-r" . helm-info-at-point)
-   ("<help> i" . helm-info-emacs)
-   ("<help> I" . helm-info-elisp))
+   ("C-y" . helm-show-kill-ring))
 
   (bind-key "C-/" #'helm-semantic-or-imenu emacs-lisp-mode-map)
 
   (bind-keys
    :map helm-map
-   ("<C-S-up>" . helm-scroll-other-window)
-   ("<C-S-down>". helm-scroll-other-window-down)
+   ("C-M-u" . helm-scroll-other-window)
+   ("C-M-d". helm-scroll-other-window-down)
    ("<tab>" . helm-execute-persistent-action) ; execute action without closing
-   ("C-z" . helm-select-action))            ; list actions
+   ("C-z" . helm-select-action))              ; list actions
 
   (bind-keys
    :map (evil-normal-state-map
@@ -502,19 +535,17 @@ command. Uses jk as default combination."
    (",hc" . helm-colors)
    (",H" . helm-resume))
 
-  (use-package imenu-anywhere
-    :bind ([remap helm-semantic-or-imenu] . imenu-anywhere))
-
-  (use-package helm-dash            ; TODO Language documentation viewer
+  (use-package helm-dash                ; TODO Language documentation viewer
     :init (setq
            helm-dash-browser-func 'eww
            helm-dash-docsets-path "~/.emacs.d/.user/docset")
     ;; :config
-    ;; (add-hook 'python-mode-hook (lambda()
-    ;;                               (setq-local helm-dash-docsets '("Python"))))
+    ;; (add-hook 'python-mode-hook
+    ;;           (lambda()
+    ;;             (setq-local helm-dash-docsets '("Python"))))
     )
 
-  (use-package helm-descbinds       ; Replacement for `describe-bindings'
+  (use-package helm-descbinds           ; Replacement for `describe-bindings'
     :init
     (setq helm-descbinds-window-style 'split-window)
     (helm-descbinds-mode t))
@@ -530,11 +561,9 @@ command. Uses jk as default combination."
     (bind-key ",hs" #'helm-swoop evil-normal-state-map)
     :config (bind-key "M-i" #'helm-multi-swoop-from-helm-swoop helm-swoop-map)))
 
-;;; ** appearance
+;;;; appearance
 
-(use-package hl-line+ :disabled t)     ; TODO what.
-
-;;; *** highlight fic
+;;;;;; highlight fic
 ;; DONE? fixme todo highlight
 (defface font-lock-fic-face
   '((((class color))
@@ -551,8 +580,8 @@ command. Uses jk as default combination."
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
-;;; *** modeline packages
-(use-package smart-mode-line    ; Better modeline
+;;;;;; modeline packages
+(use-package smart-mode-line            ; Better modeline
   :demand t
   :defines (sml/use-projectile-p
             sml/projectile-replacement-format)
@@ -578,7 +607,7 @@ command. Uses jk as default combination."
   (sml/setup))
 
 
-(use-package nyan-mode    ; Nyan cat scroll bar
+(use-package nyan-mode                  ; Nyan cat scroll bar
   :demand t
   ;; TODO nyan music ☹
   :commands nyan-mode
@@ -589,7 +618,7 @@ command. Uses jk as default combination."
   (nyan-mode t))
 
 
-(use-package which-func    ; Modeline definition name
+(use-package which-func                 ; Modeline definition name
   :demand t
   :config
   (defun my-which-func-current ()
@@ -619,7 +648,7 @@ command. Uses jk as default combination."
       (setq wc-goal-modeline-format (if (eql wc-goal-modeline-format a)
                                         b a)))))
 
-;;; *** face packages
+;;;;;; face packages
 
 
 (use-package hl-sentence                ; Highlight current sentence
@@ -632,13 +661,13 @@ command. Uses jk as default combination."
   :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
 
 
-(use-package page-break-lines          ; Horizontal lines instead of ^L
+(use-package page-break-lines           ; Horizontal lines instead of ^L
   :defer t
   :delight page-break-lines-mode
   :init (global-page-break-lines-mode t))
 
 
-(use-package paren-face
+(use-package paren-face                 ; Faces for parens
   :defer t
   :init (add-hook 'emacs-lisp-mode-hook #'paren-face-mode))
 
@@ -652,13 +681,13 @@ command. Uses jk as default combination."
     (add-hook hook #'rainbow-mode)))
 
 
-(use-package whitespace             ; Faces for whitespace characters
+(use-package whitespace                 ; Faces for whitespace characters
   :defer t
   :delight whitespace-mode
   :init
   (setq
-   whitespace-line-column nil       ; use fill-column value
-   ; modes to disable whitespace-mode
+   whitespace-line-column nil           ; use fill-column value
+                                        ; modes to disable whitespace-mode
    whitespace-global-modes
    '(not org-mode eshell-mode shell-mode web-mode dired-mode)
    ;; trailing whitespace and tails of long lines
@@ -669,7 +698,7 @@ command. Uses jk as default combination."
 
   (add-hook 'prog-mode-hook #'whitespace-mode))
 
-;;; *** color theme
+;;;;;; color theme
 
 
 (use-package solarized-theme
@@ -687,10 +716,10 @@ command. Uses jk as default combination."
 
 (load-theme 'solarized-dark)
 
-;;; ** interface
+;;;; interface
 
 
-(use-package linum    ; Line numbers
+(use-package linum                      ; Line numbers
   :defer t
   :init (add-hook 'prog-mode-hook #'linum-mode))
 
@@ -716,22 +745,33 @@ command. Uses jk as default combination."
   (golden-ratio-mode t))
 
 
-(use-package hideshow                 ; Code folding
-  ;; TODO org-mode
+(use-package hideshow                   ; Code folding
   :init
-  ;; enable in modes where folding marks have been defined
-  (defvar hs-special-modes-alist '())
-  (dolist (mode '(c-mode
-                  c++-mode
-                  java-mode
-                  js-mode
-                  css-mode
-                  web-mode))
-    (add-to-list 'hs-special-modes-alist `(,mode "{" "}" "/[*/]" nil nil))
-    (add-hook mode #'hs-minor-mode)))
+  (my-setq-append hs-special-modes-alist
+                  (mapcar (lambda (mode) `(,mode "{" "}" "/[*/]" nil nil))
+                          '(css-mode web-mode)))
+
+  ;; fallback indentation-based hiding
+  (defun toggle-hiding (column)
+    "Toggle a block based on indentation level or defined markers."
+    (interactive "P")
+    (if hs-minor-mode
+        (when (condition-case nil (hs-toggle-hiding) (error t))
+          (hs-show-all))
+      (set-selective-display
+       (or column
+           (unless selective-display (1+ (current-column)))))))
+
+  (use-package hideshowvis :disabled t  ; Visualize hidden blocks
+    :defer t
+    :init
+    (hideshowvis-symbols)
+    (add-hook 'hs-minor-mode-hook #'hideshowvis-minor-mode))
+
+  (add-hook 'prog-mode-hook #'hs-minor-mode))
 
 
-(use-package popwin    ; Popup window for minor buffers
+(use-package popwin                     ; Popup window for minor buffers
   :demand t
   :commands popwin-mode
   :init
@@ -743,20 +783,20 @@ command. Uses jk as default combination."
   (popwin-mode t))
 
 
-(use-package uniquify    ; Distinguish buffers with same name
+(use-package uniquify                   ; Distinguish buffers with same name
   :ensure nil :demand t
   :init (setq uniquify-buffer-name-style 'forward
               uniquify-trailing-separator-p t)) ; add separator to dired names
 
 
-(use-package winner    ; Window configuration undo
+(use-package winner                     ; Window configuration undo
   :demand t
   :bind (("s-j" . winner-undo)
          ("s-k" . winner-redo))
   :config (winner-mode t))
 
 
-(use-package writeroom-mode         ; Distraction-free writing mode
+(use-package writeroom-mode             ; Distraction-free writing mode
   :delight writeroom-mode " Σ"
   :init
   (setq writeroom-width 100)
@@ -769,7 +809,7 @@ Can be used outside writeroom mode."
     (display-time-mode t)
     (display-battery-mode t)
     (which-function-mode -1)
-    ;; (nyan-mode nil) ; may not be needed with modeline format
+    (nyan-mode -1)                     ; may not be needed with modeline format
     (setq mode-line-format
           '("%e"
             mode-line-front-space
@@ -782,18 +822,19 @@ Can be used outside writeroom mode."
 
 
 (use-package visual-fill-column
+  :defer t
   :init
-  (setq visual-fill-column-width 100)
+  (setq-default visual-fill-column-width 100)
   (add-hook 'text-mode-hook #'visual-fill-column-mode))
 
-;;; ** navigation
+;;;; navigation
 
 
 (use-package ace-jump-mode              ; Jump to specific points with marks
   :bind ("C-SPC" . ace-jump-mode))
 
 
-(use-package ace-window
+(use-package ace-window                 ; Quick window jumping
   :bind (("M-w" . ace-window)
          ("M-o" . ace-window))
   :init (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
@@ -826,7 +867,7 @@ Can be used outside writeroom mode."
   (desktop-save-mode t))
 
 
-(use-package expand-region               ; Expand functions block at a time
+(use-package expand-region              ; Expand functions block at a time
   :bind ("C-z" . er/expand-region)
   :init
   (bind-keys :map (evil-normal-state-map
@@ -844,7 +885,7 @@ Can be used outside writeroom mode."
   (savehist-mode t))
 
 
-(use-package saveplace
+(use-package saveplace                  ; Save place in file and return to it
   :init
   (setq-default save-place t)
   (setq save-place-file (expand-file-name "places" my-dir)))
@@ -881,33 +922,13 @@ Can be used outside writeroom mode."
         ",p" #'helm-projectile
         ",P" #'helm-projectile-switch-project))))
 
-;;; ** help
+;;;; editing
 
-
-(use-package discover-my-major    ; List current major mode bindings
-  :bind ("<help> m" . discover-my-major))
-
-
-(use-package guide-key                  ; Delayed completion for possible keys
-  :delight guide-key-mode
+(use-package adaptive-wrap              ; Choose wrapping mode intelligently
   :init
-  (setq guide-key/recursive-key-sequence-flag t
-        guide-key/guide-key-sequence '("C-x" "C-c" ","))
-  (guide-key-mode t))
+  (adaptive-wrap-prefix-mode t))
 
 
-(use-package help-mode
-  :ensure nil :defer t
-  :config
-  (use-package help+)
-  (use-package help-fns+ :bind ("<help> M-m" . describe-mode))
-  (bind-keys :map help-mode-map
-             ("H" . help-go-back)
-             ("L" . help-go-forward)))
-
-;;; ** editing
-
-(use-package adaptive-wrap)             ; Choose wrapping mode intelligently
 (use-package flycheck                   ; On-the-fly syntax checking
   :defer t
   :init
@@ -933,7 +954,7 @@ Can be used outside writeroom mode."
     :config (flycheck-tip-use-timer 'verbose)))
 
 
-(use-package lorem-ipsum            ; Insert filler text
+(use-package lorem-ipsum                ; Insert filler text
   :defer t
   :commands lorem-ipsum-insert-paragraphs
   :init
@@ -945,7 +966,7 @@ Can be used outside writeroom mode."
                                     lorem-ipsum-sentence-separator " "))))
 
 
-(use-package writegood-mode    ; Highlight poor forms in writing
+(use-package writegood-mode             ; Highlight poor forms in writing
   :defer t
   :delight writegood-mode
   :init (add-hook 'text-mode-hook #'writegood-mode)
@@ -953,7 +974,7 @@ Can be used outside writeroom mode."
                   '("thing" "different" "probably" "really")))
 
 
-(use-package abbrev    ; Auto-correct words after typing
+(use-package abbrev                     ; Auto-correct words after typing
   :ensure nil
   :delight abbrev-mode
   :init
@@ -997,7 +1018,7 @@ Can be used outside writeroom mode."
     :init (company-statistics-mode)))
 
 
-(use-package ispell
+(use-package ispell                     ; Spell-checking
   :defer t
   :init
   (setq
@@ -1055,27 +1076,28 @@ Can be used outside writeroom mode."
   :ensure nil
   :delight outline-minor-mode
   :init
-
+  ;; fontify outline headers
   (defun my-outline-fontify-headlines ()
-    "Add font-lock-keywords for each outline level face and re-fontify buffer."
+    "Add font-lock-keywords for each outline level face."
+    (font-lock-add-keywords
+     nil
+     (mapcar
+      (lambda (face)
+        `(,(replace-regexp-in-string "\\\\{\\(1,8\\)\\\\}"
+                                     (substring (symbol-name face) -1)
+                                     ";;;\\{1,8\\} \\(.+\\)$"
+                                     ;; (concat outline-regexp " \\(.+\\)$")
+                                     nil nil 1)
+          1 (quote ,face) t))
+      '(outline-1 outline-2 outline-3 outline-4
+                  outline-5 outline-6 outline-7 outline-8))))
+  (add-hook 'outline-minor-mode-hook #'my-outline-fontify-headlines)
 
-    (let ((level-regexp "\\\\{\\(1,8\\)\\\\}")
-          (faces '(outline-1 outline-2 outline-3 outline-4
-                             outline-5 outline-6 outline-7 outline-8)))
-      (when (string-match level-regexp outline-regexp)
-        (font-lock-add-keywords
-         nil
-         (mapcar
-          (lambda (face)
-            `(,(concat
-                (replace-regexp-in-string
-                 level-regexp (substring (symbol-name face) -1)
-                 outline-regexp nil nil 1)
-                " \\(.+\\)$")
-              1 (quote ,face) t))
-          faces))))
-    (font-lock-fontify-buffer))
-  ;; (add-hook 'outline-minor-mode-hook #'my-outline-fontify-headlines)
+  (use-package outline-magic
+    :defer t
+    :init
+    (evil-define-key 'normal outline-minor-mode-map
+      "\t" #'outline-cycle))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
@@ -1087,21 +1109,17 @@ Can be used outside writeroom mode."
     "gk" #'outline-previous-heading
     "gl" #'outline-forward-same-level
     "<" #'outline-promote
-    ">" #'outline-demote)
-
-  (use-package outline-magic
-    :defer t
-    :init
-    (evil-define-key 'normal outline-minor-mode-map
-      "\t" #'outline-cycle)))
-
+    ">" #'outline-demote))
 
 (use-package smartparens-config         ; Balanced paren management
   :ensure smartparens :defer t
-  :delight smartparens-strict-mode "⎶"
+  :delight smartparens-mode (:eval (cond ((and (boundp 'evil-smartparens-mode)
+                                               evil-smartparens-mode) "⎶")
+                                         (smartparens-strict-mode "⒮")
+                                         (t "")))
   :init
-  (delight #'smartparens-mode)
   (setq sp-show-pair-from-inside t)     ; highlight pair when point on bracket
+
   ;; disable lesser versions to avoid doubling
   (add-hook 'smartparens-enabled-hook (lambda() (electric-pair-mode -1)))
   (add-hook 'show-smartparens-mode-hook (lambda() (show-paren-mode -1)))
@@ -1109,18 +1127,19 @@ Can be used outside writeroom mode."
   (smartparens-global-mode t)
   (show-smartparens-global-mode t)
   (add-hook 'prog-mode-hook #'smartparens-strict-mode)
-  :config
-  (bind-key "M-=" #'sp-indent-defun smartparens-mode-map)
-  (sp-local-pair 'html-mode "<" ">")
 
   (use-package evil-smartparens         ; Evil smartparen bindings
-    :delight evil-smartparens-mode "ε"
+    :delight evil-smartparens-mode
     :init
     (add-hook 'prog-mode-hook #'smartparens-strict-mode)
-    (add-hook 'smartparens-strict-mode-hook #'evil-smartparens-mode)))
+    (add-hook 'smartparens-strict-mode-hook #'evil-smartparens-mode))
+
+  :config
+  (bind-key "M-=" #'sp-indent-defun smartparens-mode-map)
+  (sp-local-pair 'html-mode "<" ">"))
 
 
-(use-package typo    ; Insert typographical characters
+(use-package typo                       ; Insert typographical characters
   :defer t
   :delight typo-mode
   :init (add-hook 'text-mode-hook #'typo-mode))
@@ -1135,10 +1154,11 @@ Can be used outside writeroom mode."
         undo-tree-history-directory-alist
         `(("." . ,(expand-file-name "undo-history" my-dir))))
   (global-undo-tree-mode t)
-  :config (bind-key "C-x u" #'undo-tree-visualize undo-tree-map))
+  :config
+  (unbind-key "C-/" undo-tree-map))
 
 
-(use-package yasnippet
+(use-package yasnippet                  ; Snippet insertion
   :defer t
   :init (setq yas-snippet-dirs
               `(,(expand-file-name "snippets/" my-dir)
@@ -1157,7 +1177,7 @@ Can be used outside writeroom mode."
   :bind ("C-c C-p" . pandoc-mode))
 
 
-(use-package real-auto-save    ; Auto save buffers
+(use-package real-auto-save             ; Auto save buffers
   :delight real-auto-save-mode " α"
   :commands real-auto-save-mode
   :init (add-hook #'after-save-hook #'real-auto-save-mode))
@@ -1173,15 +1193,26 @@ Can be used outside writeroom mode."
    recentf-save-file (expand-file-name "recentf" my-dir))
   (recentf-mode t))
 
-;;; ** applications
+;;;; applications
 
-(use-package paradox
+(use-package compile                    ; Compilation
+  :defer t
+  :init
+  (setq
+   compilation-always-kill t      ; kill old processes before starting new ones
+   compilation-skip-threshold 2   ; skip warning and info messages
+   compilation-context-lines 3    ; show 3 lines of context around message
+   compilation-scroll-output 'first-error
+   compilation-auto-jump-to-first-error t
+   compilation-ask-about-save nil))
+
+(use-package paradox                    ; Better package management
   :init
   (setq paradox-execute-asynchronously t)
   (use-package async))
 
 
-(use-package calendar
+(use-package calendar                   ; Calendar
   :defer t
   :init (setq calendar-date-style 'european))
 
@@ -1222,7 +1253,7 @@ Can be used outside writeroom mode."
              ("C-w" . wdired-change-to-wdired-mode)))
 
 
-(use-package doc-view    ; In-buffer document viewer
+(use-package doc-view                   ; In-buffer document viewer
   :ensure nil :defer t
   :init (setq doc-view-continuous t)
   :config
@@ -1232,7 +1263,7 @@ Can be used outside writeroom mode."
              ("q" . kill-this-buffer)))
 
 
-(use-package ediff
+(use-package ediff                      ; Emacs diff utility
   :defer t
   :init (setq ediff-diff-options "-w")  ; ignore whitespace
   :config
@@ -1241,11 +1272,11 @@ Can be used outside writeroom mode."
     "k" #'ediff-previous-difference))
 
 
-(use-package garak :disabled t   ; ELIM messenger front-end
+(use-package garak :disabled t          ; ELIM messenger front-end
   :enabled nil :load-path (concat my-dir-packages "elim"))
 
 
-(use-package comint
+(use-package comint                     ; Emacs terminal emulator
   :ensure nil :defer t
   :init (setq
          comint-completion-addsuffix t  ; add space/slash after file completion
@@ -1316,8 +1347,8 @@ Can be used outside writeroom mode."
     (setq eshell-prompt-function #'epe-theme-geoffgarside)))
 
 
-(use-package malyon
-  :ensure nil :defer t); Z-machine text-based-adventure reader
+(use-package malyon                     ; Z-machine text-based adventure reader
+  :ensure nil :defer t)
 
 
 (use-package magit                      ; Git version control management
@@ -1362,7 +1393,7 @@ Can be used outside writeroom mode."
            ("S-<f10>" . git-timemachine-toggle))))
 
 
-;;; ** languages
+;;;; languages
 
 ;; various unconfigured language packages
 (use-package bbcode-mode :defer t)
@@ -1380,9 +1411,7 @@ Can be used outside writeroom mode."
     ",w" #'git-commit-commit
     "q" #'git-commit-abort))
 
-
 (use-package org
-  :delight org-indent-mode
   :defines (org-export-in-background
             org-clock-persist
             org-clock-in-resume
@@ -1410,6 +1439,7 @@ Can be used outside writeroom mode."
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
 
   :config
+  (delight #'org-indent-mode)
   (set-face-attribute 'org-table nil :family (my-font 'mono))
   (set-face-attribute 'org-todo nil
                       :height 'unspecified
@@ -1433,8 +1463,7 @@ Can be used outside writeroom mode."
       "Add various properties to the taskjuggler PROJECT declaration."
       (concat
        (string-join
-        `(;; declaration header excluding ending bracket and newline
-          ,(substring project 0 -2)
+        `(,(substring project 0 -2)     ; header excluding "}\n"
           ;; properties to add
           "timeformat \"%H-%d\""
           "timingresolution 15 min")
@@ -1458,8 +1487,9 @@ Can be used outside writeroom mode."
           (format (or (format "--format='%s'" (plist-get params :format)) ""))
           (trunc-p (plist-get params :trunc))
           (args (or (string-join (plist-get params :args) " ") "")))
-      (let ((output (shell-command-to-string
-                     (format "git --git-dir='%s' log %s %s" repo format args))))
+      (let ((output
+             (shell-command-to-string
+              (format "git --git-dir='%s' log %s %s" repo format args))))
         (when trunc-p
           (setq output (replace-regexp-in-string "\\.\\." "" output)))
         (insert output)))))
@@ -1480,10 +1510,10 @@ Can be used outside writeroom mode."
   :init
   (defun my-imenu-decls ()
     "Add custom declarations to `imenu-generic-expression'."
-    (setq imenu-generic-expression
-          (append imenu-generic-expression
-                  `(("Packages" "\\(^\\s-*(use-package +\\)\\(\\_<.+\\_>\\)" 2)
-                    (nil ,(concat outline-regexp "\\(.+\\)$") 1)))))
+    (dolist (expr
+             `(("Packages" "\\(^\\s-*(use-package +\\)\\(\\_<.+\\_>\\)" 2)
+               ("Headings" ,(concat "^\\(" outline-regexp "\\) \\(.+\\)$") 2)))
+      (add-to-list 'imenu-generic-expression expr)))
   (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
 
   (use-package eldoc                      ; Documentation in echo area
