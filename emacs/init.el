@@ -1,7 +1,6 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
-;; TODO aspell messages
-;; TODO eshell prompt
+;; TODO silence byte-compiler
 ;; REVIEW :init and :config keyword reorder
 ;; REVIEW add :defer and :demand keywords correctly
 ;; REVIEW fix evil bindings
@@ -1001,7 +1000,8 @@ command. Uses jk as default combination."
     :init (company-statistics-mode)))
 
 
-(use-package ispell                     ; Spell-checking
+(use-package ispell                     ; TODO Spell-checking
+  ;; TODO stop messages showing in minibuffer when starting a process
   :defer t
   :config
   (setq
@@ -1299,7 +1299,7 @@ command. Uses jk as default combination."
               :around #'my-comint-suppress-message))
 
 
-(use-package eshell                     ; Emacs shell
+(use-package eshell                     ; TODO Emacs shell
   :bind (("<f12>" . eshell))
   :functions my-eshell-prompt
   :config
@@ -1322,7 +1322,7 @@ command. Uses jk as default combination."
     :ensure nil
     :init (bind-key "<C-return>" #'helm-eshell-history eshell-mode-map))
 
-  (use-package eshell-prompt-extras
+  (use-package eshell-prompt-extras     ; TODO this. all of this.
     :init
     (use-package virtualenvwrapper      ; Show Python venv info in prompt
       :config (venv-initialize-interactive-shells))
@@ -1379,7 +1379,7 @@ command. Uses jk as default combination."
            ("S-<f10>" . git-timemachine-toggle))))
 
 
-(use-package git-wip-mode :disabled t)          ; TODO what does this do
+(use-package git-wip-mode :disabled t)  ; TODO what does this do
 
 ;;;; languages
 
