@@ -1,10 +1,13 @@
-;;; init.el
+;;; init.el --- Kelly Stewart's init file
+;;; Commentary:
 ;; TODO aspell messages
 ;; TODO eshell prompt
-;; TODO :init and :config keyword reorder
+;; REVIEW :init and :config keyword reorder
 ;; REVIEW add :defer and :demand keywords correctly
 ;; REVIEW fix evil bindings
+;;; Code:
 ;;;; helper functions
+
 (defun my-add-hooks (func hooks)
   "Add FUNC to each hook in HOOKS."
   (dolist (hook hooks) (add-hook hook func)))
@@ -64,10 +67,8 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (setq use-package-verbose t             ; log message after loading a package
       use-package-always-ensure t)      ; ensure all packages are installed
 
-
 (use-package delight)
 (use-package bind-key)
-
 
 ;;;; basic settings
 ;;;;; general
@@ -311,6 +312,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
         w32-pass-lwindow-to-system nil))
 
 ;;;; major packages
+
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :init (evil-mode t)
@@ -321,7 +323,8 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
    evil-want-change-word-to-end nil     ; don't let cw behave like ce
    evil-echo-state nil                  ; state is in the modeline anyway
    evil-ex-substitute-global t)         ; global substitutions by default
-  (my-setq-append evil-emacs-state-modes '(shell-mode term-mode multi-term-mode))
+  (my-setq-append evil-emacs-state-modes '(shell-mode
+                                           term-mode multi-term-mode))
   (my-setq-append evil-insert-state-modes '(git-commit-mode))
 
   ;; Adapted from https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
@@ -391,8 +394,8 @@ command. Uses jk as default combination."
       "\"" #'evilmi-jump-items)))
 
 
-(use-package helm-config                ; TODO Fuzzy minibuffer completion
-  :ensure helm :demand t
+(use-package helm                       ; TODO Fuzzy minibuffer completion
+  :demand t
   :delight helm-mode
   :init (helm-mode t)
   :config
@@ -413,7 +416,6 @@ command. Uses jk as default combination."
    ;; fuzzy matching everywhere
    helm-semantic-fuzzy-match t
    helm-completion-in-region-fuzzy-match t
-   helm-locate-fuzzy-match t
    helm-buffers-fuzzy-matching t
    helm-M-x-fuzzy-match t
    helm-apropos-fuzzy-match t
@@ -421,6 +423,7 @@ command. Uses jk as default combination."
    helm-imenu-fuzzy-match t
    helm-file-cache-fuzzy-match t
    helm-recentf-fuzzy-match t)
+
   (defalias #'ibuffer #'helm-mini)
   (helm-autoresize-mode t)
 
@@ -443,8 +446,18 @@ command. Uses jk as default combination."
                                                 'font-lock-keyword-face))))
                               types helm-imenu-delimiter)
                    (cons k v))))
-
   (defalias #'helm-imenu-transformer #'my-helm-imenu-transformer)
+
+  ;; less ugly colors for helm-buffer items
+  (set-face-attribute 'helm-buffer-directory nil
+                      :foreground 'unspecified
+                      :background 'unspecified
+                      :inherit 'dired-directory)
+  (set-face-attribute 'helm-buffer-saved-out nil
+                      :foreground 'unspecified
+                      :background 'unspecified
+                      :inverse-video 'unspecified
+                      :inherit 'font-lock-warning-face)
 
   ;; TODO helm-mini C-d delete buffer, new binding for other window
   (bind-keys*
@@ -513,6 +526,7 @@ command. Uses jk as default combination."
     :config (bind-key "M-i" #'helm-multi-swoop-from-helm-swoop helm-swoop-map)))
 
 ;;;; help
+
 (use-package discover-my-major          ; List current major mode bindings
   :bind ("<help> m" . discover-my-major))
 
@@ -587,6 +601,7 @@ command. Uses jk as default combination."
 (use-package nyan-mode                  ; Nyan cat scroll bar
   :defer t
   ;; TODO nyan music ☹
+  :commands nyan-mode
   :init (nyan-mode t)
   :config
   (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time
@@ -624,7 +639,6 @@ command. Uses jk as default combination."
                                         b a)))))
 
 ;;;;;; face packages
-
 
 (use-package hl-sentence                ; Highlight current sentence
   :defer t
@@ -670,15 +684,35 @@ command. Uses jk as default combination."
 
 ;;;;;; color theme
 
-
 (use-package solarized-theme
   :defer t
-  :config (setq
-           solarized-scale-org-headlines nil
-           solarized-height-plus-1 1.2
-           solarized-height-plus-2 1.2
-           solarized-height-plus-3 1.2
-           solarized-height-plus-4 1.2))
+  :config
+  (setq solarized-scale-org-headlines nil
+        solarized-height-plus-1 1.1
+        solarized-height-plus-2 1.1
+        solarized-height-plus-3 1.1
+        solarized-height-plus-4 1.1)
+
+  ;; colors copied from `solarized.el'
+  (defun solarized-get-col (col)
+    "Return a string of the color value for the specified solarized color."
+    (let ((colors '((base03 . "#002b36") ; background dark
+                    (base02 . "#073642") ; background highlight dark
+                    (base01 . "#586e75") ; emphasised content
+                    (base00 . "#657b83") ; primary content
+                    (base0 . "#839496")  ; primary content
+                    (base1 . "#93a1a1")  ; comments
+                    (base2 . "#eee8d5")  ; background highlight light
+                    (base3 . "#fdf6e3")  ; background light
+                    (yellow . "#b58900")
+                    (orange . "#cb4b16")
+                    (red . "#dc322f")
+                    (magenta . "#d33682")
+                    (violet . "#6c71c4")
+                    (blue . "#268bd2")
+                    (cyan . "#2aa198")
+                    (green . "#859900"))))
+      (cdr (assoc col colors)))))
 
 
 (use-package zenburn-theme
@@ -687,7 +721,6 @@ command. Uses jk as default combination."
 (load-theme 'solarized-dark)
 
 ;;;; interface
-
 
 (use-package linum                      ; Line numbers
   :defer t
@@ -710,6 +743,7 @@ command. Uses jk as default combination."
 
 
 (use-package hideshow                   ; Code folding
+  :delight hideshow-minor-mode "+"
   :init
   (use-package hideshowvis :disabled t  ; Visualize hidden blocks
     :defer t
@@ -780,7 +814,7 @@ command. Uses jk as default combination."
             mode-line-modes
             mode-line-misc-info
             mode-line-end-spaces)))
-  (add-to-list 'writeroom-global-functions #'my-writeroom-effect))
+  (add-to-list 'writeroom-global-effects #'my-writeroom-effect))
 
 
 (use-package visual-fill-column
@@ -789,7 +823,6 @@ command. Uses jk as default combination."
   :config (setq-default visual-fill-column-width 100))
 
 ;;;; navigation
-
 
 (use-package ace-jump-mode              ; Jump to specific points with marks
   :bind ("C-SPC" . ace-jump-mode))
@@ -892,6 +925,7 @@ command. Uses jk as default combination."
 (use-package flycheck                   ; On-the-fly syntax checking
   :defer t
   :init
+  (setq flycheck-disabled-checkers '(emacs-lisp-checkdoc))
   (add-hook 'prog-mode-hook #'flycheck-mode)
   (add-hook 'sh-mode-hook (lambda() (flycheck-mode -1)))
 
@@ -899,7 +933,6 @@ command. Uses jk as default combination."
   (setq flycheck-mode-line
         '(:eval (replace-regexp-in-string
                  "FlyC" "Φ" (flycheck-mode-line-status-text)))
-        flycheck-disabled-checkers '(emacs-lisp-checkdoc)
         flycheck-indication-mode 'right-fringe)
   (evil-define-key 'normal flycheck-mode-map
     ",!j" #'flycheck-next-error
@@ -958,7 +991,7 @@ command. Uses jk as default combination."
   :config
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
-        company-tooltip-align-annonation t
+        company-tooltip-align-annonations t
         company-lighter-base "ψ"
         company-selection-wrap-around t)
 
@@ -1075,14 +1108,12 @@ command. Uses jk as default combination."
   ;; FIXME hooks not being run correctly
   ;; TODO delight modeline lighters
   :ensure smartparens :defer t
-  :delight smartparens-mode (:eval (cond ((and (boundp 'evil-smartparens-mode)
-                                               evil-smartparens-mode) "⎶")
-                                         (smartparens-strict-mode "⒮")
-                                         (t "")))
+  :delight smartparens-mode '(:eval
+                              (concat " " (when smartparens-strict-mode "⒮")))
   :init
   ;; disable lesser versions to avoid doubling
-  ;; (add-hook 'smartparens-enabled-hook (lambda() (electric-pair-mode -1)))
-  ;; (add-hook 'show-smartparens-mode-hook (lambda() (show-paren-mode -1)))
+  (add-hook 'smartparens-enabled-hook (lambda() (electric-pair-mode -1)))
+  (add-hook 'show-smartparens-mode-hook (lambda() (show-paren-mode -1)))
   ;; enable the modes
   (smartparens-global-mode t)
   (show-smartparens-global-mode t)
@@ -1375,17 +1406,11 @@ command. Uses jk as default combination."
     "q" #'git-commit-abort))
 
 (use-package org
-  :defines (org-export-in-background
-            org-clock-persist
-            org-clock-in-resume
-            org-odt-preferred-output-format)
   :config
   (setq
    org-edit-src-content-indentation 0   ; no initial indent for source code
    org-src-preserve-indentation t       ; preserve source block indentation
    org-src-strip-leading-and-trailing-blank-lines t
-   org-clock-persist t                  ; save clock and clock history on exit
-   org-clock-in-resume t                ; resume if clocking in with open clock
    org-adapt-indentation nil            ; don't adapt indentation
    org-imenu-depth 3                    ; larger imenu depth
    org-special-ctrl-a/e t               ; begin/end of line skips tags & stars
@@ -1395,7 +1420,6 @@ command. Uses jk as default combination."
    org-todo-keywords '((sequence "☐" "☒"))
    org-modules '(org-docview org-info org-gnus org-inlinetask)
    org-export-backends '(ascii html odt taskjuggler)
-   org-odt-preferred-output-format 'doc
    org-startup-folded t                 ; start buffers with folded headers
    org-src-fontify-natively t           ; syntax highlight code in org buffer
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
@@ -1412,8 +1436,18 @@ command. Uses jk as default combination."
              ("C-2" . org-clock-out)
              ("S-<return>" . org-insert-heading-after-current))
   (evil-define-key 'normal org-mode-map
-    "<return>" #'org-insert-heading
-    "<tab>" #'org-back-to-heading)
+    (kbd "") #'org-insert-heading
+    "\t" #'org-back-to-heading)
+
+  (use-package org-clock
+    :ensure nil
+    :config
+    (setq org-clock-persist t           ; save clock and clock history on exit
+          org-clock-in-resume t))       ; resume if clocking in with open clock
+
+  (use-package ox-odt
+    :ensure nil
+    :config (setq org-odt-preferred-output-format 'doc))
 
   (use-package org-plus-contrib
     :config
@@ -1568,3 +1602,4 @@ command. Uses jk as default combination."
          web-mode-code-indent-offset 2
          web-mode-markup-indent-offset 2))
 
+;;; init.el ends here
