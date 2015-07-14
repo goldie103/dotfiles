@@ -701,28 +701,7 @@ command. Uses jk as default combination."
         solarized-height-plus-1 1.1
         solarized-height-plus-2 1.1
         solarized-height-plus-3 1.1
-        solarized-height-plus-4 1.1)
-
-  ;; colors copied from `solarized.el'
-  (defun solarized-get-col (col)
-    "Return a string of the color value for the specified solarized color."
-    (let ((colors '((base03 . "#002b36") ; background dark
-                    (base02 . "#073642") ; background highlight dark
-                    (base01 . "#586e75") ; emphasised content
-                    (base00 . "#657b83") ; primary content
-                    (base0 . "#839496")  ; primary content
-                    (base1 . "#93a1a1")  ; comments
-                    (base2 . "#eee8d5")  ; background highlight light
-                    (base3 . "#fdf6e3")  ; background light
-                    (yellow . "#b58900")
-                    (orange . "#cb4b16")
-                    (red . "#dc322f")
-                    (magenta . "#d33682")
-                    (violet . "#6c71c4")
-                    (blue . "#268bd2")
-                    (cyan . "#2aa198")
-                    (green . "#859900"))))
-      (cdr (assoc col colors)))))
+        solarized-height-plus-4 1.1))
 
 
 (use-package zenburn-theme
@@ -1335,6 +1314,10 @@ command. Uses jk as default combination."
                                      'face '(:foreground "#b58900")))
   (add-to-list 'eshell-modules-list 'eshell-smart)
 
+  (use-package em-prompt :ensure nil)
+  (use-package em-cmpl :ensure nil)
+  (use-package em-banner :ensure nil)
+
   (use-package helm-eshell
     :ensure nil
     :init (bind-key "<C-return>" #'helm-eshell-history eshell-mode-map))
@@ -1359,10 +1342,10 @@ command. Uses jk as default combination."
 (use-package magit                      ; Git version control management
   :delight magit-auto-revert-mode
   :bind ("<f10>" . magit-status)
+  :init (setq magit-last-seen-setup-instructions "1.4.0")
   :config
-  (setq magit-save-some-buffers 'dontask           ; don't ask before saving
-        magit-last-seen-setup-instructions "1.4.0" ; clear startup message
-        magit-diff-options '("-b"))                ; ignore whitespace in diff
+  (setq magit-diff-options '("-b")           ; ignore whitespace in diffs
+        magit-save-some-buffers 'dontask)
 
   ;; http://writequit.org/org/settings.html
   (defun my-git-browse-url ()
@@ -1380,7 +1363,6 @@ command. Uses jk as default combination."
         (error "Can't find repository URL"))
       (browse-url url)))
 
-  (use-package git-wip-mode :disabled t)          ; TODO what does this do
 
   (bind-keys :map magit-status-mode-map
              ("<C-tab>" . magit-section-cycle)
@@ -1392,10 +1374,12 @@ command. Uses jk as default combination."
              ("C-=" . magit-diff-working-tree)
              (",b" . ibuffer))
 
-  (use-package git-timemachine
+  (use-package git-timemachine          ; Travel through commit history
     :bind (("C-<f10>" . git-timemachine)
            ("S-<f10>" . git-timemachine-toggle))))
 
+
+(use-package git-wip-mode :disabled t)          ; TODO what does this do
 
 ;;;; languages
 
