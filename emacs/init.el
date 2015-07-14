@@ -427,6 +427,16 @@ command. Uses jk as default combination."
   (defalias #'ibuffer #'helm-mini)
   (helm-autoresize-mode t)
 
+  ;; load packages manually to avoid byte-compiler warnings
+  (use-package helm-config :ensure nil)
+  (use-package helm-files :ensure nil)
+  (use-package helm-mode :ensure nil)
+  (use-package helm-semantic :ensure nil)
+  (use-package helm-buffers :ensure nil)
+  (use-package helm-command :ensure nil)
+  (use-package helm-elisp :ensure nil)
+  (use-package helm-imenu :ensure nil)
+
   (defun my-helm-imenu-transformer (candidates)
     "Custom imenu transformer with added headings and faces."
     (cl-loop for (k . v) in candidates
