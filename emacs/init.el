@@ -11,9 +11,15 @@
   "Add FUNC to each hook in HOOKS."
   (dolist (hook hooks) (add-hook hook func)))
 
-(defun my-setq-append (list-var elements)
-  "Set LIST-VAR to LIST-VAR with each item in ELEMENTS appended."
-  (setq list-var (append list-var elements)))
+;; Adapted from http://stackoverflow.com/a/24357106/3912814
+(defun my-append (list-var elements)
+  "Append ELEMENTS to the end of LIST-VAR if not already in list.
+
+Return new value of LIST-VAR."
+  (if (and (boundp list-var) (symbol-value list-var))
+      (dolist (item elements) (add-to-list list-var item))
+    (set list-var elements))
+  (symbol-value list-var))
 
 (defun my-cleanup ()
   "Clean up the current buffer.
@@ -50,10 +56,10 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (setq package-enable-at-startup nil     ; we will manually initialize
       load-prefer-newer t)              ; don't load outdated byte code
 
-(my-setq-append package-archives
-                '(("melpa" . "http://melpa.milkbox.net/packages/")
-                  ("org" . "http://orgmode.org/elpa/")
-                  ("elpy" . "http://jorgenschaefer.github.io/packages/")))
+(my-append 'package-archives
+           '(("melpa" . "http://melpa.milkbox.net/packages/")
+             ("org" . "http://orgmode.org/elpa/")
+             ("elpy" . "http://jorgenschaefer.github.io/packages/")))
 
 (package-initialize)                    ; manually initialize
 
@@ -322,9 +328,9 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
    evil-want-change-word-to-end nil     ; don't let cw behave like ce
    evil-echo-state nil                  ; state is in the modeline anyway
    evil-ex-substitute-global t)         ; global substitutions by default
-  (my-setq-append evil-emacs-state-modes '(shell-mode
-                                           term-mode multi-term-mode))
-  (my-setq-append evil-insert-state-modes '(git-commit-mode))
+  (my-append 'evil-emacs-state-modes
+             '(shell-mode term-mode multi-term-mode))
+  (my-append 'evil-insert-state-modes '(git-commit-mode))
 
   ;; Adapted from https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
   (evil-define-command maybe-exit ()
@@ -597,13 +603,13 @@ command. Uses jk as default combination."
    sml/mule-info nil                   ; don't show buffer encoding
    sml/use-projectile-p t              ; projectile file prefix takes precedent
    sml/projectile-replacement-format "[π:%s]")
-  (my-setq-append sml/replacer-regexp-list
-                  '(("^/media/user/" ":θ:")
-                    (":θ:Documents/" ":Δ:")
-                    (":Δ:work/" ":Σ:")
-                    (":θ:dev/" ":δ:")
-                    (":δ:dotfiles/" ":.:")
-                    ("^:\\.:emacs/" ":.ε:")))
+  (my-append 'sml/replacer-regexp-list
+             '(("^/media/user/" ":θ:")
+               (":θ:Documents/" ":Δ:")
+               (":Δ:work/" ":Σ:")
+               (":θ:dev/" ":δ:")
+               (":δ:dotfiles/" ":.:")
+               ("^:\\.:emacs/" ":.ε:")))
   (sml/setup))
 
 
@@ -741,9 +747,12 @@ command. Uses jk as default combination."
   (add-hook 'prog-mode-hook #'hs-minor-mode)
 
   :config
-  (my-setq-append hs-special-modes-alist
-                  (mapcar (lambda (mode) `(,mode "{" "}" "/[*/]" nil nil))
-                          '(css-mode web-mode)))
+
+  ;; add folding for other modes with curly bracket delimiters
+  (mapc
+   (lambda (mode)
+     (add-to-list 'hs-special-modes-alist `(,mode "{" "}" "/[*/]" nil nil)))
+   '(css-mode web-mode))
 
   ;; fallback indentation-based hiding
   (defun toggle-hiding (column)
@@ -763,10 +772,10 @@ command. Uses jk as default combination."
   :init (popwin-mode t)
   :config
   (setq popwin:popup-window-position 'right)
-  (my-setq-append popwin:special-display-config
-                  '(("*Backtrace*" :noselect t)
-                    ("*Python Help*" :stick t :height 20)
-                    ("*Help*" :stick t :noselect t :height 20))))
+  (my-append 'popwin:special-display-config
+             '(("*Backtrace*" :noselect t)
+               ("*Python Help*" :stick t :height 20)
+               ("*Help*" :noselect t :height 20))))
 
 
 (use-package uniquify                   ; Distinguish buffers with same name
@@ -846,7 +855,7 @@ command. Uses jk as default combination."
   :config
   (setq desktop-auto-save-timeout 60
         desktop-dirname (expand-file-name "desktop" my-dir))
-  (my-setq-append desktop-modes-not-to-save '(magit-mode git-commit-mode)))
+  (my-append 'desktop-modes-not-to-save '(magit-mode git-commit-mode)))
 
 
 (use-package expand-region              ; Expand functions block at a time
@@ -951,8 +960,8 @@ command. Uses jk as default combination."
   :defer t
   :delight writegood-mode
   :init (add-hook 'text-mode-hook #'writegood-mode)
-  :config (my-setq-append writegood-weasel-words
-                          '("thing" "different" "probably" "really")))
+  :config (my-append 'writegood-weasel-words
+                     '("thing" "different" "probably" "really")))
 
 (use-package abbrev                     ; Auto-correct words after typing
   :ensure nil
@@ -1010,10 +1019,10 @@ command. Uses jk as default combination."
    ;; no messages please
    ispell-silently-savep t
    ispell-quietly t)
-  (my-setq-append ispell-skip-region-alist
-                  '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
-                    ("#\\+BEGIN_SRC" . "#\\+END_SRC")
-                    ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
+  (my-append 'ispell-skip-region-alist
+             '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
+               ("#\\+BEGIN_SRC" . "#\\+END_SRC")
+               ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
 
   ;; Adapted from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
   (defun my-ispell-run-together (orig-func &rest args)
@@ -1486,7 +1495,7 @@ command. Uses jk as default combination."
 (use-package generic-x                  ; Collection of generic modes
   :ensure nil :defer t
   :config
-  (my-setq-append generic-extras-enable-list generic-mswindows-modes)
+  (my-append 'generic-extras-enable-list generic-mswindows-modes)
   (use-package conkyrc-mode :disabled t   ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
