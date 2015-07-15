@@ -7,10 +7,6 @@
 ;;; Code:
 ;;;; helper functions
 
-(defun my-add-hooks (func hooks)
-  "Add FUNC to each hook in HOOKS."
-  (dolist (hook hooks) (add-hook hook func)))
-
 ;; Adapted from http://stackoverflow.com/a/24357106/3912814
 (defun my-append (list-var elements)
   "Append ELEMENTS to the end of LIST-VAR if not already in list.
@@ -679,7 +675,9 @@ command. Uses jk as default combination."
 (use-package rainbow-mode               ; Highlight color codes
   :defer t
   :delight rainbow-mode
-  :init (my-add-hooks #'rainbow-mode '(web-mode-hook css-mode-hook)))
+  :init
+  (dolist (hook '(web-mode-hook css-mode-hook))
+    (add-hook hook #'rainbow-mode)))
 
 
 (use-package whitespace                 ; Faces for whitespace characters
@@ -1323,6 +1321,7 @@ command. Uses jk as default combination."
                                      'face '(:foreground "#b58900")))
   (add-to-list 'eshell-modules-list 'eshell-smart)
 
+  (use-package eshe)
   (use-package em-prompt :ensure nil)
   (use-package em-cmpl :ensure nil)
   (use-package em-banner :ensure nil)
