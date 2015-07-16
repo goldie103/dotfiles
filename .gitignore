@@ -4,3 +4,4 @@
 \src
 # autosave files
 \.#.*
+/emacs/flycheck_init.el
