@@ -182,7 +182,9 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
                 line-number-mode))
   (add-hook 'prog-mode-hook func))
 
-(add-hook 'text-mode-hook #'goto-address-mode) ; Buttonize URLs
+(dolist (func '(goto-address-mode       ; Buttonize URLs
+                visual-line-mode))      ; Wrap by word
+  (add-hook 'text-mode-hook func))
 
 ;;;;; delighted modes
 
@@ -978,11 +980,6 @@ command. Uses jk as default combination."
 
 ;;;; editing
 
-(use-package adaptive-wrap              ; Choose wrapping mode intelligently
-  :defer t
-  :init (adaptive-wrap-prefix-mode t))
-
-
 (use-package flycheck                   ; On-the-fly syntax checking
   :defer t
   :init
@@ -1151,8 +1148,8 @@ command. Uses jk as default combination."
   (use-package outline-magic
     :defer t
     :init
-    (evil-define-key 'normal outline-minor-mode-map
-      ("\t" . outline-cycle)))
+    (evil-bind-keys 'normal outline-minor-mode-map
+                    ("\t" . outline-cycle)))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
@@ -1161,8 +1158,8 @@ command. Uses jk as default combination."
   (evil-bind-keys 'normal outline-minor-mode-map
                   ("gh" . outline-up-heading)
                   ("gj" . outline-next-heading)
-                  ("gk" . outline-previous-h)eading
-                  ("gl" . outline-forward-sa)me-level
+                  ("gk" . outline-previous-heading)
+                  ("gl" . outline-forward-same-level)
                   ("<" . outline-promote)
                   (">" . outline-demote)))
 
@@ -1360,7 +1357,7 @@ command. Uses jk as default combination."
     (comint-goto-process-mark)
     (evil-append 1))
 
-  (evil-define-key 'normal comint-mode-map
+  (evil-bind-keys 'normal comint-mode-map
     ("I" . my-comint-evil-insert)
     ("A" . my-comint-evil-insert))
 
@@ -1474,7 +1471,7 @@ command. Uses jk as default combination."
   :defer t
   :delight server-buffer-clients
   :config
-  (evil-define-key 'normal git-commit-mode-map
+  (evil-bind-keys 'normal git-commit-mode-map
     (",w" . git-commit-commit)
     ("q" . git-commit-abort)))
 
