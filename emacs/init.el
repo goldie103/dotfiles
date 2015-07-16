@@ -272,6 +272,7 @@ narrowed."
   (other-window 1 nil)
   (when (= prefix 1) (switch-to-next-buffer)))
 
+;; I accidentally call this too much when calling C-x and trying to ESC out
 (global-unset-key (kbd "C-x ESC ESC"))
 
 (bind-keys
@@ -631,7 +632,8 @@ command. Uses jk as default combination."
 (defun my-highlight-fic ()
   "Highlight FIXME and TODO keywords."
   (font-lock-add-keywords
-   nil `(("\\(TODO\\??\\|FIXME\\??\\|INPROGRESS\\|REVIEW\\)"
+   nil `(((concat comment-start-skip
+                  "\\(TODO\\??\\|FIXME\\??\\|HACK\\|DOING\\|REVIEW\\)")
           1 'font-lock-fic-face prepend))))
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
@@ -1162,9 +1164,10 @@ command. Uses jk as default combination."
                   ("gk" . outline-previous-h)eading
                   ("gl" . outline-forward-sa)me-level
                   ("<" . outline-promote)
-                  (">" . outline-demote))
+                  (">" . outline-demote)))
 
-)(use-package smartparens-config         ; FIXME Balanced paren management
+
+(use-package smartparens-config         ; FIXME Balanced paren management
   ;; FIXME autopairing quotes and backticks
   ;; FIXME hooks not being run correctly
   ;; TODO delight modeline lighters
@@ -1184,7 +1187,11 @@ command. Uses jk as default combination."
     :delight evil-smartparens-mode
     :init
     (add-hook 'prog-mode-hook #'smartparens-strict-mode)
-    (add-hook 'smartparens-strict-mode-hook #'evil-smartparens-mode))
+    (add-hook 'smartparens-strict-mode-hook #'evil-smartparens-mode)
+    :config
+    (evil-bind-keys 'normal evil-smartparens-mode-map
+                    ;; faster than the evil-smartparens variant
+                    ("D" . sp-kill-hybrid-sexp)))
 
   :config
   (setq sp-show-pair-from-inside t)     ; highlight pair when point on bracket
