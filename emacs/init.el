@@ -314,6 +314,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 
 ;;;; major packages
 
+
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :init (evil-mode t)
@@ -327,6 +328,44 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
   (my-append 'evil-emacs-state-modes
              '(shell-mode term-mode multi-term-mode))
   (my-append 'evil-insert-state-modes '(git-commit-mode))
+
+  (defmacro evil-bind-keys (state map &rest bindings)
+    "Bind BINDINGS to evil STATE and keymap MAP.
+
+STATE can be either a symbol specifying an evil state or a list
+of symbols. MAP can be a keymap or a list of keymaps.
+
+The rest of the arguments are conses of keybinding string, which
+will be passed to `read-kbd-macro' if necessary, and an unquoted
+function symbol."
+    (let* ((map (or (plist-get args :map) 'global-map))
+           (maps (if (listp map) map (list map)))
+           (state (car (cdr state)))
+           (states (if (listp state) state (list state)))
+           (binds (apply
+                   #'nconc
+                   (mapcar
+                    (lambda (k)
+                      (let ((key (car k)))
+                        ;; pass to `read-kbd-macro' if necessary
+                        `(,(if (vectorp key) key (read-kbd-macro key))
+                          (quote ,(cdr k)))))
+                    ;; get bindings from arglist
+                    (progn
+                      (while (keywordp (car args))
+                        (pop args)
+                        (pop args))
+                      args)))))
+
+      (macroexp-progn
+       (mapcar
+        (lambda (item)
+          `(evil-define-key (quote ,(car item)) ,(cdr item) ,@binds))
+        ;; build a list of (state . map) for each `evil-define-key' command
+        (apply
+         #'nconc
+         (mapcar
+          (lambda (s) (mapcar (lambda (m) `(,s . ,m)) maps)) states))))))
 
   ;; Adapted from https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
   (evil-define-command maybe-exit ()
@@ -352,13 +391,10 @@ command. Uses jk as default combination."
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
 
-  (bind-key "y" #'evil-yank evil-motion-state-map) ; Add yanking to motion map
-
   (bind-keys :map (evil-insert-state-map evil-replace-state-map)
              ("j" . maybe-exit))        ; jk exits insert state
 
-  (bind-keys :map (evil-normal-state-map evil-motion-state-map)
-             ("Y" . my-evil-yank-to-eol)) ; more consistent
+  (bind-key "y" #'evil-yank evil-motion-state-map) ; Add yanking to motion map
 
   (bind-keys :map evil-window-map
              ("d" . delete-window)
@@ -366,23 +402,26 @@ command. Uses jk as default combination."
 
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
-   (":" . comment-dwim)
-   ("C-;" . evil-ex)
    ("SPC" . execute-extended-command)
    ("<escape>" . keyboard-quit)
-   ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
+   (":" . comment-dwim)
+   ("," . nil)
+   (",:" . evil-ex)
+   (",f" . find-file)
+   (",b" . list-buffers)
+   (",w" . save-buffer))
+
+  (bind-keys
+   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
+   ("Y" . my-evil-yank-to-eol)  ; more consistent
+   ("q" . kill-buffer-and-window)
    ("Q" . evil-record-macro)            ; Q replaces old q action
    ;; movement
    ("j" . evil-next-visual-line)
    ("k" . evil-previous-visual-line)
    ("s" . evil-last-non-blank)
    ("a" . evil-first-non-blank)
-   ("\"" . evil-jump-item)
-   ;; leader bindings
-   ("," . nil)
-   (",f" . find-file)
-   (",b" . list-buffers)
-   (",w" . save-buffer))
+   ("\"" . evil-jump-item))
 
   (use-package evil-surround :init (global-evil-surround-mode t))
 
@@ -399,6 +438,7 @@ command. Uses jk as default combination."
   :demand t
   :delight helm-mode
   :init (helm-mode t)
+  :functions my-helm-imenu-transformer
   :config
   (setq
    helm-quick-update t
@@ -697,20 +737,25 @@ command. Uses jk as default combination."
 
 ;;;;;; color theme
 
-(use-package solarized-theme
+(use-package solarized-theme :disabled t
   :defer t
   :config
   (setq solarized-scale-org-headlines nil
         solarized-height-plus-1 1.1
         solarized-height-plus-2 1.1
         solarized-height-plus-3 1.1
-        solarized-height-plus-4 1.1))
+        solarized-height-plus-4 1.1)
+  (load-theme 'solarized-dark))
 
 
-(use-package zenburn-theme
-  :defer t)
+(use-package zenburn-theme :disabled t
+  :defer t
+  :config (load-theme 'zenburn-hc))
 
-(load-theme 'solarized-dark)
+(use-package color-theme-sanityinc-tomorrow
+  :defer t
+  :config (load-theme 'sanityinc-tomorrow-night))
+
 
 ;;;; interface
 
@@ -751,6 +796,16 @@ command. Uses jk as default combination."
    (lambda (mode)
      (add-to-list 'hs-special-modes-alist `(,mode "{" "}" "/[*/]" nil nil)))
    '(css-mode web-mode))
+
+  ;; REVIEW expand collapsed blocks when jumping to them
+  (defun my-hs-expand-advice (&rest _args)
+    (save-excursion (if (and (boundp 'outline-minor-mode)
+                             outline-minor-mode
+                             (boundp 'outline-cycle))
+                        ()
+                        (hs-show-block))))
+  (advice-add #'imenu :after #'my-hs-expand-advice)
+  (advice-add #'goto-line :after #'my-hs-expand-advice)
 
   ;; fallback indentation-based hiding
   (defun toggle-hiding (column)
@@ -1139,7 +1194,7 @@ command. Uses jk as default combination."
   :config
   (setq undo-tree-visualizer-timestamps t
         undo-tree-visualizer-diff t
-        undo-tree-auto-save-history t
+        ;; undo-tree-auto-save-history t   ; may be causing corrupted history
         undo-tree-history-directory-alist
         `(("." . ,(expand-file-name "undo-history" my-dir))))
 
@@ -1321,7 +1376,6 @@ command. Uses jk as default combination."
                                      'face '(:foreground "#b58900")))
   (add-to-list 'eshell-modules-list 'eshell-smart)
 
-  (use-package eshe)
   (use-package em-prompt :ensure nil)
   (use-package em-cmpl :ensure nil)
   (use-package em-banner :ensure nil)
