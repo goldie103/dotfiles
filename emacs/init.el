@@ -1481,7 +1481,6 @@ command. Uses jk as default combination."
    org-edit-src-content-indentation 0   ; no initial indent for source code
    org-src-preserve-indentation t       ; preserve source block indentation
    org-src-strip-leading-and-trailing-blank-lines t
-   org-adapt-indentation nil            ; don't adapt indentation
    org-imenu-depth 3                    ; larger imenu depth
    org-special-ctrl-a/e t               ; begin/end of line skips tags & stars
    org-special-ctrl-k t                 ; kill lines depending on org context
@@ -1501,29 +1500,31 @@ command. Uses jk as default combination."
                       :inherit 'variable-pitch)
   (set-face-attribute 'org-done nil :inherit 'org-todo)
 
-  (bind-keys :map org-mode-map
-             ("C-1" . org-clock-in)
-             ("C-2" . org-clock-out)
-             ("S-<return>" . org-insert-heading-after-current))
+  (bind-key "<S-return>" #'org-insert-heading-after-current org-mode-map)
 
   (evil-bind-keys 'normal org-mode-map
-                  ("RET" . org-insert-heading)
+                  ("RET" . org-insert-heading-after-current)
                   ("\t" . org-back-to-heading))
 
   (use-package org-clock
-    :ensure nil
+    :ensure nil :defer t
+    :init
+    (bind-keys :map org-mode-map
+               ("C-c o" . org-clock-in)
+               ("C-c O" . org-clock-out))
     :config
     (setq org-clock-persist t           ; save clock and clock history on exit
           org-clock-in-resume t))       ; resume if clocking in with open clock
 
   (use-package ox-odt
-    :ensure nil
+    :ensure nil :defer t
     :config (setq org-odt-preferred-output-format 'doc))
 
   (use-package org-plus-contrib
+    :defer t
     :config
     (use-package ox-taskjuggler
-      :ensure nil
+      :ensure nil :defer t
       :init (setq
              org-taskjuggler-default-reports "\nmacro TaskTip [\n  tooltip istask() -8<-\n    '''Start: ''' <-query attribute='start'->\n    '''End: ''' <-query attribute='end'->\n    '''Precursors: '''\n    <-query attribute='precursors'->\n\n    '''Followers: '''\n    <-query attribute='followers'->\n    ->8-\n]\n\ntextreport report \"Plan\" {\n  formats html\n  center -8<-\n    <[report id=\"plan\"]>\n  ->8-\n}\n\ntaskreport plan \"\" {\n  headline \"Project Plan\"\n  columns name, start, end, effort, chart { scale day width 1500 ${TaskTip} }\n}"))
     :config
