@@ -423,6 +423,13 @@ command. Uses jk as default combination."
     :defer t
     :init (global-evil-surround-mode t))
 
+  (use-package evil-commentary          ; Operator for comments
+    :defer t
+    :init (evil-commentary-mode t)
+    :config
+    (evil-bind-keys 'normal evil-commentary-mode-map
+                    (";" . evil-commentary)))
+
   (use-package evil-matchit             ; Manipulate tags
     :defines evilmi-may-jump-percentage
     :init (global-evil-matchit-mode t)
