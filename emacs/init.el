@@ -314,7 +314,6 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 
 ;;;; major packages
 
-
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :init (evil-mode t)
@@ -338,8 +337,7 @@ of symbols. MAP can be a keymap or a list of keymaps.
 The rest of the arguments are conses of keybinding string, which
 will be passed to `read-kbd-macro' if necessary, and an unquoted
 function symbol."
-    (let* ((map (or (plist-get args :map) 'global-map))
-           (maps (if (listp map) map (list map)))
+    (let* ((maps (if (listp map) map (list map)))
            (state (car (cdr state)))
            (states (if (listp state) state (list state)))
            (binds (apply
@@ -350,12 +348,7 @@ function symbol."
                         ;; pass to `read-kbd-macro' if necessary
                         `(,(if (vectorp key) key (read-kbd-macro key))
                           (quote ,(cdr k)))))
-                    ;; get bindings from arglist
-                    (progn
-                      (while (keywordp (car args))
-                        (pop args)
-                        (pop args))
-                      args)))))
+                    bindings))))
 
       (macroexp-progn
        (mapcar
@@ -365,7 +358,7 @@ function symbol."
         (apply
          #'nconc
          (mapcar
-          (lambda (s) (mapcar (lambda (m) `(,s . ,m)) maps)) states))))))
+          (lambda (s) (mapcar (lambda (m) (cons s m)) maps)) states))))))
 
   ;; Adapted from https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
   (evil-define-command maybe-exit ()
@@ -400,40 +393,49 @@ command. Uses jk as default combination."
              ("d" . delete-window)
              ("D" . delete-other-windows))
 
+  (bind-key "C-S-SPC" #'evil-ex)
+
   (bind-keys
    :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
    ("SPC" . execute-extended-command)
    ("<escape>" . keyboard-quit)
-   (":" . comment-dwim)
-   ("," . nil)
-   (",:" . evil-ex)
-   (",f" . find-file)
-   (",b" . list-buffers)
-   (",w" . save-buffer))
-
-  (bind-keys
-   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
-   ("Y" . my-evil-yank-to-eol)  ; more consistent
+   (";" . comment-dwim)
+   (":" . evil-repeat-find-char)
+   ("Y" . my-evil-yank-to-eol)          ; more consistent
    ("q" . kill-buffer-and-window)
    ("Q" . evil-record-macro)            ; Q replaces old q action
    ;; movement
    ("j" . evil-next-visual-line)
    ("k" . evil-previous-visual-line)
-   ("s" . evil-last-non-blank)
-   ("a" . evil-first-non-blank)
-   ("\"" . evil-jump-item))
+   ("\"" . evil-jump-item)
+   ;; REVIEW try removing this and using other motions to get around instead
+   ;; a-s is more mnemonic but on my keyboard a is first so fingers get
+   ;; confused any other way
+   ;; ("s" . evil-last-non-blank)
+   ;; ("a" . evil-first-non-blank)
+   ;; leader bindings
+   ("," . nil)
+   (",f" . find-file)
+   (",b" . list-buffers)
+   (",w" . save-buffer))
 
-  (use-package evil-surround :init (global-evil-surround-mode t))
+  (use-package evil-surround            ; Operators for surrounding elements
+    :defer t
+    :init (global-evil-surround-mode t))
 
   (use-package evil-matchit             ; Manipulate tags
     :defines evilmi-may-jump-percentage
-    :init (setq evilmi-may-jump-percentage nil) ; allow count usage
+    :init (global-evil-matchit-mode t)
     :config
-    (global-evil-matchit-mode t)
-    (evil-define-key 'normal evil-matchit-mode-map
-      "\"" #'evilmi-jump-items)))
+    (setq evilmi-may-jump-percentage nil) ; allow count usage
+    (evil-bind-keys 'normal evil-matchit-mode-map
+      ("\"" . evilmi-jump-items))))
 
-
+(use-package evil-commentary
+    :init (evil-commentary-mode t)
+    :config
+    (evil-bind-keys 'normal evil-commentary-mode-map
+                    (":" . evil-commentary)))
 (use-package helm                       ; TODO Fuzzy minibuffer completion
   :demand t
   :delight helm-mode
@@ -611,11 +613,11 @@ command. Uses jk as default combination."
 ;;;; appearance
 
 ;;;;;; highlight fic
-;; DONE? fixme todo highlight
+;; REVIEW fixme todo highlight
 (defface font-lock-fic-face
   '((((class color))
-     (:background "white" :foreground "red" :weight bold))
-    (t (:weight bold)))
+     (:inherit 'font-lock-warning-face :slant italic))
+    (t (:slant italic)))
   "Face to fontify FIXME/TODO words"
   :group 'faces)
 
@@ -936,6 +938,7 @@ command. Uses jk as default combination."
 
 
 (use-package projectile                 ; Project-based navigation
+  :defer t
   :init (projectile-global-mode t)
   :config
   (setq
@@ -948,22 +951,21 @@ command. Uses jk as default combination."
    ;; pretty Greek symbols
    projectile-mode-line '(:eval (format " π:%s" (projectile-project-name))))
 
-  (dolist (state '(normal visual motion))
-    (evil-define-key state projectile-mode-map
-      ",p" #'projectile-find-file-dwim
-      ",P" #'projectile-switch-project))
+  (evil-bind-keys '(normal visual motion) projectile-mode-map
+                  (",p" . projectile-find-file-dwim)
+                  (",P" . projectile-switch-project))
 
   (use-package helm-projectile
-    :init
+    :defer t
+    :init (helm-projectile-on)
+    :config
     (setq projectile-completion-system 'helm
           projectile-switch-project-action #'helm-projectile
           helm-projectile-fuzzy-match t)
-    (helm-projectile-on)
-    :config
-    (dolist (state '(normal visual motion))
-      (evil-define-key state projectile-mode-map
-        ",p" #'helm-projectile
-        ",P" #'helm-projectile-switch-project))))
+
+    (evil-bind-keys '(normal visual motion) projectile-mode-map
+                    (",p" . helm-projectile)
+                    (",P" . helm-projectile-switch-project))))
 
 ;;;; editing
 
@@ -984,14 +986,15 @@ command. Uses jk as default combination."
         '(:eval (replace-regexp-in-string
                  "FlyC" "Φ" (flycheck-mode-line-status-text)))
         flycheck-indication-mode 'right-fringe)
-  (evil-define-key 'normal flycheck-mode-map
-    ",!j" #'flycheck-next-error
-    ",!k" #'flycheck-previous-error)
+  (evil-bind-keys 'normal flycheck-mode-map
+    (",!j" . flycheck-next-error)
+    (",!k" . flycheck-previous-error))
 
   (use-package helm-flycheck
     :init
     (bind-key "C-c ! h" #'helm-flycheck flycheck-mode-map)
-    (evil-define-key 'normal flycheck-mode-map ",!h" #'helm-flycheck))
+    (evil-bind-keys 'normal flycheck-mode-map
+                    (",!h" . helm-flycheck)))
 
   (use-package flycheck-tip             ; display errors by popup
     :config (flycheck-tip-use-timer 'verbose)))
@@ -1111,8 +1114,8 @@ command. Uses jk as default combination."
       (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
 
     (use-package helm-flyspell
-      :init (evil-define-key 'normal flyspell-mode-map
-              "z=" 'helm-flyspell-correct))))
+      :init (evil-bind-keys 'normal flyspell-mode-map
+                            ("z=" . helm-flyspell-correct)))))
 
 
 (use-package outline                    ; Hierarchical outlining support
@@ -1140,21 +1143,21 @@ command. Uses jk as default combination."
     :defer t
     :init
     (evil-define-key 'normal outline-minor-mode-map
-      "\t" #'outline-cycle))
+      ("\t" . outline-cycle)))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
   :config
   (bind-key "C-c o" #'outline-insert-heading outline-minor-mode-map)
-  (evil-define-key 'normal outline-minor-mode-map
-    "gh" #'outline-up-heading
-    "gj" #'outline-next-heading
-    "gk" #'outline-previous-heading
-    "gl" #'outline-forward-same-level
-    "<" #'outline-promote
-    ">" #'outline-demote))
+  (evil-bind-keys 'normal outline-minor-mode-map
+                  ("gh" . outline-up-heading)
+                  ("gj" . outline-next-heading)
+                  ("gk" . outline-previous-h)eading
+                  ("gl" . outline-forward-sa)me-level
+                  ("<" . outline-promote)
+                  (">" . outline-demote))
 
-(use-package smartparens-config         ; FIXME Balanced paren management
+)(use-package smartparens-config         ; FIXME Balanced paren management
   ;; FIXME autopairing quotes and backticks
   ;; FIXME hooks not being run correctly
   ;; TODO delight modeline lighters
@@ -1322,8 +1325,8 @@ command. Uses jk as default combination."
   :config
   (setq ediff-diff-options "-w")  ; ignore whitespace
   (evil-define-key 'normal ediff-mode
-    "j" #'ediff-next-difference
-    "k" #'ediff-previous-difference))
+    ("j" . ediff-next-difference)
+    ("k" . ediff-previous-difference)))
 
 
 (use-package garak :disabled t          ; ELIM messenger front-end
@@ -1344,8 +1347,8 @@ command. Uses jk as default combination."
     (evil-append 1))
 
   (evil-define-key 'normal comint-mode-map
-    "I" #'my-comint-evil-insert
-    "A" #'my-comint-evil-insert)
+    ("I" . my-comint-evil-insert)
+    ("A" . my-comint-evil-insert))
 
   (setenv "PAGER" "cat")
 
@@ -1458,8 +1461,8 @@ command. Uses jk as default combination."
   :delight server-buffer-clients
   :config
   (evil-define-key 'normal git-commit-mode-map
-    ",w" #'git-commit-commit
-    "q" #'git-commit-abort))
+    (",w" . git-commit-commit)
+    ("q" . git-commit-abort)))
 
 (use-package org
   :config
@@ -1491,9 +1494,10 @@ command. Uses jk as default combination."
              ("C-1" . org-clock-in)
              ("C-2" . org-clock-out)
              ("S-<return>" . org-insert-heading-after-current))
-  (evil-define-key 'normal org-mode-map
-    (kbd "") #'org-insert-heading
-    "\t" #'org-back-to-heading)
+
+  (evil-bind-keys 'normal org-mode-map
+                  ("RET" . org-insert-heading)
+                  ("\t" . org-back-to-heading))
 
   (use-package org-clock
     :ensure nil
@@ -1579,9 +1583,9 @@ command. Uses jk as default combination."
     :delight elisp-slime-nav-mode
     :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
     :config
-    (evil-define-key 'normal elisp-slime-nav-mode-map
-      "K" #'elisp-slime-nav-describe-elisp-thing-at-point
-      "gd" #'elisp-slime-nav-find-elisp-thing-at-point))
+    (evil-bind-keys 'normal elisp-slime-nav-mode-map
+      ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
+      ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
   :config
   (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map))
 
