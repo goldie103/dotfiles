@@ -634,8 +634,7 @@ command. Uses jk as default combination."
 (defun my-highlight-fic ()
   "Highlight FIXME and TODO keywords."
   (font-lock-add-keywords
-   nil `(((concat comment-start-skip
-                  "\\(TODO\\??\\|FIXME\\??\\|HACK\\|DOING\\|REVIEW\\)")
+   nil `(("\\(TODO\\??\\|FIXME\\??\\|INPROGRESS\\|REVIEW\\)"
           1 'font-lock-fic-face prepend))))
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
@@ -751,7 +750,7 @@ command. Uses jk as default combination."
 ;;;;;; color theme
 
 (use-package solarized-theme :disabled t
-  :defer t
+  :demand t
   :config
   (setq solarized-scale-org-headlines nil
         solarized-height-plus-1 1.1
@@ -762,11 +761,11 @@ command. Uses jk as default combination."
 
 
 (use-package zenburn-theme :disabled t
-  :defer t
+  :demand t
   :config (load-theme 'zenburn-hc))
 
 (use-package color-theme-sanityinc-tomorrow
-  :defer t
+  :demand t
   :config (load-theme 'sanityinc-tomorrow-night))
 
 
@@ -1598,9 +1597,8 @@ command. Uses jk as default combination."
     (evil-bind-keys 'normal elisp-slime-nav-mode-map
       ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
       ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
-  :config
-  (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map))
 
+  :config (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map))
 
 (use-package python
   :defer t
