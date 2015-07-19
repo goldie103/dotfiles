@@ -13,6 +13,8 @@ call vundle#begin()
 Plugin 'gmarik/Vundle.vim'
 
 " TODO vim-args
+Plugin 'nefo-mi/nyan-modoki.vim'
+Plugin 'koron/nyancat-vim'              " nyan cat?
 Plugin 'tpope/vim-commentary'           " comment manipulation
 Plugin 'tpope/vim-surround'             " deal with surrounding elements
 Plugin 'bling/vim-airline'              " status bar additions
@@ -28,6 +30,12 @@ Plugin 'dogrover/vim-pentadactyl'        " pentadactylrc syntax highlighting
 
 call vundle#end()
 filetype plugin indent on
+" }}}
+" nyan-modoki.vim {{{
+set laststatus=2
+set statusline=%{g:NyanModoki()}
+let g:nyan_modoki_select_cat_face_number=2
+let g:nyan_modoki_animation_enabled=1
 " }}}
 " solarized {{{
 let g:solarized_menu=0
