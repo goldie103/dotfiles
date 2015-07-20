@@ -1,9 +1,5 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
-;; TODO silence byte-compiler
-;; REVIEW :init and :config keyword reorder
-;; REVIEW add :defer and :demand keywords correctly
-;; REVIEW fix evil bindings
 ;;; Code:
 ;;;; helper functions
 
@@ -69,7 +65,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (setq use-package-verbose t             ; log message after loading a package
       use-package-always-ensure t)      ; ensure all packages are installed
 
-(use-package delight)
 (use-package bind-key)
 
 ;;;; basic settings
@@ -155,11 +150,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
      (line-beginning-position) (line-end-position))))
 (advice-add #'comment-dwim :before-until #'my-comment-dwim-line)
 
-;; make `upcase-word' `downcase-word' and `capitalize-word' act on whole word
-(dolist (func '(upcase-word downcase-word capitalize-word))
-  (advice-add func :before
-              (lambda (arg) (unless (looking-back "\\b") (backward-word)))))
-
 ;;;;; modes and hooks
 
 (mouse-wheel-mode t)                    ; Mouse wheel enabled
@@ -176,7 +166,7 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 
 ;; Add mode hooks
 (mapc
- (lambda (hook) (dolist (func (cdr hook)) (add-hook func (car hook))))
+ (lambda (hook) (dolist (func (cdr hook)) (add-hook (car hook) func)))
  '((prog-mode-hook
     . (hl-line-mode            ; Highlight current line
        prettify-symbols-mode   ; Replace words with symbols
@@ -192,35 +182,43 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 
 ;;;;; delighted modes
 
-(delight '((emacs-listp-mode "Elisp" :major)
-           (visual-line-mode)
-           (auto-fill-mode)))
+(use-package delight
+  :demand t
+  :config
+  (delight '((emacs-lisp-mode "Elisp" :major)
+             ;; TODO get these to delight properly
+             (visual-line-mode)
+             (auto-fill-function)
+             (auto-fill-mode))))
 
 ;;;;; fonts
-;; DONE? check this works properly on Windows
-(require 'dash)
+;; REVIEW check this works properly on Windows
 
 (defvar my-fonts
-  '((proportional
-     . ("Fira Sans" "FiraSans"
-        "Input Sans Condensed" "InputSansCondensed" "Input Sans" "InputSans"
-        "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
-    (mono
-     . ("Input Mono Condensed" "InputMonoCondensed" "Input Mono" "InputMono"
-        "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
+  '((proportional . ("Fira Sans" "Input Sans Condensed" "Input Sans"
+                     "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
+    (mono . ("Input Mono Condensed" "Input Mono"
+             "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
   "Alist of font types paired with an ordered list of preferences.
 Used with `my-font' to get the first valid entry of each font pairing.")
 
 (add-to-list 'my-fonts
-             `(header . ,(append '("Fantasque Sans Mono" "FantasqueSansMono")
-                                  (cdr (assoc 'proportional my-fonts)))))
+             `(header . ,(append '("Fantasque Sans Mono")
+                                 (cdr (assoc 'proportional my-fonts)))))
 
 (defun my-font (font)
   "Return the first valid entry for FONT in `my-fonts'."
-  (--first (find-font (font-spec :name it)) (cdr (assoc font my-fonts))))
+  (let ((found))
+    (dolist (family (cdr (assoc font my-fonts)))
+      (dolist (candidate `(,family
+                           ;; try unspaced name to allow for odd font naming
+                           ,(replace-regexp-in-string " " "" family)))
+        (when (and (find-font (font-spec :name candidate)) (not found))
+          (setq found candidate))))
+    found))
 
 (defun my-font-use-proportional ()
-  "Set current buffer's font to proportional.'"
+  "Set current buffer's font to proportional."
   (interactive)
   (face-remap-add-relative
    'default :family (my-font 'proportional) :height 100))
@@ -314,6 +312,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
+  :commands evil-define-command
   :init (evil-mode t)
   :config
   (setq
@@ -325,6 +324,11 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
   (my-append 'evil-emacs-state-modes
              '(shell-mode term-mode multi-term-mode))
   (my-append 'evil-insert-state-modes '(git-commit-mode))
+
+  (defmacro evil-bind-key (key def &optional map state)
+    "Bind KEY to DEF in MAP and STATE. `global-map' and `normal' if undefined."
+    `(evil-define-key (or ,state 'normal) ,(or map 'global-map)
+       ,(if (vectorp key) key (read-kbd-macro key)) ,def))
 
   (defmacro evil-bind-keys (state &rest args)
     "Bind multiple keys to evil STATE.
@@ -348,20 +352,18 @@ function symbol."
            (binds (apply
                    #'nconc
                    (mapcar
-                    ;; alist of (key func) passing to `read-kbd-macro' if needed
+                    ;; alist of key func passing to `read-kbd-macro' if needed
                     (lambda (k)
                       (let ((key (car k)))
                         `(,(if (vectorp key) key (read-kbd-macro key))
-                          (quote ,(cdr k)))))
+                          ',(cdr k))))
                     ;; get bindings from ARGS
-                    (progn (while (keywordp (car args))
-                             (pop args)
-                             (pop args))
+                    (progn (while (keywordp (car args)) (pop args) (pop args))
                            args)))))
       (macroexp-progn
        (mapcar
         (lambda (item)
-          `(evil-define-key (quote ,(car item)) ,(cdr item) ,@binds))
+          `(evil-define-key ',(car item) ,(cdr item) ,@binds))
         ;; build a list of (state . map) for each `evil-define-key' command
         (apply
          #'nconc
@@ -391,10 +393,9 @@ function symbol."
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
 
-  (bind-keys :map (evil-insert-state-map evil-replace-state-map)
-             ("j" . evil-maybe-exit))   ; jk exits insert state
+  (evil-bind-keys '(insert replace) ("j" . evil-maybe-exit)) ; jk enter normal
 
-  (bind-key "y" #'evil-yank evil-motion-state-map) ; Add yanking to motion map
+  (evil-bind-key "y" #'evil-yank nil 'motion) ; Add yanking to motion map
 
   (bind-keys :map evil-window-map
              ("d" . delete-window)
@@ -405,8 +406,7 @@ function symbol."
   (evil-bind-keys 'nmv
     ("SPC" . execute-extended-command)
     ("<escape>" . keyboard-quit)
-    (";" . comment-dwim)
-    (":" . evil-repeat-find-char)
+    (":" . comment-dwim)
     ("Y" . my-evil-yank-to-eol)         ; more consistent
     ("q" . kill-buffer-and-window)
     ("Q" . evil-record-macro)           ; Q replaces old q action
@@ -416,16 +416,12 @@ function symbol."
     ;; movement
     ("j" . evil-next-visual-line)
     ("k" . evil-previous-visual-line)
-    ("\"" . evil-jump-item))
-
-  (bind-keys
-   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
-   :prefix ","
-   :prefix-map my-evil-leader
-   :prefix-docstring "Keys for personal evil leader bindings"
-   ("f" . find-file)
-   ("b" . list-buffers)
-   ("w" . save-buffer))
+    ("\"" . evil-jump-item)
+    ;; leader bindings
+    ("," . nil)
+    (",f" . find-file)
+    (",b" . list-buffers)
+    (",w" . save-buffer))
 
   (use-package evil-surround            ; Operators for surrounding elements
     :defer t
@@ -433,24 +429,18 @@ function symbol."
 
   (use-package evil-commentary          ; Operator for comments
     :defer t
+    :delight evil-commentary-mode
     :init (evil-commentary-mode t)
-    :config
-    (evil-define-key 'normal evil-commentary-mode-map ";" #'evil-commentary))
+    :config (evil-bind-key ":" #'evil-commentary evil-commentary-mode-map))
 
   (use-package evil-matchit             ; Manipulate tags
-    :defines evilmi-may-jump-percentage
     :init (global-evil-matchit-mode t)
     :config
     (setq evilmi-may-jump-percentage nil) ; allow count usage
-    (evil-define-key 'normal evil-matchit-mode-map "\"" #'evilmi-jump-items))
-
-  (use-package evil-commentary
-    :init (evil-commentary-mode t)
-    :config
-    (evil-define-key 'normal evil-commentary-mode-map ":" #'evil-commentary)))
+    (evil-bind-key "\"" #'evilmi-jump-items evil-matchit-mode-map)))
 
 
-(use-package helm                       ; TODO Fuzzy minibuffer completion
+(use-package helm                       ; Fuzzy minibuffer completion
   :demand t
   :delight helm-mode
   :init (helm-mode t)
@@ -458,7 +448,6 @@ function symbol."
   :config
   (setq
    helm-quick-update t
-   helm-command-prefix-key "C-c h"
    helm-move-to-line-cycle-in-source t     ; cycle on buffer end
    helm-display-header-line nil            ; no header line
    helm-scroll-amount 5                    ; scroll amount in other window
@@ -485,7 +474,6 @@ function symbol."
   (helm-autoresize-mode t)
 
   ;; load packages manually to avoid byte-compiler warnings
-  (use-package helm-config :ensure nil :defer t)
   (use-package helm-files :ensure nil :defer t)
   (use-package helm-mode :ensure nil :defer t)
   (use-package helm-semantic :ensure nil :defer t)
@@ -525,14 +513,12 @@ function symbol."
                       :inverse-video 'unspecified
                       :inherit 'font-lock-warning-face)
 
-  ;; TODO helm-mini C-d delete buffer, new binding for other window
   (bind-keys*
    ([remap execute-extended-command] . helm-M-x)
-   ([remap occur]. helm-occur)
+   ([remap occur] . helm-occur)
    ([remap find-files] . helm-find-files)
-   ([remap list-buffers]. helm-mini)
-   ([remap ibuffer]. helm-mini)
-
+   ([remap list-buffers] . helm-mini)
+   ([remap ibuffer] . helm-mini)
    ;; help
    ([remap info-emacs-manual] . helm-info-emacs)
    ([remap locate-library] . helm-locate-library)
@@ -541,43 +527,42 @@ function symbol."
    ([remap apropos] . helm-apropos)
    ([remap apropos-command] . helm-apropos)
    ([remap apropos-documentation] . helm-apropos)
-   ("<help> I" . helm-info-at-point))
-
-  (bind-keys
-   ("M-/" . helm-do-grep)
    ("C-y" . helm-show-kill-ring))
 
+  (bind-key "M-/" #'helm-do-grep)
+  (bind-key "I" #'helm-info-at-point help-map)
   (bind-key "C-/" #'helm-semantic-or-imenu emacs-lisp-mode-map)
 
   (bind-keys
+   :map helm-buffer-map
+   ("C-d" . helm-buffer-run-kill-buffers)
+   ("<C-return>" . helm-buffer-switch-other-window))
+
+  (bind-keys
    :map helm-map
-   ("C-M-u" . helm-scroll-other-window)
-   ("C-M-d". helm-scroll-other-window-down)
+   ("M-u" . helm-scroll-other-window)
+   ("M-d". helm-scroll-other-window-down)
    ("<tab>" . helm-execute-persistent-action) ; execute action without closing
    ("C-z" . helm-select-action))              ; list actions
 
-  (bind-keys
-   :map my-evil-leader
-   ("hy" . helm-show-kill-ring)
-   ("hs" . helm-do-grep)
-   ("hu" . helm-ucs)
-   ("hc" . helm-colors)
-   ("H" . helm-resume))
+  (evil-bind-keys 'nmv
+    (",hu" . helm-ucs)
+    (",hc" . helm-colors)
+    (",H" . helm-resume))
 
   (use-package helm-dash                ; TODO Language documentation viewer
-    :init (setq
-           helm-dash-browser-func 'eww
-           helm-dash-docsets-path "~/.emacs.d/.user/docset")
-    ;; :config
+    :config
+    (setq
+     helm-dash-browser-func 'eww
+     helm-dash-docsets-path "~/.emacs.d/.user/docset")
     ;; (add-hook 'python-mode-hook
     ;;           (lambda()
     ;;             (setq-local helm-dash-docsets '("Python"))))
     )
 
   (use-package helm-descbinds           ; Replacement for `describe-bindings'
-    :init
-    (setq helm-descbinds-window-style 'split-window)
-    (helm-descbinds-mode t))
+    :init (helm-descbinds-mode t)
+    :config (setq helm-descbinds-window-style 'split-window))
 
   (use-package helm-swoop :disabled t   ; Fast searching and navigation
     :bind (("M-/" . helm-swoop)
@@ -585,7 +570,7 @@ function symbol."
            ("C-c h S" . helm-multi-swoop)
            ("C-c h C-s" . helm-multi-swoop-all)
            ("C-c h M-s" . helm-multi-swoop-current-mode))
-    :init (bind-key "M-i" #'helm-swoop-from-isearch)
+    :init (bind-key "M-i" #'helm-swoop-from-isearch isearch-mode-map)
     :config
     (bind-key "M-i" #'helm-multi-swoop-from-helm-swoop helm-swoop-map)))
 
@@ -625,7 +610,8 @@ function symbol."
 ;;;; appearance
 
 ;;;;;; highlight fic
-;; REVIEW fixme todo highlight
+;; REVIEW using regexp-opt for defining regexp
+
 (defface font-lock-fic-face
   '((((class color))
      (:inherit 'font-lock-warning-face :slant italic))
@@ -636,12 +622,14 @@ function symbol."
 (defun my-highlight-fic ()
   "Highlight FIXME and TODO keywords."
   (font-lock-add-keywords
-   nil `(("\\(TODO\\??\\|FIXME\\??\\|INPROGRESS\\|REVIEW\\)"
+   nil `((,(regexp-opt '("TODO" "TODO?" "FIXME" "FIXME?" "DOING" "REVIEW"
+                         "HACK") t)
           1 'font-lock-fic-face prepend))))
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
 ;;;;;; modeline packages
+
 (use-package smart-mode-line            ; Better modeline
   :demand t
   :config
@@ -782,13 +770,12 @@ function symbol."
   :init (add-hook 'prog-mode-hook #'linum-mode))
 
 
-(use-package golden-ratio :disabled t   ; Resize windows to golden ratio
+(use-package golden-ratio :disabled t   ; TODO Resize windows to golden ratio
   :defer t
   ;; TODO get this to play nice with Helm
   :delight golden-ratio-mode
   :init (golden-ratio-mode t)
   :config
-
   (setq
    golden-ratio-exclude-modes '(helm-mode
                                 magit-log-mode
@@ -798,7 +785,7 @@ function symbol."
 
 
 (use-package hideshow                   ; Code folding
-  :delight hideshow-minor-mode "+"
+  :delight hs-minor-mode " +"
   :init
   (use-package hideshowvis :disabled t  ; Visualize hidden blocks
     :defer t
@@ -815,15 +802,15 @@ function symbol."
      (add-to-list 'hs-special-modes-alist `(,mode "{" "}" "/[*/]" nil nil)))
    '(css-mode web-mode))
 
-  ;; REVIEW expand collapsed blocks when jumping to them
-  (defun my-hs-expand-advice (&rest _args)
-    (save-excursion (if (and (boundp 'outline-minor-mode)
-                             outline-minor-mode
-                             (boundp 'outline-cycle))
-                        ()
-                        (hs-show-block))))
-  (advice-add #'imenu :after #'my-hs-expand-advice)
-  (advice-add #'goto-line :after #'my-hs-expand-advice)
+  ;; TODO expand collapsed blocks when jumping to them
+  ;; (defun my-hs-expand-advice (&rest _args)
+  ;;   (save-excursion (if (and (boundp 'outline-minor-mode)
+  ;;                            outline-minor-mode
+  ;;                            (boundp 'outline-cycle))
+  ;;                       (outline-toggle-children)
+  ;;                     (hs-show-block))))
+  ;; (advice-add #'imenu :after #'my-hs-expand-advice)
+  ;; (advice-add #'goto-line :after #'my-hs-expand-advice)
 
   ;; fallback indentation-based hiding
   (defun toggle-hiding (column)
@@ -1078,8 +1065,7 @@ function symbol."
     :init (company-statistics-mode)))
 
 
-(use-package ispell                     ; TODO Spell-checking
-  ;; TODO stop messages showing in minibuffer when starting a process
+(use-package ispell                     ; Spell-checking
   :defer t
   :config
   (setq
@@ -1093,7 +1079,7 @@ function symbol."
                ("#\\+BEGIN_SRC" . "#\\+END_SRC")
                ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
 
-  ;; Adapted from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
+  ;; Adated from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
   (defun my-ispell-run-together (orig-func &rest args)
     "Use ispell --run-together options while ORIG-FUNC is being called."
     (let ((old-ispell-extra-args ispell-extra-args)
@@ -1110,15 +1096,12 @@ function symbol."
 
   (use-package flyspell                 ; On-the-fly spell checking
     :defer t
-    :delight flyspell-mode " σ"
+    :delight flyspell-mode " 〰"
     :init
-    (add-hook 'text-mode-hook #'flyspell-mode)
-    (add-hook 'prog-mode-hook #'flyspell-prog-mode)
-    :config
-    ;; no messages
-    (setq flyspell-issue-welcome-flag nil
-          flyspell-issue-message-flag nil)
-    (advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together)
+
+    (use-package helm-flyspell          ; Helm completion for spellcheck
+      :defer t
+      :init (evil-bind-key "z=" #'helm-flyspell-correct flyspell-mode-map))
 
     (use-package flyspell-lazy          ; Lazier checking for words
       :defer t
@@ -1126,10 +1109,15 @@ function symbol."
       (add-hook 'flyspell-mode #'flyspell-lazy-mode)
       (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
 
-    (use-package helm-flyspell
-      :init (evil-bind-keys 'normal
-              :map flyspell-mode-map
-              ("z=" . helm-flyspell-correct)))))
+    (add-hook 'text-mode-hook #'flyspell-mode)
+    (add-hook 'prog-mode-hook #'flyspell-prog-mode)
+
+    :config
+    ;; no messages
+    (setq flyspell-issue-welcome-flag nil
+          flyspell-issue-message-flag nil)
+    (advice-add #'flyspell-auto-correct-word
+                :around #'my-ispell-run-together)))
 
 (use-package outline                    ; TODO Hierarchical outlining support
   ;; TODO modify outline-promote so if already max level then demote subtrees
@@ -1154,10 +1142,7 @@ function symbol."
 
   (use-package outline-magic
     :defer t
-    :init
-    (evil-bind-keys 'normal
-      :map outline-minor-mode-map
-      ("\t" . outline-cycle)))
+    :init (evil-bind-key "\t" #'outline-cycle outline-minor-mode-map))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
@@ -1174,20 +1159,21 @@ function symbol."
 
 
 (use-package smartparens-config       ; FIXME Balanced paren management
-  ;; FIXME autopairing quotes and backticks
-  ;; FIXME hooks not being run correctly
-  ;; TODO delight modeline lighters
+  ;; REVIEW autopairing quotes and backticks
+  ;; REVIEW delight modeline lighters
   :ensure smartparens
-  :delight smartparens-mode '(:eval
-                              (concat " " (when smartparens-strict-mode "⒮")))
+  :delight smartparens-strict-mode " ⒮"
   :init
+  ;; disable builtin to avoid doubling
+  (add-hook 'smartparens-mode-hook (lambda() (electric-pair-mode -1)))
+
   (use-package evil-smartparens         ; Evil smartparen bindings
     :delight evil-smartparens-mode
     :init
     (add-hook 'prog-mode-hook #'smartparens-strict-mode)
     (add-hook 'smartparens-strict-mode-hook #'evil-smartparens-mode)
-    :config
 
+    :config
     (evil-define-operator my-evil-sp-delete-line ()
       "Call `sp-kill-hybrid-sexp'."
       :motion nil
@@ -1209,14 +1195,7 @@ function symbol."
       ("C" . my-evil-sp-change-line)
       ("D" . my-evil-sp-delete-line)))
 
-  ;; disable lesser versions to avoid doubling
-  (add-hook 'smartparens-mode-hook (lambda() (electric-pair-mode -1)))
-  ;; (add-hook 'show-smartparens-mode-hook (lambda() (show-paren-mode -1)))
-  ;; enable the modes
-  (smartparens-global-mode t)
   (show-smartparens-global-mode t)
-  (add-hook 'prog-mode-hook #'smartparens-strict-mode)
-
   :config
   (setq sp-show-pair-from-inside t)     ; highlight pair when point on bracket
   (sp-local-pair 'html-mode "<" ">"))
@@ -1228,19 +1207,19 @@ function symbol."
   :init (add-hook 'text-mode-hook #'typo-mode))
 
 
-(use-package undo-tree                  ; REVIEW Branching undo tree
+(use-package undo-tree                  ; Branching undo tree
   :delight undo-tree-mode
   :init (global-undo-tree-mode t)
   :config
   (setq undo-tree-visualizer-timestamps t
         undo-tree-visualizer-diff t
-        ;; undo-tree-auto-save-history t   ; may be causing corrupted history
+        ;; undo-tree-auto-save-history t   ; would use but corrupts history
         undo-tree-history-directory-alist
         `(("." . ,(expand-file-name "undo-history" my-dir))))
 
   (defun undo-tree-mode-off () (undo-tree-mode -1))
 
-  (unbind-key "C-/" undo-tree-map))     ; REVIEW check this actually does thing
+  (unbind-key "C-/" undo-tree-map))
 
 
 (use-package yasnippet                  ; Snippet insertion
@@ -1262,11 +1241,11 @@ function symbol."
   :bind ("C-c C-p" . pandoc-mode))
 
 
-(use-package real-auto-save             ; TODO Auto save buffers
-  ;; TODO change interval
+(use-package real-auto-save             ; REVIEW Auto save buffers
   :delight real-auto-save-mode " α"
   :commands real-auto-save-mode
-  :init (add-hook #'after-save-hook #'real-auto-save-mode))
+  :init (add-hook #'after-save-hook #'real-auto-save-mode)
+  :config (setq real-auto-save-interval 30)) ; REVIEW longer time interval
 
 
 (use-package recentf                    ; List recent files
@@ -1405,23 +1384,25 @@ function symbol."
 
 
 (use-package eshell                     ; TODO Emacs shell
-  :bind (("<f12>" . eshell))
-  :functions my-eshell-prompt
+  :bind ("<f12>" . eshell)
   :config
   (setq
    ;; eshell-prompt-regexp "^[^#$\n]* [#$] "
-   eshell-buffer-shorthand t      ; buffer shorthand: echo foo > #'buffer
+   eshell-buffer-shorthand t            ; buffer shorthand: echo foo > #'buffer
    eshell-highlight-prompt nil
    ;; eshell-prompt-function #'my-eshell-prompt
    eshell-directory-name (expand-file-name my-dir "eshell/")
    eshell-cmpl-ignore-case t
    eshell-banner-message (propertize (shell-command-to-string "fortune")
                                      'face '(:foreground "#b58900")))
-  (add-to-list 'eshell-modules-list 'eshell-smart)
 
-  (use-package em-prompt :ensure nil)
-  (use-package em-cmpl :ensure nil)
-  (use-package em-banner :ensure nil)
+  (use-package esh-module
+    :defer t :ensure nil
+    ;; REVIEW this should fix errors with `eshell-modules-list' undefined
+    :config (add-to-list 'eshell-modules-list 'eshell-smart))
+  (use-package em-prompt :ensure nil :defer t)
+  (use-package em-cmpl :ensure nil :defer t)
+  (use-package em-banner :ensure nil :defer t)
 
   (use-package helm-eshell
     :ensure nil
@@ -1431,13 +1412,13 @@ function symbol."
     :init
     (use-package virtualenvwrapper      ; Show Python venv info in prompt
       :config (venv-initialize-interactive-shells))
+    :config
     (setq
      eshell-highlight-prompt nil
      epe-git-dirty-char "δ"
      epe-git-untracked-char "θ"
-     epe-git-detached-HEAD-char "Η")
-    :config
-    (setq eshell-prompt-function #'epe-theme-geoffgarside)))
+     epe-git-detached-HEAD-char "Η"
+     eshell-prompt-function #'epe-theme-geoffgarside)))
 
 
 (use-package malyon                     ; Z-machine text-based adventure reader
@@ -1479,6 +1460,7 @@ function symbol."
                ("k" . previous-line)
                ("<down>" . magit-goto-next-sibling-section)
                ("<up>" . magit-goto-previous-sibling-section)
+               ("C" . magit-commit)
                ("d" . magit-discard-item)
                ("C-=" . magit-diff-working-tree)
                (",b" . ibuffer)))
@@ -1489,7 +1471,7 @@ function symbol."
   (use-package git-timemachine          ; Travel through commit history
     :bind ("<M-f10>" . git-timemachine-toggle))
 
-  (use-package git-commit-mode          ; TODO Git commit messages
+  (use-package git-commit-mode          ; Git commit messages
     :defer t
     :delight server-buffer-clients
     :config
@@ -1511,11 +1493,12 @@ function symbol."
 
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
+  :delight org-indent-mode
   :config
   (setq
    org-edit-src-content-indentation 0   ; no initial indent for source code
+   org-pretty-entities t                ; render UTF chars and sub/superscript
    org-src-preserve-indentation t       ; preserve source block indentation
-   org-src-strip-leading-and-trailing-blank-lines t
    org-imenu-depth 3                    ; larger imenu depth
    org-special-ctrl-a/e t               ; begin/end of line skips tags & stars
    org-special-ctrl-k t                 ; kill lines depending on org context
@@ -1529,25 +1512,20 @@ function symbol."
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
 
   (delight #'org-indent-mode)
+  (set-face-attribute 'org-code nil :family (my-font 'mono))
   (set-face-attribute 'org-table nil :family (my-font 'mono))
-  (set-face-attribute 'org-todo nil
-                      :height 'unspecified
-                      :inherit 'variable-pitch)
-  (set-face-attribute 'org-done nil :inherit 'org-todo)
+  (set-face-attribute 'org-todo nil :inherit 'variable-pitch)
+  (set-face-attribute 'org-done nil :inherit 'variable-pitch)
 
-  (bind-key "<S-return>" #'org-insert-heading-after-current org-mode-map)
-
-  (evil-bind-keys 'normal
-    :map org-mode-map
-    ("RET" . org-insert-heading-after-current)
-    ("\t" . org-back-to-heading))
+  (bind-keys
+   :map org-mode-map
+   ("C-c o" . org-clock-in)
+   ("C-c O" . org-clock-out)
+   ("<S-return>" . org-insert-heading-after-current)
+   ("C-c t" . org-todo))
 
   (use-package org-clock
     :ensure nil :defer t
-    :init
-    (bind-keys :map org-mode-map
-               ("C-c o" . org-clock-in)
-               ("C-c O" . org-clock-out))
     :config
     (setq org-clock-persist t           ; save clock and clock history on exit
           org-clock-in-resume t))       ; resume if clocking in with open clock
@@ -1577,9 +1555,15 @@ function symbol."
     (advice-add #'org-taskjuggler--build-project
                 :filter-return #'my-org-tj-add-project-options))
 
-  (use-package evil-org                 ; Evil org-mode bindings
+  (use-package evil-org                 ; TODO Evil org-mode bindings
     :delight evil-org-mode
-    :init (add-hook 'org-mode-hook #'evil-org-mode))
+    :init (add-hook 'org-mode-hook #'evil-org-mode)
+    :config
+    ;; TODO get these to work
+    (evil-bind-keys 'normal
+      :map org-mode-map
+      ("RET" . org-insert-heading-after-current)
+      ("\t" . org-back-to-heading)))
 
   (defun org-dblock-write:git-log-view (params)
     "Display a git commit log according to PARAMS."
@@ -1612,7 +1596,6 @@ function symbol."
     "Add custom declarations to `imenu-generic-expression'."
     (dolist (expr
              `(("Packages" "\\(^\\s-*(use-package +\\)\\(\\_<.+\\_>\\)" 2)
-               ;; REVIEW see if modified regexp works here
                ("Headings" "^;;;+ \\(.+\\)$" 1)))
       (add-to-list 'imenu-generic-expression expr)))
   (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
