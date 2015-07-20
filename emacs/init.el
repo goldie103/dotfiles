@@ -4,14 +4,15 @@
 ;;;; helper functions
 
 ;; Adapted from http://stackoverflow.com/a/24357106/3912814
-(defun my-append (list-var elements)
+(defun my-add-list (list-var elements)
   "Append ELEMENTS to the end of LIST-VAR if not already in list.
 
 Return new value of LIST-VAR. If LIST-VAR is not defined, then
 define it as ELEMENTS."
-  (if (and (boundp list-var) (symbol-value list-var))
-      (dolist (item elements) (add-to-list list-var item))
-    (set list-var elements))
+  (let ((l (if (listp elements) elements (list elements))))
+    (if (and (boundp list-var) (symbol-value list-var))
+        (dolist (item l) (add-to-list list-var item))
+      (set list-var l)))
   (symbol-value list-var))
 
 (defun my-cleanup ()
@@ -49,13 +50,12 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (setq package-enable-at-startup nil     ; we will manually initialize
       load-prefer-newer t)              ; don't load outdated byte code
 
-(my-append 'package-archives
+(my-add-list 'package-archives
            '(("melpa" . "http://melpa.milkbox.net/packages/")
              ("org" . "http://orgmode.org/elpa/")
              ("elpy" . "http://jorgenschaefer.github.io/packages/")))
 
 (package-initialize)                    ; manually initialize
-
 
 ;;;;; use-package
 (unless (package-installed-p 'use-package)
@@ -68,7 +68,9 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (use-package bind-key)
 
 ;;;; basic settings
+
 ;;;;; general
+
 (setq
  disabled-command-function nil          ; no disabld
  comment-auto-fill-only-comments t
@@ -178,7 +180,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
    (text-mode-hook
     . (goto-address-mode       ; Buttonize URLs
        visual-line-mode))))    ; Wrap by word
-
 
 ;;;;; delighted modes
 
@@ -299,7 +300,6 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
                  minibuffer-local-isearch-map)
            ("<escape>" . minibuffer-keyboard-quit))
 
-
 ;;;;;; windows super key
 (when (eq system-type 'windows-nt)
   (setq w32-apps-modifier 'hyper
@@ -316,14 +316,13 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
   :init (evil-mode t)
   :config
   (setq
-   evil-want-fine-undo nil              ; undo insertions in single steps
    evil-want-C-w-in-emacs-state t       ; prefix window commands with C-w
    evil-want-change-word-to-end nil     ; don't let cw behave like ce
    evil-echo-state nil                  ; state is in the modeline anyway
    evil-ex-substitute-global t)         ; global substitutions by default
-  (my-append 'evil-emacs-state-modes
+  (my-add-list 'evil-emacs-state-modes
              '(shell-mode term-mode multi-term-mode))
-  (my-append 'evil-insert-state-modes '(git-commit-mode))
+  (my-add-list 'evil-insert-state-modes '(git-commit-mode))
 
   (defmacro evil-bind-key (key def &optional map state)
     "Bind KEY to DEF in MAP and STATE. `global-map' and `normal' if undefined."
@@ -438,7 +437,6 @@ function symbol."
     :config
     (setq evilmi-may-jump-percentage nil) ; allow count usage
     (evil-bind-key "\"" #'evilmi-jump-items evil-matchit-mode-map)))
-
 
 (use-package helm                       ; Fuzzy minibuffer completion
   :demand t
@@ -579,13 +577,11 @@ function symbol."
 (use-package discover-my-major          ; List current major mode bindings
   :bind ("<help> m" . discover-my-major))
 
-
 (use-package guide-key                  ; Delayed completion for possible keys
   :delight guide-key-mode
   :init (guide-key-mode t)
   :config (setq guide-key/recursive-key-sequence-flag t
                 guide-key/guide-key-sequence '("C-x" "C-c" ",")))
-
 
 (use-package help-mode
   :ensure nil :defer t
@@ -630,13 +626,14 @@ function symbol."
 
 ;;;;;; modeline packages
 
-(use-package smart-mode-line            ; Better modeline
+(use-package smart-mode-line            ; TODO Better modeline
   :demand t
   :config
   (setq
    sml/theme 'respectful
    sml/battery-format "%b%p[%t]"
-   sml/full-mode-string " ⋯"           ; append this to modeline when full
+   sml/mode-width 'right               ; move modes to the right
+   sml/full-mode-string " ⋯"          ; append this to modeline when full
    sml/shorten-mode-string ""          ; no indication for all modes displayed
    sml/mule-info nil                   ; don't show buffer encoding
    sml/use-projectile-p t              ; projectile file prefix takes precedent
@@ -650,9 +647,8 @@ function symbol."
                               (":⌢:mth/" ":⌢:m:")
                               (":⌢:eng/" ":⌢:e:")
                               (":⌢:sdd/" ":⌢:s:")))
+  ;; TODO set modeline format
   (sml/setup))
-
-
 
 (use-package nyan-mode                  ; Nyan cat scroll bar
   :defer t
@@ -662,7 +658,6 @@ function symbol."
   :config
   (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time
   (defun nyan-mode-off () (nyan-mode -1)))
-
 
 (use-package which-func                 ; Modeline definition name
   :defer t
@@ -684,7 +679,6 @@ function symbol."
                        face which-func
                        mouse-face mode-line-highlight))))
 
-
 (use-package wc-goal-mode
   :defer t
   :init (add-hook 'text-mode-hook #'wc-goal-mode)
@@ -702,21 +696,17 @@ function symbol."
   :init (add-hook 'text-mode-hook #'hl-sentence-mode)
   :config (set-face-attribute 'hl-sentence-face nil :inherit 'hl-line))
 
-
 (use-package highlight-numbers          ; Highlight numbers
   :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
-
 
 (use-package page-break-lines           ; Horizontal lines instead of ^L
   :defer t
   :delight page-break-lines-mode
   :init (global-page-break-lines-mode t))
 
-
 (use-package paren-face                 ; Faces for parens
   :defer t
   :init (add-hook 'emacs-lisp-mode-hook #'paren-face-mode))
-
 
 (use-package rainbow-mode               ; Highlight color codes
   :defer t
@@ -724,7 +714,6 @@ function symbol."
   :init
   (dolist (hook '(web-mode-hook css-mode-hook))
     (add-hook hook #'rainbow-mode)))
-
 
 (use-package whitespace                 ; Faces for whitespace characters
   :defer t
@@ -753,7 +742,6 @@ function symbol."
         solarized-height-plus-4 1.1)
   (load-theme 'solarized-dark))
 
-
 (use-package zenburn-theme :disabled t
   :demand t
   :config (load-theme 'zenburn-hc))
@@ -762,13 +750,11 @@ function symbol."
   :demand t
   :config (load-theme 'sanityinc-tomorrow-night))
 
-
 ;;;; interface
 
 (use-package linum                      ; Line numbers
   :defer t
   :init (add-hook 'prog-mode-hook #'linum-mode))
-
 
 (use-package golden-ratio :disabled t   ; TODO Resize windows to golden ratio
   :defer t
@@ -782,7 +768,6 @@ function symbol."
                                 magit-reflog-mode
                                 magit-status-mode)
    golden-ratio-auto-scale t))
-
 
 (use-package hideshow                   ; Code folding
   :delight hs-minor-mode " +"
@@ -823,31 +808,27 @@ function symbol."
        (or column
            (unless selective-display (1+ (current-column))))))))
 
-
 (use-package popwin                     ; Popup window for minor buffers
   :defer t
   :commands popwin-mode
   :init (popwin-mode t)
   :config
   (setq popwin:popup-window-position 'right)
-  (my-append 'popwin:special-display-config
+  (my-add-list 'popwin:special-display-config
              '(("*Backtrace*" :noselect t)
                ("*Python Help*" :stick t :height 20)
                ("*Help*" :noselect t :height 20))))
-
 
 (use-package uniquify                   ; Distinguish buffers with same name
   :ensure nil :demand t
   :config (setq uniquify-buffer-name-style 'forward
                 uniquify-trailing-separator-p t))
 
-
 (use-package winner                     ; Window configuration undo
   :defer t
   :bind (("s-j" . winner-undo)
          ("s-k" . winner-redo))
   :init (winner-mode t))
-
 
 (use-package writeroom-mode             ; Distraction-free writing mode
   :defer t
@@ -865,7 +846,6 @@ function symbol."
       (nyan-mode off)))
   (add-to-list 'writeroom-global-effects #'my-writeroom-effect))
 
-
 (use-package visual-fill-column
   :defer t
   :init (add-hook 'text-mode-hook #'visual-fill-column-mode)
@@ -876,14 +856,12 @@ function symbol."
 (use-package ace-jump-mode              ; Jump to specific points with marks
   :bind ("C-SPC" . ace-jump-mode))
 
-
 (use-package ace-window                 ; Quick window jumping
   :bind (("M-w" . ace-window)
          ("M-o" . ace-window))
   :init
   (bind-keys )
   :config (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
-
 
 (use-package ag                         ; Fast search and navigation
   :config
@@ -908,8 +886,8 @@ function symbol."
   :config
   (setq desktop-auto-save-timeout 60
         desktop-dirname (expand-file-name "desktop" my-dir))
-  (my-append 'desktop-modes-not-to-save '(magit-mode git-commit-mode)))
-
+  (my-add-list 'desktop-path desktop-dirname)
+  (my-add-list 'desktop-modes-not-to-save '(magit-mode git-commit-mode)))
 
 (use-package expand-region              ; Expand functions block at a time
   :bind ("C-z" . er/expand-region)
@@ -919,7 +897,6 @@ function symbol."
              ("zz" . er/expand-region))
   :config (setq expand-region-contract-fast-key "x"))
 
-
 (use-package savehist                   ; Save command history
   :defer t
   :init (savehist-mode t)
@@ -927,13 +904,11 @@ function symbol."
                 history-delete-duplicates t
                 savehist-save-minibuffer-history t))
 
-
 (use-package saveplace                  ; Save place in file and return to it
   :demand t
   :config
   (setq-default save-place t)
   (setq save-place-file (expand-file-name "places" my-dir)))
-
 
 (use-package projectile                 ; Project-based navigation
   :defer t
@@ -969,7 +944,10 @@ function symbol."
 
 ;;;; editing
 
-(use-package drag-stuff :disabled t)                ; Transpose things
+(use-package drag-stuff                 ; TODO Transpose things
+  ;; TODO fix dragging when newline is included
+  ;; TODO? have dragging comply with smartparen-strict-mode
+  :init (drag-stuff-global-mode t))
 
 (use-package flycheck                   ; On-the-fly syntax checking
   :defer t
@@ -999,24 +977,22 @@ function symbol."
   (use-package flycheck-tip             ; display errors by popup
     :config (flycheck-tip-use-timer 'verbose)))
 
-
 (use-package lorem-ipsum                ; Insert filler text
   :defer t
   :init
   ;; overwrite default `sgml-mode' entries
   (add-hook 'sgml-mode-hook
-            (lambda () (setq lorem-ipsum-paragraph-separator "/n<p>"
+            (lambda () (setq lorem-ipsum-paragraph-separator "\n<p>"
                         lorem-ipsum-sentence-separator " ")))
   :config
   ;; double spaces are still dumb
   (unless sentence-end-double-space (setq lorem-ipsum-sentence-separator " ")))
 
-
 (use-package writegood-mode             ; Highlight poor forms in writing
   :defer t
   :delight writegood-mode
   :init (add-hook 'text-mode-hook #'writegood-mode)
-  :config (my-append 'writegood-weasel-words
+  :config (my-add-list 'writegood-weasel-words
                      '("thing" "different" "probably" "really")))
 
 (use-package abbrev                     ; Auto-correct words after typing
@@ -1028,7 +1004,6 @@ function symbol."
         abbrev-all-caps t               ; expand in all-caps if written in caps
         abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
 
-
 (use-package auto-indent-mode           ; Automatic indentation
   ;; TODO get this working with indenting pasted code
   ;;      probably has something to do with Evil command hijacking
@@ -1037,13 +1012,13 @@ function symbol."
   :delight auto-indent-mode
   :init (auto-indent-global-mode t))
 
-
 (use-package company                    ; Autocompletion in code
   :defer t
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
+        company-statistics-file (expand-file-name "company-stats.el" my-dir)
         company-tooltip-align-annonations t
         company-lighter-base "ψ"
         company-selection-wrap-around t)
@@ -1064,7 +1039,6 @@ function symbol."
   (use-package company-statistics       ; Sort candidates by statistics
     :init (company-statistics-mode)))
 
-
 (use-package ispell                     ; Spell-checking
   :defer t
   :config
@@ -1074,7 +1048,7 @@ function symbol."
    ;; no messages please
    ispell-silently-savep t
    ispell-quietly t)
-  (my-append 'ispell-skip-region-alist
+  (my-add-list 'ispell-skip-region-alist
              '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
                ("#\\+BEGIN_SRC" . "#\\+END_SRC")
                ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
@@ -1157,7 +1131,6 @@ function symbol."
     ("<" . outline-promote)
     (">" . outline-demote)))
 
-
 (use-package smartparens-config       ; FIXME Balanced paren management
   ;; REVIEW autopairing quotes and backticks
   ;; REVIEW delight modeline lighters
@@ -1200,12 +1173,10 @@ function symbol."
   (setq sp-show-pair-from-inside t)     ; highlight pair when point on bracket
   (sp-local-pair 'html-mode "<" ">"))
 
-
 (use-package typo                       ; Insert typographical characters
   :defer t
   :delight typo-mode
   :init (add-hook 'text-mode-hook #'typo-mode))
-
 
 (use-package undo-tree                  ; Branching undo tree
   :delight undo-tree-mode
@@ -1221,13 +1192,11 @@ function symbol."
 
   (unbind-key "C-/" undo-tree-map))
 
-
 (use-package yasnippet                  ; Snippet insertion
   :defer t
   :config (setq yas-snippet-dirs
                 `(,(expand-file-name "snippets/" my-dir)
                   yas-installed-snippets-dir)))
-
 
 (use-package autorevert                 ; Auto revert to external modifications
   :defer t
@@ -1235,28 +1204,27 @@ function symbol."
   :init (global-auto-revert-mode t)
   :config (setq global-auto-revert-non-file-buffers t))
 
-
 (use-package pandoc-mode                ; Markup conversion tool
   :delight pandoc-mode '(:eval (concat " Π:" (pandoc--get 'write)))
-  :bind ("C-c C-p" . pandoc-mode))
+  :bind ("C-c C-p" . pandoc-mode)
+  :config
+  (setq pandoc-data-dir (expand-file-name "pandoc" my-dir))
+  (bind-key "C-c C-p" #'pandoc-run-pandoc pandoc-mode-map))
 
-
-(use-package real-auto-save             ; REVIEW Auto save buffers
+(use-package real-auto-save             ; Auto save buffers
   :delight real-auto-save-mode " α"
   :commands real-auto-save-mode
   :init (add-hook #'after-save-hook #'real-auto-save-mode)
-  :config (setq real-auto-save-interval 30)) ; REVIEW longer time interval
-
+  :config (setq real-auto-save-interval 60))
 
 (use-package recentf                    ; List recent files
   :defer t
   :init (recentf-mode t)
   :config
-  (setq
-   recentf-max-saved-items 300          ; increase history size
-   recentf-auto-cleanup 600             ; cleanup files after 10 minutes
-   recentf-exclude '("COMMIT_EDITMSG")
-   recentf-save-file (expand-file-name "recentf" my-dir)))
+  (setq recentf-max-saved-items 300     ; increase history size
+        recentf-auto-cleanup 600        ; cleanup files after 10 minutes
+        recentf-exclude '("COMMIT_EDITMSG")
+        recentf-save-file (expand-file-name "recentf" my-dir)))
 
 ;;;; applications
 
@@ -1277,11 +1245,9 @@ function symbol."
   (use-package async)
   (setq paradox-execute-asynchronously t))
 
-
 (use-package calendar                   ; Calendar
   :defer t
   :config (setq calendar-date-style 'european))
-
 
 (use-package dired                      ; Emacs file browser
   :ensure nil
@@ -1317,7 +1283,6 @@ function symbol."
              ("C-M-u" . dired-up-directory)
              ("C-w" . wdired-change-to-wdired-mode)))
 
-
 (use-package doc-view                   ; In-buffer document viewer
   :ensure nil :defer t
   :init (add-hook 'doc-view-minor-mode-hook #'undo-tree-mode-off)
@@ -1336,7 +1301,6 @@ function symbol."
              ("k" . doc-view-previous-line-or-previous-page)
              ("q" . kill-this-buffer)))
 
-
 (use-package ediff                      ; Emacs diff utility
   :defer t
   :config
@@ -1346,10 +1310,8 @@ function symbol."
     ("j" . ediff-next-difference)
     ("k" . ediff-previous-difference)))
 
-
 (use-package garak :disabled t          ; ELIM messenger front-end
   :enabled nil :load-path (concat my-dir-packages "elim"))
-
 
 (use-package comint                     ; Emacs terminal emulator
   :ensure nil :defer t
@@ -1381,7 +1343,6 @@ function symbol."
 
   (advice-add #'comint-previous-matching-input
               :around #'my-comint-suppress-message))
-
 
 (use-package eshell                     ; TODO Emacs shell
   :bind ("<f12>" . eshell)
@@ -1420,10 +1381,8 @@ function symbol."
      epe-git-detached-HEAD-char "Η"
      eshell-prompt-function #'epe-theme-geoffgarside)))
 
-
 (use-package malyon                     ; Z-machine text-based adventure reader
   :ensure nil :defer t)
-
 
 (use-package vc-git                     ; Git Version Control
   :defer t :ensure nil
@@ -1453,7 +1412,6 @@ function symbol."
           (error "Can't find repository URL"))
         (browse-url url)))
 
-
     (bind-keys :map magit-status-mode-map
                ("<C-tab>" . magit-section-cycle)
                ("j" . next-line)
@@ -1480,7 +1438,6 @@ function symbol."
       (",w" . git-commit-commit)
       ("q" . git-commit-abort))))
 
-
 ;;;; languages
 
 ;; various unconfigured language packages
@@ -1489,7 +1446,6 @@ function symbol."
 (use-package gitignore-mode :defer t)
 (use-package markdown-mode :defer t)
 (use-package vimrc-mode :mode "[._]?pentadactylrc$" "\\.penta$" :defer t)
-
 
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
@@ -1512,6 +1468,7 @@ function symbol."
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
 
   (delight #'org-indent-mode)
+  (set-face-attribute 'org-block nil :family (my-font 'mono))
   (set-face-attribute 'org-code nil :family (my-font 'mono))
   (set-face-attribute 'org-table nil :family (my-font 'mono))
   (set-face-attribute 'org-todo nil :inherit 'variable-pitch)
@@ -1580,14 +1537,12 @@ function symbol."
           (setq output (replace-regexp-in-string "\\.\\." "" output)))
         (insert output)))))
 
-
 (use-package generic-x                  ; Collection of generic modes
   :ensure nil :defer t
   :config
-  (my-append 'generic-extras-enable-list generic-mswindows-modes)
+  (my-add-list 'generic-extras-enable-list generic-mswindows-modes)
   (use-package conkyrc-mode :disabled t   ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
-
 
 (use-package lisp-mode
   :defer t :ensure nil
@@ -1631,12 +1586,10 @@ function symbol."
     :defer t
     :init (elpy-enable)))
 
-
 (use-package sh-script
   :defer t
   ;; two-space indentation
   :config (setq sh-indentation 2 sh-basic-offset 2))
-
 
 (use-package vbnet-mode
   :defer t :ensure nil
@@ -1644,13 +1597,11 @@ function symbol."
   :config (setq vbnet-funcall-face 'font-lock-function-name-face
               vbnet-namespace-face 'font-lock-preprocessor-face))
 
-
 (use-package js2-mode :disabled t
   :defer t
   :mode "\\.js$"
   :init (defalias 'javascript-generic-mode #'js2-mode)
   :config (setq-default js-indent-level 2))
-
 
 (use-package css-mode
   :defer t
@@ -1677,7 +1628,6 @@ function symbol."
 
   (use-package css-eldoc                ; Basic minibuffer display help for CSS
     :init (add-hook 'css-mode-hook #'css-eldoc-enable)))
-
 
 (use-package web-mode
   :defer t
