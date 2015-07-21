@@ -3,6 +3,11 @@
 ;;; Code:
 ;;;; helper functions
 
+(defun my-reload-init ()
+  "Reload `user-init-file'."
+  (interactive)
+  (load-file user-init-file))
+
 ;; Adapted from http://stackoverflow.com/a/24357106/3912814
 (defun my-add-list (list-var elements)
   "Append ELEMENTS to the end of LIST-VAR if not already in list.
@@ -17,6 +22,7 @@ define it as ELEMENTS."
 
 (defun my-cleanup ()
   "Clean up the current buffer.
+
 First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
   (interactive)
   (untabify (point-min) (point-max))
@@ -127,7 +133,7 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
       initial-scratch-message nil)
 (fset #'display-startup-echo-area-message #'ignore)
 
-;; never kill *scratch*
+;; never kill *scratch* buffer
 (defun my-bury-scratch ()
   "Bury the scratch buffer instead of killing it."
   (if (equal (buffer-name) "*scratch*") (progn (bury-buffer) nil) t))
@@ -181,17 +187,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
     . (goto-address-mode       ; Buttonize URLs
        visual-line-mode))))    ; Wrap by word
 
-;;;;; delighted modes
-
-(use-package delight
-  :demand t
-  :config
-  (delight '((emacs-lisp-mode "Elisp" :major)
-             ;; TODO get these to delight properly
-             (visual-line-mode)
-             (auto-fill-function)
-             (auto-fill-mode))))
-
 ;;;;; fonts
 ;; REVIEW check this works properly on Windows
 
@@ -209,7 +204,7 @@ Used with `my-font' to get the first valid entry of each font pairing.")
 
 (defun my-font (font)
   "Return the first valid entry for FONT in `my-fonts'."
-  (let ((found))
+  (let (found)
     (dolist (family (cdr (assoc font my-fonts)))
       (dolist (candidate `(,family
                            ;; try unspaced name to allow for odd font naming
@@ -233,40 +228,30 @@ Used with `my-font' to get the first valid entry of each font pairing.")
 ;; http://www.writequit.org/org/settings.html#sec-1-38
 (defun my-narrow-or-widen-dwim (p)
   "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
-Intelligently means: region, org-src-block, org-subtree, or defun,
-whichever applies first.
-Narrowing to org-src-block actually calls `org-edit-src-code'.
+
+Narrow to region, org-src-block (actually calls
+`org-edit-src-code'), org-subtree, or defun, whichever applies
+first.
 
 With prefix P, don't widen, just narrow even if buffer is already
 narrowed."
   (interactive "P")
   (declare (interactive-only))
   (cond ((and (buffer-narrowed-p) (not p)) (widen))
-        ((region-active-p)
-         (narrow-to-region (region-beginning) (region-end)))
+        ((region-active-p) (narrow-to-region (region-beginning) (region-end)))
         ((derived-mode-p 'org-mode)
          (cond ((org-in-src-block-p)
-                (org-edit-src-code)
-                (delete-other-windows))
-               ((org-at-block-p)
-                (org-narrow-to-block))
+                (org-edit-src-code) (delete-other-windows))
+               ((org-at-block-p) (org-narrow-to-block))
                (t (org-narrow-to-subtree))))
         (t (narrow-to-defun))))
 
 ;; Adapted from http://www.reddit.com/r/emacs/comments/25v0eo/you_emacs_tips_and_tricks/chldur
-(defun my-vsplit-last-buffer (prefix)
-  "Split window vertically and display the previous buffer."
-  (interactive "p")
-  (split-window-vertically)
+(defun my-last-buf (arg func)
+  "Perform FUNC and display previous buffer in other window."
+  (funcall func)
   (other-window 1 nil)
-  (when (= prefix 1) (switch-to-next-buffer)))
-
-(defun my-hsplit-last-buffer (prefix)
-  "Split window horizontally and display previous buffer."
-  (interactive "p")
-  (split-window-horizontally)
-  (other-window 1 nil)
-  (when (= prefix 1) (switch-to-next-buffer)))
+  (when (= arg 1) (switch-to-next-buffer)))
 
 ;; I accidentally call this too much when calling C-x and trying to ESC out
 (global-unset-key (kbd "C-x ESC ESC"))
@@ -276,15 +261,22 @@ narrowed."
  ("RET" . newline-and-indent)           ; indent new lines automatically
  ("C-x C-M-x" . revert-buffer)
  ("C-x n" . my-narrow-or-widen-dwim)
- ([remap evil-window-split] . my-hsplit-last-buffer)
- ([remap evil-window-vsplit] . my-vsplit-last-buffer)
- ([remap evil-window-new] . my-vsplit-last-buffer))
+ ([remap switch-to-buffer] . ibuffer)
+ ([remap evil-window-split] . (lambda (arg)
+                                (interactive "p")
+                                (my-last-buf arg #'split-window-horizontally)))
+ ([remap evil-window-vsplit] . (lambda (arg)
+                                (interactive "p")
+                                (my-last-buf arg #'split-window-vertically))))
 
-(bind-key "q" #'kill-buffer package-menu-mode-map)
+(bind-keys
+ :map (Custom-mode-map package-menu-mode-map)
+ ("q" . kill-buffer-and-window))
 
 ;; https://github.com/davvil/.emacs.d/blob/master/init.el
 (defun minibuffer-keyboard-quit ()
   "Abort recursive edit.
+
 In Delete Selection mode, if the mark is active, just deactivate it;
 then it takes a second \\[keyboard-quit] to abort the minibuffer."
   (interactive)
@@ -312,7 +304,7 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
-  :commands evil-define-command
+  :commands evil-define-command evil-bind-keys
   :init (evil-mode t)
   :config
   (setq
@@ -427,6 +419,7 @@ function symbol."
     :init (global-evil-surround-mode t))
 
   (use-package evil-commentary          ; Operator for comments
+    ;; TODO see if I can get this working with smartparen compliance
     :defer t
     :delight evil-commentary-mode
     :init (evil-commentary-mode t)
@@ -468,7 +461,6 @@ function symbol."
    helm-file-cache-fuzzy-match t
    helm-recentf-fuzzy-match t)
 
-  (defalias #'ibuffer #'helm-mini)
   (helm-autoresize-mode t)
 
   ;; load packages manually to avoid byte-compiler warnings
@@ -511,10 +503,13 @@ function symbol."
                       :inverse-video 'unspecified
                       :inherit 'font-lock-warning-face)
 
+  (defalias #'ibuffer #'helm-mini)
+
   (bind-keys*
    ([remap execute-extended-command] . helm-M-x)
    ([remap occur] . helm-occur)
    ([remap find-files] . helm-find-files)
+   ([remap switch-to-buffer] . helm-mini)
    ([remap list-buffers] . helm-mini)
    ([remap ibuffer] . helm-mini)
    ;; help
@@ -581,7 +576,7 @@ function symbol."
   :delight guide-key-mode
   :init (guide-key-mode t)
   :config (setq guide-key/recursive-key-sequence-flag t
-                guide-key/guide-key-sequence '("C-x" "C-c" ",")))
+                guide-key/guide-key-sequence '("C-x" "C-c" "C-w" ",")))
 
 (use-package help-mode
   :ensure nil :defer t
@@ -625,6 +620,26 @@ function symbol."
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
 ;;;;;; modeline packages
+
+(use-package delight
+  :demand t
+  :config
+  ;; REVIEW check this actually works
+  (defmacro delight-with-advice (mode &optional func)
+    "Add :after advice to MODE delighting its lighter.
+
+A hack to deal with modes that don't delight correctly the usual
+way. If FUNC is provided, then add the advice to that function
+instead of MODE."
+    `(advice-add
+      ,(or func mode)
+      :after (lambda ()
+               ,(format "Delight `%s'" (symbol-name mode)) (delight ,mode))))
+
+  (dolist (mode '(auto-fill-mode visual-line-mode))
+    (delight-with-advice mode))
+
+  (delight #'emacs-lisp-mode "Elisp" :major))
 
 (use-package smart-mode-line            ; TODO Better modeline
   :demand t
@@ -676,18 +691,29 @@ function symbol."
   (setq which-func-format
         `((:propertize (:eval (my-which-func-current))
                        local-map ,which-func-keymap
-                       face which-func
+                       func
                        mouse-face mode-line-highlight))))
 
 (use-package wc-goal-mode
   :defer t
   :init (add-hook 'text-mode-hook #'wc-goal-mode)
   :config
-  (defun my-wc-format-toggle ()
+
+  (defvar wc-format-strings '("[%twW]" "[%tlL]")
+    "`wc-goal-modeline-format' strings to cycle through.")
+
+  (defun wc-format-cycle ()
+    "Cycle `wc-goal-modeline-format' through `wc-format-strings'."
     (interactive)
-    (let ((a "wc:%tw%w") (b "lc:%tl%l"))
-      (setq wc-goal-modeline-format (if (eql wc-goal-modeline-format a)
-                                        b a)))))
+    (let* ((forms (or (member wc-goal-modeline-format wc-format-strings)
+                      wc-format-strings))
+           (form (cond
+                  ((nth 1 forms))
+                  ((equal (car forms) wc-goal-modeline-format)
+                   (car wc-format-strings))
+                  ((car forms)))))
+      (setq wc-goal-modeline-format form))))
+
 
 ;;;;;; face packages
 
@@ -947,6 +973,7 @@ function symbol."
 (use-package drag-stuff                 ; TODO Transpose things
   ;; TODO fix dragging when newline is included
   ;; TODO? have dragging comply with smartparen-strict-mode
+  :delight drag-stuff-mode
   :init (drag-stuff-global-mode t))
 
 (use-package flycheck                   ; On-the-fly syntax checking
@@ -1014,13 +1041,13 @@ function symbol."
 
 (use-package company                    ; Autocompletion in code
   :defer t
+  :delight company-mode
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
         company-statistics-file (expand-file-name "company-stats.el" my-dir)
         company-tooltip-align-annonations t
-        company-lighter-base "ψ"
         company-selection-wrap-around t)
 
   (bind-keys :map company-active-map
@@ -1037,7 +1064,7 @@ function symbol."
     :ensure nil)
 
   (use-package company-statistics       ; Sort candidates by statistics
-    :init (company-statistics-mode)))
+    :init (company-statistics-mode t)))
 
 (use-package ispell                     ; Spell-checking
   :defer t
@@ -1131,11 +1158,12 @@ function symbol."
     ("<" . outline-promote)
     (">" . outline-demote)))
 
-(use-package smartparens-config       ; FIXME Balanced paren management
+(use-package smartparens-config      ; FIXME Balanced paren management
   ;; REVIEW autopairing quotes and backticks
   ;; REVIEW delight modeline lighters
   :ensure smartparens
-  :delight smartparens-strict-mode " ⒮"
+  :delight smartparens-mode '(:eval
+                              (concat " " (when smartparens-strict-mode "⒮")))
   :init
   ;; disable builtin to avoid doubling
   (add-hook 'smartparens-mode-hook (lambda() (electric-pair-mode -1)))
@@ -1212,7 +1240,7 @@ function symbol."
   (bind-key "C-c C-p" #'pandoc-run-pandoc pandoc-mode-map))
 
 (use-package real-auto-save             ; Auto save buffers
-  :delight real-auto-save-mode " α"
+  :delight real-auto-save-mode
   :commands real-auto-save-mode
   :init (add-hook #'after-save-hook #'real-auto-save-mode)
   :config (setq real-auto-save-interval 60))
@@ -1271,15 +1299,11 @@ function symbol."
           dired-omit-verbose nil)
     (add-hook 'dired-mode-hook #'dired-omit-mode)  ; omit uninteresting files
     :config
-    ;; https://github.com/lunaryorn/.emacs.d/blob/master/init.el
-    ;; Hack for diminishing mode lighter. Can't just use `:delight' because
-    ;; lighter isn't there yet after `dired-omit-mode' is loaded.
-    ;; (advice-add #'dired-omit-startup :after
-    ;;             (lambda () (delight 'dired-omit-mode)))
+    ;; (delight-with-advice #'dired-omit-mode #'dired-omit-startup)
     )
 
   (bind-keys :map dired-mode-map
-             ("q" . kill-buffer)
+             ("q" . kill-buffer-and-window)
              ("C-M-u" . dired-up-directory)
              ("C-w" . wdired-change-to-wdired-mode)))
 
@@ -1299,7 +1323,7 @@ function symbol."
              ("n" . doc-view-search-next-match)
              ("j" . doc-view-next-line-or-next-page)
              ("k" . doc-view-previous-line-or-previous-page)
-             ("q" . kill-this-buffer)))
+             ("q" . kill-buffer-and-window)))
 
 (use-package ediff                      ; Emacs diff utility
   :defer t
@@ -1494,11 +1518,13 @@ function symbol."
   (use-package org-plus-contrib
     :defer t
     :config
+
     (use-package ox-taskjuggler
       :ensure nil :defer t
       :init (setq
              org-taskjuggler-default-reports "\nmacro TaskTip [\n  tooltip istask() -8<-\n    '''Start: ''' <-query attribute='start'->\n    '''End: ''' <-query attribute='end'->\n    '''Precursors: '''\n    <-query attribute='precursors'->\n\n    '''Followers: '''\n    <-query attribute='followers'->\n    ->8-\n]\n\ntextreport report \"Plan\" {\n  formats html\n  center -8<-\n    <[report id=\"plan\"]>\n  ->8-\n}\n\ntaskreport plan \"\" {\n  headline \"Project Plan\"\n  columns name, start, end, effort, chart { scale day width 1500 ${TaskTip} }\n}"))
     :config
+
     (defun my-org-tj-add-project-options (project)
       "Add various properties to the taskjuggler PROJECT declaration."
       (concat
@@ -1541,12 +1567,14 @@ function symbol."
   :ensure nil :defer t
   :config
   (my-add-list 'generic-extras-enable-list generic-mswindows-modes)
+
   (use-package conkyrc-mode :disabled t   ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 (use-package lisp-mode
   :defer t :ensure nil
   :init
+
   (defun my-imenu-decls ()
     "Add custom declarations to `imenu-generic-expression'."
     (dolist (expr
@@ -1634,14 +1662,13 @@ function symbol."
   :mode "\\.html?$"
   :init (add-hook 'web-mode-hook #'rainbow-mode)
   :config
-  (setq
-         web-mode-enable-block-face t
-         web-mode-enable-part-face t
-         web-mode-enable-comment-keywords t
-         web-mode-enable-current-element-highlight t
-         web-mode-enable-current-column-highlight t
-         web-mode-css-indent-offset 2
-         web-mode-code-indent-offset 2
-         web-mode-markup-indent-offset 2))
+  (setq web-mode-enable-block-face t
+        web-mode-enable-part-face t
+        web-mode-enable-comment-keywords t
+        web-mode-enable-current-element-highlight t
+        web-mode-enable-current-column-highlight t
+        web-mode-css-indent-offset 2
+        web-mode-code-indent-offset 2
+        web-mode-markup-indent-offset 2))
 
 ;;; init.el ends here
