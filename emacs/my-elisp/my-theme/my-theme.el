@@ -1,8 +1,38 @@
 ;;; my-theme.el --- my Darcula-inspired color theme
 ;;; Commentary:
-;; Heavily sourced from https://github.com/fommil/darcula-theme-emacs
+;; Mostly sourced from https://github.com/fommil/darcula-theme-emacs
 ;;; Code:
 (deftheme my)
+
+;;; fonts
+(defvar my-fonts
+  '((proportional . ("Fira Sans" "Input Sans Condensed" "Input Sans"
+                     "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
+    (mono . ("Envy Code R" "Input Mono Condensed" "Input Mono"
+             "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
+  "Alist of font types paired with an ordered list of preferences.
+Used with `my-font' to get the first valid entry of each font pairing.")
+
+(add-to-list 'my-fonts
+             `(header . ,(append '("Fantasque Sans Mono")
+                                 (cdr (assoc 'proportional my-fonts)))))
+
+(defun my-font (font)
+  "Return the first valid entry for FONT in `my-fonts'."
+  (let (found)
+    (dolist (family (cdr (assoc font my-fonts)))
+      (dolist (candidate `(,family
+                           ;; try unspaced name to allow for odd font naming
+                           ,(replace-regexp-in-string " " "" family)))
+        (when (and (find-font (font-spec :name candidate)) (not found))
+          (setq found candidate))))
+    found))
+
+(defun my-font-use-proportional ()
+  "Use proportional font for current buffer."
+  (interactive)
+  (face-remap-add-relative 'default :family (my-font 'proportional)))
+(add-hook 'text-mode-hook #'my-font-use-proportional)
 
 ;;; colors
 (let* ((bg "#2b2b2b")
@@ -18,49 +48,53 @@
        (orange0 "#a57705")
        (red "#bd3612")
        (magenta "#c61b6e")
-       (violet  "#9876aa")
+       (violet "#ae529f")
+       (violet0 "#8e8cd3")
+       (violet1  "#9876aa")
        (blue "#6897bb")
-       (blue0  "#5859b7")
+       (blue0 "#5859b7")
+       (blue1 "#99daf9")
        (cyan  "#259185")
        (cyan0 "#4e807d")
        (green "#a6c25c")
        (green0 "#629755"))
-
 ;;; faces
   (custom-theme-set-faces
    'my
 ;;;; basic colouring
-   `(default ((t (:background ,bg :foreground ,fg))))
+   `(default ((t (:background ,bg :foreground ,fg
+                              :family ,(my-font 'mono) :height 100))))
    `(shadow ((t (:foreground ,fg0))))
    `(match ((t (:background ,fg :foreground ,fg0 :weight bold))))
-   `(cursor ((t (:foreground ,bg :background ,fg0 :inverse-video t))))
+   `(cursor ((t (:background ,fg0))))
    `(region ((t (:foreground ,fg1 :background ,bg2))))
    `(secondary-selection ((t (:background ,bg2))))
    `(escape-glyph ((t (:foreground ,orange0))))
    `(fringe ((t (:background nil :foreground ,fg1))))
    `(header-line ((t (:foreground ,fg1 :background ,bg2 :inherit mode-line))))
    `(highlight ((t (:background ,bg1))))
-   `(link ((t (:underline t :foreground ,blue))))
-   `(link-visited ((t (:underline t :foreground ,magenta))))
+   `(link ((t (:underline t :foreground ,blue1))))
+   `(link-visited ((t (:underline t :foreground ,blue1))))
    `(success ((t (:foreground ,green))))
    `(warning ((t (:underline (:style wave :color ,yellow)))))
    `(error ((t (:foreground ,red))))
    `(lazy-highlight ((t (:foreground ,yellow :background ,bg1))))
    `(widget-field ((t (:background ,fg))))
    `(button ((t (:inherit link))))
+   `(variable-pitch ((t (:height 1.1 :family ,(my-font 'header)))))
 ;;;; font lock
    `(font-lock-builtin-face ((t (:foreground ,violet))))
    `(font-lock-comment-delimiter-face ((t (:slant normal :inherit font-lock-comment-face))))
    `(font-lock-comment-face ((t (:foreground ,fg0 :slant italic))))
    `(font-lock-constant-face ((t (:foreground ,blue :weight normal))))
    `(font-lock-doc-face ((t (:foreground ,green0))))
-   `(font-lock-function-name-face ((t (:foreground ,yellow))))
-   `(font-lock-keyword-face ((t (:foreground ,orange))))
+   `(font-lock-function-name-face ((t (:weight bold :foreground nil))))
+   `(font-lock-keyword-face ((t (:foreground ,orange :weight bold))))
    `(font-lock-negation-char-face ((t (:underline t))))
-   `(font-lock-preprocessor-face ((t (:foreground ,orange0))))
+   `(font-lock-preprocessor-face ((t (:foreground ,yellow))))
    `(font-lock-string-face ((t (:foreground ,green))))
-   `(font-lock-type-face ((t (:foreground ,cyan0))))
-   `(font-lock-variable-name-face ((t (:foreground ,blue0))))
+   `(font-lock-type-face ((t (:foreground ,violet0))))
+   `(font-lock-variable-name-face ((t (:foreground ,cyan))))
    `(font-lock-warning-face ((t (:underline (:style wave :color ,red)))))
 ;;;; compilation
    `(compilation-info ((t (:foreground ,green :underline nil))))
@@ -70,14 +104,24 @@
    `(isearch ((t (:foreground ,red :background ,bg1 :inverse-video t))))
    `(isearch-fail ((t (:inherit isearch))))
 ;;;; modeline
-   `(mode-line ((t (:foreground ,fg0 :background ,bg2))))
-   `(mode-line-inactive ((t (:background ,bg1 :inherit mode-line))))
+   `(mode-line ((t (:foreground nil :background ,bg0))))
+   `(mode-line-inactive ((t (:foreground ,fg0 :background ,bg1))))
    `(mode-line-emphasis ((t (:weight bold))))
+;;;; outline
+   `(outline-1 ((t (:inherit variable-pitch :foreground ,red))))
+   `(outline-2 ((t (:inherit variable-pitch :foreground ,orange))))
+   `(outline-3 ((t (:inherit variable-pitch :foreground ,yellow))))
+   `(outline-4 ((t (:inherit variable-pitch :foreground ,green))))
+   `(outline-6 ((t (:inherit variable-pitch :foreground ,blue1))))
+   `(outline-5 ((t (:inherit variable-pitch :foreground ,cyan))))
+   `(outline-6 ((t (:inherit variable-pitch :foreground ,violet))))
+   `(outline-7 ((t (:inherit variable-pitch :foreground ,magenta))))
 ;;;; show-paren
-   `(show-paren-match ((t (:foreground ,blue :background ,bg0))))
-   `(show-paren-mismatch ((t (:foreground ,magenta :background ,bg0))))
+   `(show-paren-match ((t (:foreground ,magenta :weight bold))))
+   `(show-paren-mismatch ((t (:foreground ,magenta :inverse-video t))))
 ;;;; misc
    `(minibuffer-prompt ((t (:weight bold :foreground ,cyan))))
+   `(hl-line ((t (:inherit highlight))))
    `(trailing-whitespace ((t (:inherit warning))))
    `(whitespace-trailing ((t (:inherit warning))))
 ;;;; ace-jump-mode
@@ -101,7 +145,7 @@
    `(company-tooltip-common-selection ((t (:foreground ,red))))
    `(company-tooltip-annotation ((t (:inherit mode-line))))
 ;;;; diredp
-   `(diredp-file-name ((t (:foreground ,blue0))))
+   `(diredp-file-name ((t (:foreground ,violet0))))
    `(diredp-file-suffix ((t (:foreground ,blue))))
    `(diredp-symlink ((t (:foreground ,green))))
    `(diredp-executable-tag ((t (:foreground ,red))))
@@ -151,7 +195,7 @@
    `(helm-ff-executable ((t (:foreground ,green0))))
    `(helm-ff-invalid-symlink ((t (:inherit error))))
    `(helm-ff-symlink ((t (:foreground ,green))))
-   `(helm-ff-prefix ((t (:foreground ,blue0))))
+   `(helm-ff-prefix ((t (:foreground ,violet0))))
    `(helm-grep-cmd-line ((t (:foreground ,cyan))))
    `(helm-grep-file ((t (:inherit helm-ff-file))))
    `(helm-grep-finish ((t (:foreground ,green))))
@@ -161,6 +205,14 @@
    `(helm-moccur-buffer ((t (:foreground ,cyan0))))
    `(helm-lisp-completion-info ((t (:foreground ,red))))
    `(helm-lisp-show-completion ((t (:inverse-video t))))
+;;;; TODO magit
+   `(magit-tag ((t (:foreground ,orange0 :inverse-video t))))
+   `(magit-branch ((t (:foreground ,blue))))
+   `(magit-log-sha1 ((t (:foreground ,orange))))
+   `(magit-section-title ((t (:foreground ,yellow :inverse-video t))))
+   `(magit-process-ng ((t (:foreground ,red))))
+   `(magit-process-ok ((t (:foreground ,green))))
+
 ;;;; popup
    `(popup-menu-face ((t (:inherit mode-line))))
    `(popup-menu-mouse-face ((t (:inherit mode-line))))
@@ -169,6 +221,9 @@
    `(popup-menu-summary-face ((t (:inherit mode-line :weight bold))))
    `(popup-summary-face ((t (:inherit mode-line :weight bold))))
    `(popup-tip-face ((t (:foreground ,green :background ,bg :inverse-video t))))
+;;;; smart-mode-line
+   `(sml/modified ((t (:foreground ,red))))
+   `(sml/discharging ((t (:foreground ,violet))))
 ;;;; smartparens
    `(sp-show-pair-match-face ((t (:inherit show-paren-match))))
    `(sp-show-pair-mismatch-face ((t (:inherit show-paren-mismatch))))

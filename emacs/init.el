@@ -572,15 +572,11 @@ function symbol."
 
 ;;;; appearance
 
-(set-face-attribute 'hl-line nil :background 'unspecified :inherit 'highlight)
-
 ;;;;;; highlight fic
 ;; REVIEW using regexp-opt for defining regexp
 
 (defface font-lock-fic-face
-  '((((class color))
-     (:inherit 'font-lock-warning-face :slant italic))
-    (t (:slant italic)))
+  '((t (:slant italic :inherit error)))
   "Face to fontify FIXME/TODO words"
   :group 'faces)
 
@@ -597,38 +593,6 @@ function symbol."
 
 ;; REVIEW check this works properly on Windows
 
-(defvar my-fonts
-  '((proportional . ("Fira Sans" "Input Sans Condensed" "Input Sans"
-                     "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
-    (mono . ("Envy Code R" "Input Mono Condensed" "Input Mono"
-             "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
-  "Alist of font types paired with an ordered list of preferences.
-Used with `my-font' to get the first valid entry of each font pairing.")
-
-(add-to-list 'my-fonts
-             `(header . ,(append '("Fantasque Sans Mono")
-                                 (cdr (assoc 'proportional my-fonts)))))
-
-(defun my-font (font)
-  "Return the first valid entry for FONT in `my-fonts'."
-  (let (found)
-    (dolist (family (cdr (assoc font my-fonts)))
-      (dolist (candidate `(,family
-                           ;; try unspaced name to allow for odd font naming
-                           ,(replace-regexp-in-string " " "" family)))
-        (when (and (find-font (font-spec :name candidate)) (not found))
-          (setq found candidate))))
-    found))
-
-(defun my-font-use-proportional ()
-  "Set current buffer's font to proportional."
-  (interactive)
-  (face-remap-add-relative
-   'default :family (my-font 'proportional) :height 100))
-(add-hook 'text-mode-hook #'my-font-use-proportional)
-
-(set-face-attribute 'default nil :family (my-font 'mono) :height 100)
-(set-face-attribute 'variable-pitch nil :family (my-font 'header))
 
 ;;;;;; modeline packages
 
