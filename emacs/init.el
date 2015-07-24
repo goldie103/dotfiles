@@ -1,12 +1,9 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
+;; TODO figure out wtf is opening network connections when writing use-package
+;; declarations
 ;;; Code:
 ;;;; helper functions
-
-(defun my-reload-init ()
-  "Reload `user-init-file'."
-  (interactive)
-  (load-file user-init-file))
 
 ;; Adapted from http://stackoverflow.com/a/24357106/3912814
 (defun my-add-list (list-var elements)
@@ -19,6 +16,15 @@ define it as ELEMENTS."
         (dolist (item l) (add-to-list list-var item))
       (set list-var l)))
   (symbol-value list-var))
+
+;; Would normally use `bind-key*' for this, but that would also bind to
+;; `evil-insert-state', and that shouldn't be touched.
+(defmacro my-add-binds (map)            ; TODO
+  "Add essential bindings to MAP with `bind-key'."
+  `(bind-keys :map ,map
+              ("SPC" . execute-extended-command)
+              ("q" . kill-buffer-and-window)
+              (",b" . ibuffer)))
 
 (defun my-cleanup ()
   "Clean up the current buffer.
@@ -187,42 +193,6 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
     . (goto-address-mode       ; Buttonize URLs
        visual-line-mode))))    ; Wrap by word
 
-;;;;; fonts
-;; REVIEW check this works properly on Windows
-
-(defvar my-fonts
-  '((proportional . ("Fira Sans" "Input Sans Condensed" "Input Sans"
-                     "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
-    (mono . ("Input Mono Condensed" "Input Mono"
-             "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
-  "Alist of font types paired with an ordered list of preferences.
-Used with `my-font' to get the first valid entry of each font pairing.")
-
-(add-to-list 'my-fonts
-             `(header . ,(append '("Fantasque Sans Mono")
-                                 (cdr (assoc 'proportional my-fonts)))))
-
-(defun my-font (font)
-  "Return the first valid entry for FONT in `my-fonts'."
-  (let (found)
-    (dolist (family (cdr (assoc font my-fonts)))
-      (dolist (candidate `(,family
-                           ;; try unspaced name to allow for odd font naming
-                           ,(replace-regexp-in-string " " "" family)))
-        (when (and (find-font (font-spec :name candidate)) (not found))
-          (setq found candidate))))
-    found))
-
-(defun my-font-use-proportional ()
-  "Set current buffer's font to proportional."
-  (interactive)
-  (face-remap-add-relative
-   'default :family (my-font 'proportional) :height 100))
-(add-hook 'text-mode-hook #'my-font-use-proportional)
-
-(set-frame-font (concat (my-font 'mono) "-8"))
-(set-face-attribute 'variable-pitch nil :family (my-font 'header))
-
 ;;;; bindings
 
 ;; http://www.writequit.org/org/settings.html#sec-1-38
@@ -270,7 +240,7 @@ narrowed."
                                 (my-last-buf arg #'split-window-vertically))))
 
 (bind-keys
- :map (Custom-mode-map package-menu-mode-map)
+ :map package-menu-mode-map
  ("q" . kill-buffer-and-window))
 
 ;; https://github.com/davvil/.emacs.d/blob/master/init.el
@@ -513,6 +483,7 @@ function symbol."
    ([remap list-buffers] . helm-mini)
    ([remap ibuffer] . helm-mini)
    ;; help
+   ([remap describe-face] . helm-colors)
    ([remap info-emacs-manual] . helm-info-emacs)
    ([remap locate-library] . helm-locate-library)
    ([remap woman] . helm-man-woman)
@@ -593,12 +564,15 @@ function symbol."
              ("K" . describe-key)
              ("C-k" . describe-bindings)
              ("M-k" . where-is)
+             ("f" . describe-face)
              ("l" . locate-library)
              ("M-l" . view-lossage)
              ("i" . info-lookup-symbol)
              ("C-i" . info-emacs-manual)))
 
 ;;;; appearance
+
+(set-face-attribute 'hl-line nil :background 'unspecified :inherit 'highlight)
 
 ;;;;;; highlight fic
 ;; REVIEW using regexp-opt for defining regexp
@@ -619,6 +593,43 @@ function symbol."
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
+;;;;;; fonts
+
+;; REVIEW check this works properly on Windows
+
+(defvar my-fonts
+  '((proportional . ("Fira Sans" "Input Sans Condensed" "Input Sans"
+                     "DejaVu Sans" "Calibri" "Arial" "Sans Serif"))
+    (mono . ("Envy Code R" "Input Mono Condensed" "Input Mono"
+             "DejaVu Sans Mono" "Consolas" "Courier" "Monospace" "Fixed")))
+  "Alist of font types paired with an ordered list of preferences.
+Used with `my-font' to get the first valid entry of each font pairing.")
+
+(add-to-list 'my-fonts
+             `(header . ,(append '("Fantasque Sans Mono")
+                                 (cdr (assoc 'proportional my-fonts)))))
+
+(defun my-font (font)
+  "Return the first valid entry for FONT in `my-fonts'."
+  (let (found)
+    (dolist (family (cdr (assoc font my-fonts)))
+      (dolist (candidate `(,family
+                           ;; try unspaced name to allow for odd font naming
+                           ,(replace-regexp-in-string " " "" family)))
+        (when (and (find-font (font-spec :name candidate)) (not found))
+          (setq found candidate))))
+    found))
+
+(defun my-font-use-proportional ()
+  "Set current buffer's font to proportional."
+  (interactive)
+  (face-remap-add-relative
+   'default :family (my-font 'proportional) :height 100))
+(add-hook 'text-mode-hook #'my-font-use-proportional)
+
+(set-face-attribute 'default nil :family (my-font 'mono) :height 100)
+(set-face-attribute 'variable-pitch nil :family (my-font 'header))
+
 ;;;;;; modeline packages
 
 (use-package delight
@@ -634,10 +645,10 @@ instead of MODE."
     `(advice-add
       ,(or func mode)
       :after (lambda ()
-               ,(format "Delight `%s'" (symbol-name mode)) (delight ,mode))))
-
-  (dolist (mode '(auto-fill-mode visual-line-mode))
-    (delight-with-advice mode))
+               ,(format "Delight `%s'" (symbol-name (car (cdr mode))))
+               (delight ,mode))))
+  (delight-with-advice 'auto-fill-mode)
+  (delight-with-advice 'visual-line-mode)
 
   (delight #'emacs-lisp-mode "Elisp" :major))
 
@@ -647,7 +658,6 @@ instead of MODE."
   (setq
    sml/theme 'respectful
    sml/battery-format "%b%p[%t]"
-   sml/mode-width 'right               ; move modes to the right
    sml/full-mode-string " ⋯"          ; append this to modeline when full
    sml/shorten-mode-string ""          ; no indication for all modes displayed
    sml/mule-info nil                   ; don't show buffer encoding
@@ -674,11 +684,11 @@ instead of MODE."
   (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time
   (defun nyan-mode-off () (nyan-mode -1)))
 
-(use-package which-func                 ; Modeline definition name
+(use-package which-func :disabled t                ; Modeline definition name
   :defer t
   :init (which-function-mode t)
   :config
-  (defun my-which-func-current ()
+  (defun which-func-current ()
     "Return a formatted which-func string if possible, or nil if not."
     (-if-let (current (gethash (selected-window) which-func-table))
         (truncate-string-to-width
@@ -689,7 +699,7 @@ instead of MODE."
       nil))
 
   (setq which-func-format
-        `((:propertize (:eval (my-which-func-current))
+        `((:propertize (:eval (which-func-current))
                        local-map ,which-func-keymap
                        func
                        mouse-face mode-line-highlight))))
@@ -717,10 +727,15 @@ instead of MODE."
 
 ;;;;;; face packages
 
+(use-package vline-mode                 ; Highlight current column
+  :ensure nil :defer t
+  :config (setq vline-face 'hl-line
+                vline-visual-face 'hl-line))
+
 (use-package hl-sentence                ; Highlight current sentence
   :defer t
   :init (add-hook 'text-mode-hook #'hl-sentence-mode)
-  :config (set-face-attribute 'hl-sentence-face nil :inherit 'hl-line))
+  :config (set-face-attribute 'hl-sentence-face nil :inherit 'highlight))
 
 (use-package highlight-numbers          ; Highlight numbers
   :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
@@ -758,6 +773,13 @@ instead of MODE."
 
 ;;;;;; color theme
 
+(use-package my-theme
+  :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme"
+  :config (load-theme 'my))
+
+(use-package darcula-theme
+  :config (load-theme 'darcula))
+
 (use-package solarized-theme :disabled t
   :demand t
   :config
@@ -772,7 +794,7 @@ instead of MODE."
   :demand t
   :config (load-theme 'zenburn-hc))
 
-(use-package color-theme-sanityinc-tomorrow
+(use-package color-theme-sanityinc-tomorrow :disabled t
   :demand t
   :config (load-theme 'sanityinc-tomorrow-night))
 
@@ -798,7 +820,7 @@ instead of MODE."
 (use-package hideshow                   ; Code folding
   :delight hs-minor-mode " +"
   :init
-  (use-package hideshowvis :disabled t  ; Visualize hidden blocks
+  (use-pack
     :defer t
     :init
     (hideshowvis-symbols)
@@ -906,7 +928,7 @@ instead of MODE."
           ;; helm-ag-source-type 'file-line
           helm-ag-fuzzy-match t)))
 
-(use-package desktop                    ; Save buffers, windows and frames
+(use-package desktop :disabled t                   ; Save buffers, windows and frames
   :defer t
   :init (desktop-save-mode t)
   :config
@@ -1314,6 +1336,7 @@ instead of MODE."
   (setq doc-view-continuous t)
   (bind-keys :map doc-view-mode-map
              ("SPC" . execute-extended-command)
+             (",b" . ibuffer)
              ("g" . nil)
              ("gg" . doc-view-first-page)
              ("gp" . doc-view-goto-page)
@@ -1323,6 +1346,8 @@ instead of MODE."
              ("n" . doc-view-search-next-match)
              ("j" . doc-view-next-line-or-next-page)
              ("k" . doc-view-previous-line-or-previous-page)
+             ("C-d" . doc-view-next-page)
+             ("C-u" . doc-view-previous-page)
              ("q" . kill-buffer-and-window)))
 
 (use-package ediff                      ; Emacs diff utility
@@ -1368,7 +1393,7 @@ instead of MODE."
   (advice-add #'comint-previous-matching-input
               :around #'my-comint-suppress-message))
 
-(use-package eshell                     ; TODO Emacs shell
+(use-package eshell :disabled t         ; TODO Emacs shell
   :bind ("<f12>" . eshell)
   :config
   (setq
@@ -1380,6 +1405,55 @@ instead of MODE."
    eshell-cmpl-ignore-case t
    eshell-banner-message (propertize (shell-command-to-string "fortune")
                                      'face '(:foreground "#b58900")))
+
+  (defmacro my-with-face (str face &rest props)
+    "Propertize STR with FACE and other PROPS."
+    `(propertize ,str 'face ',face ,@props))
+
+  (defmacro my-with-col (str face &rest props)
+    "Propertize STR with the foreground color of FACE and other PROPS."
+    `(propertize ,str 'face '(:foreground ,(face-attribute face :foreground))
+                 ,@props))
+
+  (defun my-esh-prompt-git ()
+    (let* ((branch (shell-command-to-string "git symbolic-ref HEAD --short"))
+           (detachedp (string-match "detached" branch))
+           (status (shell-command-to-string "git status --porcelain"))
+           (untrackedp (string-match "^\\?\\?" status))
+           (stashedp (not (string= (shell-command-to-string
+                                    "git stash list -n 1") "")))
+           (remote (shell-command-to-string (concat
+                                             "git config --get
+                                             branch" branch)))
+           (dirtyp
+            (string-match
+             "dirty" (shell-command-to-string
+                      "git diff-index --quiet HEAD -- || echo -n 'dirty'")))
+           (dirty-char "δ")
+           ())
+      ))
+
+  (defun my-eshell-prompt ()
+    (concat
+     ;; abbreviated current working directory
+     (if (fboundp 'sml/replacer) (sml/replacer (eshell/pwd)) (eshell/pwd))
+     ;; git info
+     (when (and (eshell-searchpath "git")
+                (locate-dominating-file (eshell/pwd) ".git"))
+       (format
+        "( %s%s )"
+
+        )
+       ;; dirty status
+       (and
+        )
+       ;; branch
+       (let ((name ))
+         (if (string-match "detached" name) "H" (substring name 0 -1)))
+       ;; untracked
+       (and (not (string=)))
+       ")"
+       )))
 
   (use-package esh-module
     :defer t :ensure nil
@@ -1471,6 +1545,12 @@ instead of MODE."
 (use-package markdown-mode :defer t)
 (use-package vimrc-mode :mode "[._]?pentadactylrc$" "\\.penta$" :defer t)
 
+(use-package bat                        ; Windows batch script
+  :defer t :ensure nil
+  :init
+  ;; capitalized comment keyword
+  (add-hook 'bat-mode-hook (lambda () (setq comment-start "REM "))))
+
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
   :delight org-indent-mode
@@ -1548,6 +1628,12 @@ instead of MODE."
       ("RET" . org-insert-heading-after-current)
       ("\t" . org-back-to-heading)))
 
+  (defun org-export-to-odt-and-open ()
+    "Export the current buffer and open in external application."
+    (interactive)
+    (add-to-list 'org-file-apps '("\\.odt\\'" . "xdg-open %s"))
+    (org-open-file (org-odt-export-to-odt)))
+
   (defun org-dblock-write:git-log-view (params)
     "Display a git commit log according to PARAMS."
     (let ((repo (expand-file-name
@@ -1568,7 +1654,23 @@ instead of MODE."
   :config
   (my-add-list 'generic-extras-enable-list generic-mswindows-modes)
 
-  (use-package conkyrc-mode :disabled t   ; System monitor setup language
+  (define-generic-mode pseudo-mode
+    '("#" "'")
+    (let ((keywords '("if" "then" "else" "endif"
+                      "for" "do" "next"
+                      "while" "until" "repeat"
+                      "to" "in" "each" "end"
+                      "and" "or" "not"
+                      "sub" "return")))
+      (nconc keywords (mapcar #'upcase keywords)))
+    '(("\\([A-Za-z_]+?\\)(.*)" 1 font-lock-function-name-face)
+      ("[+\-=]" . font-lock-constant-face)
+      ("-?[0-9]" . font-lock-constant-face))
+    nil
+    '(highlight-numbers-mode)
+    "Mode for pseudocode")
+
+  (use-package conkyrc-mode :disabled t ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 (use-package lisp-mode
