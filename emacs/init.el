@@ -491,7 +491,7 @@ function symbol."
    ([remap apropos] . helm-apropos)
    ([remap apropos-command] . helm-apropos)
    ([remap apropos-documentation] . helm-apropos)
-   ("C-y" . helm-show-kill-ring))
+   ("M-y" . helm-show-kill-ring))
 
   (bind-key "M-/" #'helm-do-grep)
   (bind-key "I" #'helm-info-at-point help-map)
@@ -564,7 +564,7 @@ function symbol."
              ("K" . describe-key)
              ("C-k" . describe-bindings)
              ("M-k" . where-is)
-             ("f" . describe-face)
+             ("c" . describe-face)
              ("l" . locate-library)
              ("M-l" . view-lossage)
              ("i" . info-lookup-symbol)
@@ -572,8 +572,64 @@ function symbol."
 
 ;;;; appearance
 
-;;;;;; highlight fic
-;; REVIEW using regexp-opt for defining regexp
+;;;;; fonts
+(defun my-font (font)
+  "Return the first valid entry for FONT in `my-fonts' paired with its size."
+  (let* (valid-cand
+         (handle (lambda (cand)
+                   "If valid, then set `valid-cand' and exit loop."
+                   (when (find-font (font-spec :name cand))
+                     (setq valid-cand cand)
+                     (throw 'found family))))
+         (fonts '((proportional . ("Fira Sans"
+                                   "Input Sans Condensed" "Input Sans"
+                                   "DejaVu Sans" "Calibri" "Arial"
+                                   "Sans Serif"))
+                  (mono . ("Input Mono Condensed" "Input Mono" "Envy Code R"
+                           "DejaVu Sans Mono" "Consolas" "Courier" "Monospace"))
+                  (header . ("Fantasque Sans Mono" proportional))))
+         (sizes '(("Fira Sans" . 10)
+                  ("Input Sans" . 10)
+                  ("Input Sans Condensed" . 10)
+                  ("Envy Code R" . 10)
+                  ("Fantasque Sans Mono" . 1.15)
+                  ("Input Mono Condensed" . 10)
+                  ("Input Mono" . 8)))
+         (valid-family
+          ;; get a valid family from `fonts'
+          (catch 'found
+            (dolist (family
+                     ;; get font list, following symbols if they exist
+                     (apply
+                      #'nconc
+                      (mapcar
+                       (lambda (cand)
+                         (if (symbolp cand)
+                             (cdr (assoc cand my-fonts))
+                           (list cand)))
+                       (cdr (assoc font fonts)))))
+              (funcall handle family)
+              ;; check unspaced name for odd font naming
+              (funcall handle (replace-regexp-in-string " " "" family)))))
+         (size (cdr (assoc valid-family sizes))))
+    ;; return candidate and associated size in 1/10ths of a pt
+    (cons valid-cand (if (and size (not (floatp size))) (* size 10) size))))
+
+(defmacro my-font-set (face font &optional func)
+  (let* ((spec (my-font (car (cdr font))))
+         (size (cdr spec)))
+    `(,(or (car (cdr func)) #'set-face-attribute)
+      ,face nil
+      :family ,(car spec)
+      ,@(when size `(:height ,size)))))
+
+(defun my-font-use-proportional ()
+  "Use proportional font for current buffer."
+  (interactive)
+  (my-font-set 'default 'proportional 'face-remap-add-relative))
+(add-hook 'text-mode-hook #'my-font-use-proportional)
+
+;;;;; highlight fic
 
 (defface font-lock-fic-face
   '((t (:slant italic :inherit error)))
@@ -589,12 +645,7 @@ function symbol."
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
-;;;;;; fonts
-
-;; REVIEW check this works properly on Windows
-
-
-;;;;;; modeline packages
+;;;;; modeline packages
 
 (use-package delight
   :demand t
@@ -608,21 +659,21 @@ way. If FUNC is provided, then add the advice to that function
 instead of MODE."
     `(advice-add
       ,(or func mode)
-      :after (lambda ()
+      :after (lambda (&rest _args)
                ,(format "Delight `%s'" (symbol-name (car (cdr mode))))
                (delight ,mode))))
   (delight-with-advice 'auto-fill-mode)
   (delight-with-advice 'visual-line-mode)
-
   (delight #'emacs-lisp-mode "Elisp" :major))
 
 (use-package smart-mode-line            ; TODO Better modeline
   :demand t
+  :init (use-package powerline)
   :config
   (setq
    sml/theme 'respectful
    sml/battery-format "%b%p[%t]"
-   sml/full-mode-string " ⋯"          ; append this to modeline when full
+   sml/full-mode-string " ⋯"           ; append this to modeline when full
    sml/shorten-mode-string ""          ; no indication for all modes displayed
    sml/mule-info nil                   ; don't show buffer encoding
    sml/use-projectile-p t              ; projectile file prefix takes precedent
@@ -639,13 +690,14 @@ instead of MODE."
   ;; TODO set modeline format
   (sml/setup))
 
+
 (use-package nyan-mode                  ; Nyan cat scroll bar
   :defer t
   ;; TODO nyan music ☹
   :commands nyan-mode
   :init (nyan-mode t)
   :config
-  (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time
+  (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time ❥
   (defun nyan-mode-off () (nyan-mode -1)))
 
 (use-package which-func :disabled t                ; Modeline definition name
@@ -689,7 +741,7 @@ instead of MODE."
       (setq wc-goal-modeline-format form))))
 
 
-;;;;;; face packages
+;;;;; face packages
 
 (use-package vline-mode                 ; Highlight current column
   :ensure nil :defer t
@@ -735,13 +787,17 @@ instead of MODE."
    ;; clean whitespace on write and warn if readonly
    whitespace-action '(auto-cleanup warn-if-read-only)))
 
-;;;;;; color theme
+;;;;; color theme
 
 (use-package my-theme
-  :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme"
+  :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme/"
   :config (load-theme 'my))
 
-(use-package darcula-theme
+(use-package spacemacs-dark-theme :disabled t
+  :ensure nil :load-path "~/.emacs.d/elisp/spacemacs-theme/"
+  :config (load-theme 'spacemacs-dark))
+
+(use-package darcula-theme :disabled t
   :config (load-theme 'darcula))
 
 (use-package solarized-theme :disabled t
@@ -761,6 +817,14 @@ instead of MODE."
 (use-package color-theme-sanityinc-tomorrow :disabled t
   :demand t
   :config (load-theme 'sanityinc-tomorrow-night))
+
+;;;;; misc face changes
+;; applied after all others to ensure precedence
+(let ((font (my-font 'mono)))
+  (set-frame-font (concat (car font) "-"
+                          (number-to-string (/ (or (cdr font) 10) 10)))))
+
+(my-font-set 'variable-pitch 'header)
 
 ;;;; interface
 
@@ -784,7 +848,7 @@ instead of MODE."
 (use-package hideshow                   ; Code folding
   :delight hs-minor-mode " +"
   :init
-  (use-pack
+  (use-package hideshowvis :disabled t
     :defer t
     :init
     (hideshowvis-symbols)
@@ -1129,7 +1193,7 @@ instead of MODE."
 
   (use-package outline-magic
     :defer t
-    :init (evil-bind-key "\t" #'outline-cycle outline-minor-mode-map))
+    :init (evil-bind-key [tab] #'outline-cycle outline-minor-mode-map))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
@@ -1518,6 +1582,17 @@ instead of MODE."
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
   :delight org-indent-mode
+  :init
+  (add-to-list
+   'auto-insert-alist
+   '(org-mode
+     "Title: "
+     "#+TITLE:     " str
+     "\n#+AUTHOR:    " user-full-name
+     "\n#+EMAIL:     " user-mail-address
+     "\n#+SETUP FILE: \"../export.org\""
+     "\n\n* "))
+
   :config
   (setq
    org-edit-src-content-indentation 0   ; no initial indent for source code
@@ -1536,11 +1611,15 @@ instead of MODE."
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
 
   (delight #'org-indent-mode)
-  (set-face-attribute 'org-block nil :family (my-font 'mono))
-  (set-face-attribute 'org-code nil :family (my-font 'mono))
-  (set-face-attribute 'org-table nil :family (my-font 'mono))
-  (set-face-attribute 'org-todo nil :inherit 'variable-pitch)
-  (set-face-attribute 'org-done nil :inherit 'variable-pitch)
+  ;; set some faces to use mono font
+  (dolist (face '(org-block
+                  org-code
+                  org-table
+                  org-special-keyword))
+    (my-font-set face 'mono))
+  ;; set some faces to inherit from `variable-pitch'
+  (dolist (face '(org-todo org-done))
+    (set-face-attribute face nil :inherit 'variable-pitch))
 
   (bind-keys
    :map org-mode-map
@@ -1590,7 +1669,7 @@ instead of MODE."
     (evil-bind-keys 'normal
       :map org-mode-map
       ("RET" . org-insert-heading-after-current)
-      ("\t" . org-back-to-heading)))
+      ([tab] . org-back-to-heading)))
 
   (defun org-export-to-odt-and-open ()
     "Export the current buffer and open in external application."
