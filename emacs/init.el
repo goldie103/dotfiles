@@ -17,7 +17,7 @@ define it as ELEMENTS."
       (set list-var l)))
   (symbol-value list-var))
 
-;; Would normally use `bind-key*' for this, but that would also bind to
+;; Would normally use `bind-key*' for this, but that would also override
 ;; `evil-insert-state', and that shouldn't be touched.
 (defmacro my-add-binds (map)            ; TODO
   "Add essential bindings to MAP with `bind-key'."
@@ -26,32 +26,45 @@ define it as ELEMENTS."
               ("q" . kill-buffer-and-window)
               (",b" . ibuffer)))
 
-(defun my-cleanup ()
-  "Clean up the current buffer.
+(defmacro my-bind-over-evil (&rest args)
+  "Pass ARGS to `bind-keys' with `:map' set to evil states and `global-map'."
+  `(bind-keys :map (global-map
+                    evil-insert-state-map
+                    evil-motion-state-map
+                    evil-replace-state-map
+                    evil-visual-state-map)
+              ,@args))
 
-First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
+(defun my-cleanup ()
+  "Clean up current buffer whitespace."
   (interactive)
   (untabify (point-min) (point-max))
   (indent-region (point-min) (point-max))
   (when (fboundp 'whitespace-cleanup) (whitespace-cleanup)))
 
+;; TODO this
 (defun my-english-count-lines ()
   "Count screen lines in a region with handwriting font activated."
   (interactive)
-  (let ((handwriting '(:family "Kelly Normal" :height 220)))
-    (unless (member `(default ,handwriting default) face-remapping-alist)
-      (face-remap-add-relative 'default handwriting))
-    (message "%s" (count-screen-lines (region-beginning) (region-end)))
-    (face-remap-remove-relative
-     (face-remap-add-relative 'default handwriting))))
+  ;; (message "hi")
+  (face-remap-add-relative 'default :family "Kelly Normal" :height 220)
+  ;; (let ((handwriting '(:family "Kelly Normal" :height 220)))
+  ;;   ;; (unless (member `(default ,handwriting default) face-remapping-alist)
+  ;;   ;;   (face-remap-add-relative 'default handwriting))
+  ;;   (face-remap-add-relative 'default handwriting)
+  ;;   ;; (message "%s" (count-screen-lines (region-beginning) (region-end)))
+  ;;   ;; (face-remap-remove-relative
+  ;;   ;;  (face-remap-add-relative 'default handwriting))
+  ;;   )
+  )
 
 ;;;; setup
 (defconst my-dir (expand-file-name  ".user/" user-emacs-directory))
 (defconst my-dir-elisp (expand-file-name "my-elisp" user-emacs-directory))
 (defconst my-dir-packages (expand-file-name "elisp/" user-emacs-directory))
 
-(add-to-list 'load-path my-dir-packages) ; location for non-MELPA packages
-(add-to-list 'load-path my-dir-elisp)    ; location for personal elisp files
+(add-to-list 'load-path my-dir-packages) ; non-MELPA packages
+(add-to-list 'load-path my-dir-elisp)    ; personal elisp files
 
 ;; load custom file
 (setq custom-file (expand-file-name "custom.el" my-dir))
@@ -61,12 +74,10 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (require 'package)
 (setq package-enable-at-startup nil     ; we will manually initialize
       load-prefer-newer t)              ; don't load outdated byte code
-
 (my-add-list 'package-archives
            '(("melpa" . "http://melpa.milkbox.net/packages/")
              ("org" . "http://orgmode.org/elpa/")
              ("elpy" . "http://jorgenschaefer.github.io/packages/")))
-
 (package-initialize)                    ; manually initialize
 
 ;;;;; use-package
@@ -76,10 +87,15 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (eval-when-compile (require 'use-package))
 (setq use-package-verbose t             ; log message after loading a package
       use-package-always-ensure t)      ; ensure all packages are installed
-
 (use-package bind-key)
 
 ;;;; basic settings
+
+;;;;; server
+(use-package server
+  :bind (("<f4>" . delete-frame)
+         ("<C-f4>" . server-edit))
+  :init (server-start))
 
 ;;;;; general
 
@@ -87,12 +103,12 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
  disabled-command-function nil          ; no disabld
  comment-auto-fill-only-comments t
  smooth-scroll-margin 3                 ; fewer lines visible at buffer ends
- frame-title-format "%b emacs"          ; buffer name as frame title
+ frame-title-format "%b " ; buffer name as frame title
  window-combination-resize t            ; use proportional window resize
  echo-keystrokes 0.1                    ; echo unfinished commands faster
  x-underline-at-descent-line t          ; draw underline lower
  ring-bell-function 'ignore             ; disable alarms
- initial-major-mode 'text-mode          ; scratch in text mode
+ initial-major-mode 'fundamental-mode   ; scratch in fundamental-mode
  save-interprogram-paste-before-kill t  ; don't overwrite clipboard contents
  kill-do-not-save-duplicates t
  line-move-visual t
@@ -122,9 +138,8 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
  user-full-name "Kelly Stewart"
  user-mail-address "stewart.g.kelly@gmail.com")
 
-(setq-default
- indent-tabs-mode nil               ; turn tabs to spaces
- fill-column 79)
+(setq-default indent-tabs-mode nil      ; turn tabs to spaces
+              fill-column 79)
 
 ;; UTF-8 everywhere
 (set-terminal-coding-system 'utf-8)
@@ -140,29 +155,29 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (fset #'display-startup-echo-area-message #'ignore)
 
 ;; never kill *scratch* buffer
-(defun my-bury-scratch ()
-  "Bury the scratch buffer instead of killing it."
-  (if (equal (buffer-name) "*scratch*") (progn (bury-buffer) nil) t))
-(add-to-list 'kill-buffer-query-functions #'my-bury-scratch)
+(add-to-list
+ 'kill-buffer-query-functions
+ (lambda ()
+   (if (equal (buffer-name) "*scratch*") (progn (bury-buffer) nil) t)))
 
 ;; auto close compilation buffer on success
-(defun my-compilation-close-on-success (buf result)
-  "Close window if compilation did not exit abnormally."
-  (let ((win (get-buffer-window buf 'visible)))
-    (when (and win (not (string-match ".*exited abnormally.*" result)))
-      (delete-window win))))
-(add-to-list 'compilation-finish-functions #'my-compilation-close-if-success)
+(add-to-list
+ 'compilation-finish-functions
+ (lambda (buf result)
+   (let ((win (get-buffer-window buf 'visible)))
+     (when (and win (not (string-match ".*exited abnormally.*" result)))
+       (delete-window win)))))
 
-;; toggle line comment
-(defun my-comment-dwim-line (&rest args)
-  "Advice for `comment-dwim'. Toggle current line comment if no active region."
-  (when (and (not (region-active-p))
-             (not (or (eq (point) (line-end-position))
-                      ;; compensate for evil-mode cursor being one point ahead
-                      (eq (point) (- (line-end-position) 1)))))
-    (comment-or-uncomment-region
-     (line-beginning-position) (line-end-position))))
-(advice-add #'comment-dwim :before-until #'my-comment-dwim-line)
+;; Adapted from http://www.reddit.com/r/emacs/comments/25v0eo/you_emacs_tips_and_tricks/chldur
+(defun my-last-buf (&rest _args)
+  "Switch to other window and display previous buffer."
+  (other-window 1 nil)
+  (switch-to-next-buffer))
+(dolist (func '(evil-window-split
+                evil-window-vsplit
+                split-window-horizontally
+                split-window-vertically))
+  (advice-add func :after-while #'my-last-buf))
 
 ;;;;; modes and hooks
 
@@ -179,21 +194,31 @@ First untabify, then re-ident, and then if bound call `whitespace-cleanup'."
 (unless (display-graphic-p) (menu-bar-mode -1)) ; no menu bar in terminal
 
 ;; Add mode hooks
-(mapc
- (lambda (hook) (dolist (func (cdr hook)) (add-hook (car hook) func)))
- '((prog-mode-hook
-    . (hl-line-mode            ; Highlight current line
-       prettify-symbols-mode   ; Replace words with symbols
-       auto-fill-mode          ; Automatically fill text past fill-col
-       goto-address-prog-mode  ; Buttonize URLs in comments and string
-       ;; numbers in modelines
-       column-number-mode
-       line-number-mode))
-   (text-mode-hook
-    . (goto-address-mode       ; Buttonize URLs
-       visual-line-mode))))    ; Wrap by word
+(dolist (hook '((prog-mode-hook
+                 prettify-symbols-mode  ; Replace words with symbols
+                 auto-fill-mode         ; Automatically fill text past fill-col
+                 goto-address-prog-mode ; Buttonize URLs in comments and string
+                 column-number-mode     ; Col number in modeline
+                 line-number-mode)      ; Line number in modeline
+                (text-mode-hook
+                 goto-address-mode      ; Buttonize URLs
+                 visual-line-mode)))    ; Wrap by word
+  (dolist (func (cdr hook)) (add-hook (car hook) func)))
 
 ;;;; bindings
+
+;;;;; binding helpers
+;; https://github.com/davvil/.emacs.d/blob/master/init.el
+(defun minibuffer-keyboard-quit ()
+  "Abort recursive edit.
+
+In Delete Selection mode, if the mark is active, just deactivate it;
+then it takes a second \\[keyboard-quit] to abort the minibuffer."
+  (interactive)
+  (if (and delete-selection-mode transient-mark-mode mark-active)
+      (setq deactivate-mark t)
+    (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
+    (abort-recursive-edit)))
 
 ;; http://www.writequit.org/org/settings.html#sec-1-38
 (defun my-narrow-or-widen-dwim (p)
@@ -216,44 +241,36 @@ narrowed."
                (t (org-narrow-to-subtree))))
         (t (narrow-to-defun))))
 
-;; Adapted from http://www.reddit.com/r/emacs/comments/25v0eo/you_emacs_tips_and_tricks/chldur
-(defun my-last-buf (arg func)
-  "Perform FUNC and display previous buffer in other window."
-  (funcall func)
-  (other-window 1 nil)
-  (when (= arg 1) (switch-to-next-buffer)))
+(defun my-comment-dwim (arg)
+  "Like `comment-dwim' but first toggle line comment if no active region."
+  (interactive "*P")
+  (if (and (not (region-active-p))
+           (not (or (eq (point) (line-end-position))
+                    ;; compensate for evil-mode cursor being one point ahead
+                    (and (eq (point) (- (line-end-position) 1))
+                         (bound-and-true-p evil-normal-state-p)))))
+      (comment-or-uncomment-region
+       (line-beginning-position) (line-end-position))
+    (comment-dwim arg)))
+
+;;;;; binds
 
 ;; I accidentally call this too much when calling C-x and trying to ESC out
 (global-unset-key (kbd "C-x ESC ESC"))
 
 (bind-keys
- ("S-SPC" . cycle-spacing)              ; M-SPC is taken in Linux Mint
+ ("M-SPC" . cycle-spacing)
  ("RET" . newline-and-indent)           ; indent new lines automatically
  ("C-x C-M-x" . revert-buffer)
  ("C-x n" . my-narrow-or-widen-dwim)
- ([remap switch-to-buffer] . ibuffer)
- ([remap evil-window-split] . (lambda (arg)
-                                (interactive "p")
-                                (my-last-buf arg #'split-window-horizontally)))
- ([remap evil-window-vsplit] . (lambda (arg)
-                                (interactive "p")
-                                (my-last-buf arg #'split-window-vertically))))
+ ("M-u" . scroll-other-window-down)
+ ("M-d" . scroll-other-window)
+ ("M-/" . grep)
+ ("C-M-/" . find-grep-dired)
+ ([remap comment-dwim] . my-comment-dwim)
+ ([remap switch-to-buffer] . ibuffer))
 
-(bind-keys
- :map package-menu-mode-map
- ("q" . kill-buffer-and-window))
-
-;; https://github.com/davvil/.emacs.d/blob/master/init.el
-(defun minibuffer-keyboard-quit ()
-  "Abort recursive edit.
-
-In Delete Selection mode, if the mark is active, just deactivate it;
-then it takes a second \\[keyboard-quit] to abort the minibuffer."
-  (interactive)
-  (if (and delete-selection-mode transient-mark-mode mark-active)
-      (setq deactivate-mark t)
-    (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
-    (abort-recursive-edit)))
+(my-add-binds package-menu-mode-map)
 
 (bind-keys :map (minibuffer-local-map
                  minibuffer-local-ns-map
@@ -272,117 +289,158 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
 
 ;;;; major packages
 
-(use-package evil                       ; Vim keybindings and modal editing
-  :demand t
-  :commands evil-define-command evil-bind-keys
-  :init (evil-mode t)
-  :config
-  (setq
-   evil-want-C-w-in-emacs-state t       ; prefix window commands with C-w
-   evil-want-change-word-to-end nil     ; don't let cw behave like ce
-   evil-echo-state nil                  ; state is in the modeline anyway
-   evil-ex-substitute-global t)         ; global substitutions by default
-  (my-add-list 'evil-emacs-state-modes
-             '(shell-mode term-mode multi-term-mode))
-  (my-add-list 'evil-insert-state-modes '(git-commit-mode))
-
-  (defmacro evil-bind-key (key def &optional map state)
-    "Bind KEY to DEF in MAP and STATE. `global-map' and `normal' if undefined."
-    `(evil-define-key (or ,state 'normal) ,(or map 'global-map)
-       ,(if (vectorp key) key (read-kbd-macro key)) ,def))
-
-  (defmacro evil-bind-keys (state &rest args)
-    "Bind multiple keys to evil STATE.
+(defmacro evil-bind-key (&rest args)
+    "Bind BINDS to evil STATE and MAP.
 
 STATE can be either a symbol specifying an evil state or a list
 of symbols.
 
-Accepts keyword arguments:
-:map - A keymap or list of keymaps to bind to. If nil, then use `global-map'
+The rest of the arguments are conses of keybinding string, which
+will be passed to `read-kbd-macro' if necessary, and an unquoted
+function symbol."
+    (declare (indent 0))
+    (let* ((state-shorts '((n normal)
+                           (m motion)
+                           (v visual)
+                           (r replace)
+                           (o operator)
+                           (i insert)
+                           (nm normal motion)
+                           (nmv normal motion visual)
+                           (a normal motion visual replace insert)))
+           (map 'global-map)
+           (states '(normal))
+           (binds (cdr (cdr args))))
+      (dolist (arg (list (car args) (nth 1 args)))
+        (let ((shortened (cdr (assoc arg state-shorts))))
+          (cond
+           ((stringp arg) (setq binds (append arg binds)))
+           ((keymapp (symbol-value arg)) (setq map arg))
+           (shortened (setq states shortened)))))
+      ;; (macroexp-progn
+       (mapcar
+        (lambda (item)
+          `(evil-define-key ',(car item) ,(cdr item)
+             ,@(mapcar
+                (lambda (item) (if (stringp item) (read-kbd-macro item) item))
+                binds)))
+        ;; build (state . map) for each pairing
+        (apply
+         #'nconc
+         (mapcar
+          (lambda (s) (mapcar (lambda (m) (cons s m))
+                         (if (listp map) map (list map))))
+          states)))
+       ;; )
+       ))
+
+(macroexpand '(evil-bind-key 'm emacs-lisp-mode-map
+               "j" #'test))
+
+(use-package evil                       ; Vim keybindings and modal editing
+  :demand t
+  :commands evil-define-command evil-bind-key
+  :init
+  (evil-mode t)
+
+  (defmacro evil-bind-key (&rest args)
+    "Bind BINDS to evil STATE and MAP.
+
+STATE can be either a symbol specifying an evil state or a list
+of symbols.
 
 The rest of the arguments are conses of keybinding string, which
 will be passed to `read-kbd-macro' if necessary, and an unquoted
 function symbol."
-    (declare (indent 1))
-    (let* ((map (or (plist-get args :map) 'global-map))
-           (maps (if (listp map) map (list map)))
-           (state (car (cdr state)))
-           (states (cond ((eq state 'nmv) '(normal motion visual))
-                         ((listp state) state)
-                         (t (list state))))
-           (binds (apply
-                   #'nconc
-                   (mapcar
-                    ;; alist of key func passing to `read-kbd-macro' if needed
-                    (lambda (k)
-                      (let ((key (car k)))
-                        `(,(if (vectorp key) key (read-kbd-macro key))
-                          ',(cdr k))))
-                    ;; get bindings from ARGS
-                    (progn (while (keywordp (car args)) (pop args) (pop args))
-                           args)))))
+    (declare (indent 0))
+    (let* ((maps (or (if (listp map) (nth 1 map) (list map)) 'global-map))
+           (state-shorts '((n normal)
+                           (m motion)
+                           (v visual)
+                           (r replace)
+                           (o operator)
+                           (i insert)
+                           (nm normal motion)
+                           (nmv normal motion visual)
+                           (a normal motion visual replace insert)))
+           (states (or (cdr (assoc (nth 1 state) state-shorts)) '(normal))))
       (macroexp-progn
        (mapcar
         (lambda (item)
-          `(evil-define-key ',(car item) ,(cdr item) ,@binds))
-        ;; build a list of (state . map) for each `evil-define-key' command
+          `(evil-define-key ',(car item) ,(cdr item)
+             ,@(mapcar
+                (lambda (item) (if (stringp item) (read-kbd-macro item) item))
+                binds)))
+        ;; build (state . map) for each pairing
         (apply
          #'nconc
          (mapcar
           (lambda (s) (mapcar (lambda (m) (cons s m)) maps)) states))))))
 
-  ;; https://zuttobenkyou.wordpress.com/2011/02/15/some-thoughts-on-emacs-and-vim/
-  (evil-define-command evil-maybe-exit ()
-    "Exit insert mode on insertion of a two-key command."
-    :repeat change
-    (interactive)
-    (let ((modified (buffer-modified-p))
-          (first-char "j")
-          (second-char "k"))
-      (insert first-char)
-      (let ((evt (read-event nil nil 0.5)))
-        (cond
-         ((null evt) (message ""))
-         ((and (integerp evt) (char-equal evt (string-to-char second-char)))
-          (delete-char -1)
-          (set-buffer-modified-p modified)
-          (push 'escape unread-command-events))
-         (t (setq unread-command-events
-                  (append unread-command-events (list evt))))))))
+  :config
+  (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
+        evil-want-fine-undo nil          ; undo insertions in single steps
+        evil-want-change-word-to-end nil ; don't let cw behave like ce
+        evil-echo-state nil              ; state is in the modeline anyway
+        evil-ex-substitute-global t)     ; global substitutions by default
+  (my-add-list 'evil-emacs-state-modes '(shell-mode term-mode multi-term-mode))
+  (my-add-list 'evil-insert-state-modes '(git-commit-mode))
 
   (evil-define-command my-evil-yank-to-eol ()
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
 
-  (evil-bind-keys '(insert replace) ("j" . evil-maybe-exit)) ; jk enter normal
+  ;; TODO
+  (bind-keys
+   :prefix-map evil-window-map
+   :prefix "C-w"
+   :prefix-docstring "My window related commands."
+   ("C-w" . other-window)
+   ("w" . other-window)
+   ("v" . split-window-vertically)
+   ("h" . split-window-horizontally)
+   ("d" . delete-window)
+   ("D" . delete-other-windows))
 
-  (evil-bind-key "y" #'evil-yank nil 'motion) ; Add yanking to motion map
+  (bind-keys
+   :map (evil-normal-state-map
+         evil-motion-state-map
+         evil-visual-state-map)
+   :prefix-map my-evil-leader-map
+   :prefix ","
+   :prefix-docstring "My evil leader key."
+   ("f" . find-file)
+   ("b" . list-buffers)
+   ("w" . save-buffer)
+   ("SPC" . evil-ex))
 
-  (bind-keys :map evil-window-map
-             ("d" . delete-window)
-             ("D" . delete-other-windows))
+  (evil-bind-key 'm "y" #'evil-yank) ; Add yanking to motion map
+  (evil-bind-key 'nmv
+                 "SPC" #'execute-extended-command
+                 "ESC" #'keyboard-quit
+                 ":" #'comment-dwim
+                 "Y" #'my-evil-yank-to-eol        ; more consistent
+                 "q" #'kill-buffer-and-window     ; consistency with other Emacs buffers
+                 "Q" #'evil-record-macro          ; Q replaces old q action
+                 ;; a-s is more memnonic but s-a follows keyboard order
+                 "s" #'evil-last-non-blank
+                 "a" #'evil-first-non-blank
+                 ;; movement
+                 "j" #'evil-next-visual-line
+                 "k" #'evil-previous-visual-line
+                 "\"" #'evil-jump-item)
 
-  (bind-key "C-S-SPC" #'evil-ex)
-
-  (evil-bind-keys 'nmv
-    ("SPC" . execute-extended-command)
-    ("<escape>" . keyboard-quit)
-    (":" . comment-dwim)
-    ("Y" . my-evil-yank-to-eol)         ; more consistent
-    ("q" . kill-buffer-and-window)
-    ("Q" . evil-record-macro)           ; Q replaces old q action
-    ;; a-s is more memnonic but s-a follows keyboard order
-    ("s" . evil-last-non-blank)
-    ("a" . evil-first-non-blank)
-    ;; movement
-    ("j" . evil-next-visual-line)
-    ("k" . evil-previous-visual-line)
-    ("\"" . evil-jump-item)
-    ;; leader bindings
-    ("," . nil)
-    (",f" . find-file)
-    (",b" . list-buffers)
-    (",w" . save-buffer))
+  (use-package evil-escape              ; Escape from everything with two keys
+    ;; trying this out instead of jk
+    :defer t
+    :init
+    ;; make dummy keymaps to silence errors
+    (dolist (map '(evil-lisp-state-map
+                   evil-evilified-state-map
+                   evil-iedit-insert-state-map
+                   evil-iedit-state-map))
+      (setq map (make-sparse-keymap)))
+    (evil-escape-mode t))
 
   (use-package evil-surround            ; Operators for surrounding elements
     :defer t
@@ -391,26 +449,32 @@ function symbol."
   (use-package evil-commentary          ; Operator for comments
     ;; TODO see if I can get this working with smartparen compliance
     :defer t
-    :delight evil-commentary-mode
     :init (evil-commentary-mode t)
-    :config (evil-bind-key ":" #'evil-commentary evil-commentary-mode-map))
+    :config (evil-bind-key :map evil-commentary-mode-map
+                           ":" #'evil-commentary))
 
   (use-package evil-matchit             ; Manipulate tags
     :init (global-evil-matchit-mode t)
     :config
     (setq evilmi-may-jump-percentage nil) ; allow count usage
-    (evil-bind-key "\"" #'evilmi-jump-items evil-matchit-mode-map)))
+    (evil-bind-key :map evil-matchit-mode-map "\"" #'evilmi-jump-items)))
+
+(use-package ido :disabled t            ; As a backup for when Helm breaks
+  :defer t
+  :init
+  (use-package smex                     ; Mini buffer command completion
+    :bind ([remap execute-extended-command] . smex))
+  (defalias #'ibuffer #'ido-switch-buffer)
+  (ido-mode t))
 
 (use-package helm                       ; Fuzzy minibuffer completion
   :demand t
-  :delight helm-mode
   :init (helm-mode t)
   :functions my-helm-imenu-transformer
   :config
   (setq
    helm-quick-update t
    helm-move-to-line-cycle-in-source t     ; cycle on buffer end
-   helm-display-header-line nil            ; no header line
    helm-scroll-amount 5                    ; scroll amount in other window
    helm-split-window-in-side-p t           ; split inside current window
    helm-M-x-always-save-history t          ; save history even on fail
@@ -444,57 +508,54 @@ function symbol."
 
   (defun my-helm-imenu-transformer (candidates)
     "Custom imenu transformer with added headings and faces."
-    (cl-loop for (k . v) in candidates
-             for types = (or (helm-imenu--get-prop k) (list "Function" k))
-             collect
-             (cons
-              (mapconcat
-               (lambda (x)
-                 (propertize
-                  x 'face
-                  (cond
-                   ((string= x "Variables") 'font-lock-variable-name-face)
-                   ((string= x "Function") 'font-lock-function-name-face)
-                   ((string= x "Types") 'font-lock-type-face)
-                   ((string= x "Packages") 'font-lock-doc-face)
-                   ((string= x "Headings") 'font-lock-keyword-face))))
-               types helm-imenu-delimiter)
-              (cons k v))))
-  (defalias #'helm-imenu-transformer #'my-helm-imenu-transformer)
+    (cl-loop
+     for (k . v) in candidates
+     for types = (or (helm-imenu--get-prop k) (list "Function" k))
+     collect (cons (mapconcat
+                    (lambda (x)
+                      (propertize
+                       x 'face
+                       (cond
+                        ((string= x "Variables") 'font-lock-variable-name-face)
+                        ((string= x "Function") 'font-lock-function-name-face)
+                        ((string= x "Types") 'font-lock-type-face)
+                        ((string= x "Packages") 'font-lock-doc-face)
+                        ((string= x "Headings") 'font-lock-keyword-face))))
+                    types helm-imenu-delimiter)
+                   (cons k v))))
+  (advice-add #'helm-imenu-transformer :override #'my-helm-imenu-transformer)
 
   ;; less ugly colors for helm-buffer items
-  (set-face-attribute 'helm-buffer-directory nil
-                      :foreground 'unspecified
-                      :background 'unspecified
-                      :inherit 'dired-directory)
+  (set-face-attribute 'helm-buffer-directory nil :inherit 'dired-directory
+                      :foreground nil :background nil)
   (set-face-attribute 'helm-buffer-saved-out nil
-                      :foreground 'unspecified
-                      :background 'unspecified
-                      :inverse-video 'unspecified
-                      :inherit 'font-lock-warning-face)
+                      :inherit 'font-lock-warning-face
+                      :foreground nil :background nil :inverse-video nil)
 
   (defalias #'ibuffer #'helm-mini)
 
   (bind-keys*
    ([remap execute-extended-command] . helm-M-x)
    ([remap occur] . helm-occur)
-   ([remap find-files] . helm-find-files)
+   ([remap find-file] . helm-find-files)
    ([remap switch-to-buffer] . helm-mini)
    ([remap list-buffers] . helm-mini)
    ([remap ibuffer] . helm-mini)
+   ([remap grep] . helm-do-grep)
    ;; help
    ([remap describe-face] . helm-colors)
+   ([remap ucs-insert] . helm-ucs)
    ([remap info-emacs-manual] . helm-info-emacs)
+   ([remap info-lookup-symbol] . helm-info-at-point)
    ([remap locate-library] . helm-locate-library)
    ([remap woman] . helm-man-woman)
    ([remap manual-entry] . helm-man-woman)
    ([remap apropos] . helm-apropos)
    ([remap apropos-command] . helm-apropos)
-   ([remap apropos-documentation] . helm-apropos)
-   ("M-y" . helm-show-kill-ring))
+   ([remap apropos-documentation] . helm-apropos))
 
-  (bind-key "M-/" #'helm-do-grep)
-  (bind-key "I" #'helm-info-at-point help-map)
+  (evil-bind-key :state a "C-p" #'helm-show-kill-ring)
+  (bind-key "hr" #'helm-resume my-evil-leader-map)
   (bind-key "C-/" #'helm-semantic-or-imenu emacs-lisp-mode-map)
 
   (bind-keys
@@ -508,11 +569,6 @@ function symbol."
    ("M-d". helm-scroll-other-window-down)
    ("<tab>" . helm-execute-persistent-action) ; execute action without closing
    ("C-z" . helm-select-action))              ; list actions
-
-  (evil-bind-keys 'nmv
-    (",hu" . helm-ucs)
-    (",hc" . helm-colors)
-    (",H" . helm-resume))
 
   (use-package helm-dash                ; TODO Language documentation viewer
     :config
@@ -528,15 +584,11 @@ function symbol."
     :init (helm-descbinds-mode t)
     :config (setq helm-descbinds-window-style 'split-window))
 
-  (use-package helm-swoop :disabled t   ; Fast searching and navigation
-    :bind (("M-/" . helm-swoop)
-           ("C-c h s" . helm-swoop)
-           ("C-c h S" . helm-multi-swoop)
-           ("C-c h C-s" . helm-multi-swoop-all)
-           ("C-c h M-s" . helm-multi-swoop-current-mode))
-    :init (bind-key "M-i" #'helm-swoop-from-isearch isearch-mode-map)
+  (use-package helm-swoop               ; Fast searching and navigation
+    :bind ([remap grep] . helm-swoop)
+    :init (bind-key "M-/" #'helm-swoop-all-from-isearch isearch-mode-map)
     :config
-    (bind-key "M-i" #'helm-multi-swoop-from-helm-swoop helm-swoop-map)))
+    (bind-key "M-/" #'helm-multi-swoop-all-from-helm-swoop helm-swoop-map)))
 
 ;;;; help
 
@@ -544,7 +596,6 @@ function symbol."
   :bind ("<help> m" . discover-my-major))
 
 (use-package guide-key                  ; Delayed completion for possible keys
-  :delight guide-key-mode
   :init (guide-key-mode t)
   :config (setq guide-key/recursive-key-sequence-flag t
                 guide-key/guide-key-sequence '("C-x" "C-c" "C-w" ",")))
@@ -553,48 +604,53 @@ function symbol."
   :ensure nil :defer t
   :config
   (use-package help+)
-  (use-package help-fns+ :bind ("<help> M-m" . describe-mode))
+  (use-package help-fns+ :bind ("<help> o" . describe-option))
   (bind-keys :map help-mode-map
              ("H" . help-go-back)
              ("L" . help-go-forward))
 
   (bind-keys :map help-map
+             ("<f1>" . apropos)
              ("w" . woman)
              ("k" . describe-key-briefly)
              ("K" . describe-key)
              ("C-k" . describe-bindings)
+             ("m" . describe-mode)
              ("M-k" . where-is)
              ("c" . describe-face)
              ("l" . locate-library)
              ("M-l" . view-lossage)
+             ("u" . ucs-insert)
              ("i" . info-lookup-symbol)
              ("C-i" . info-emacs-manual)))
 
 ;;;; appearance
 
 ;;;;; fonts
-(defun my-font (font)
-  "Return the first valid entry for FONT in `my-fonts' paired with its size."
+(defun my-font (type)
+  "Return the first valid font of TYPE and it's associated size, if given."
   (let* (valid-cand
          (handle (lambda (cand)
                    "If valid, then set `valid-cand' and exit loop."
                    (when (find-font (font-spec :name cand))
                      (setq valid-cand cand)
                      (throw 'found family))))
-         (fonts '((proportional . ("Fira Sans"
-                                   "Input Sans Condensed" "Input Sans"
-                                   "DejaVu Sans" "Calibri" "Arial"
-                                   "Sans Serif"))
-                  (mono . ("Input Mono Condensed" "Input Mono" "Envy Code R"
-                           "DejaVu Sans Mono" "Consolas" "Courier" "Monospace"))
-                  (header . ("Fantasque Sans Mono" proportional))))
+         (fonts '((proportional "Fira Sans"
+                                "Input Sans Condensed" "Input Sans"
+                                "DejaVu Sans" "Calibri" "Arial"
+                                "Sans Serif")
+                  (mono "Input Mono Condensed" "Input Mono" "Envy Code R"
+                        "DejaVu Sans Mono" "Consolas" "Courier" "Monospace")
+                  (header "Fantasque Sans Mono" proportional)
+                  (cursive "Kelly Normal")))
          (sizes '(("Fira Sans" . 10)
                   ("Input Sans" . 10)
                   ("Input Sans Condensed" . 10)
                   ("Envy Code R" . 10)
                   ("Fantasque Sans Mono" . 1.15)
                   ("Input Mono Condensed" . 10)
-                  ("Input Mono" . 8)))
+                  ("Input Mono" . 8)
+                  ("Kelly Normal" . 22)))
          (valid-family
           ;; get a valid family from `fonts'
           (catch 'found
@@ -605,28 +661,23 @@ function symbol."
                       (mapcar
                        (lambda (cand)
                          (if (symbolp cand)
-                             (cdr (assoc cand my-fonts))
+                             (cdr (assoc cand fonts))
                            (list cand)))
-                       (cdr (assoc font fonts)))))
+                       (cdr (assoc type fonts)))))
               (funcall handle family)
               ;; check unspaced name for odd font naming
               (funcall handle (replace-regexp-in-string " " "" family)))))
-         (size (cdr (assoc valid-family sizes))))
+         (size (cdr (assoc valid-family sizes)))
+         (cand-size (if (and size (not (floatp size))) (* size 10) size)))
     ;; return candidate and associated size in 1/10ths of a pt
-    (cons valid-cand (if (and size (not (floatp size))) (* size 10) size))))
-
-(defmacro my-font-set (face font &optional func)
-  (let* ((spec (my-font (car (cdr font))))
-         (size (cdr spec)))
-    `(,(or (car (cdr func)) #'set-face-attribute)
-      ,face nil
-      :family ,(car spec)
-      ,@(when size `(:height ,size)))))
+    (list :family valid-cand :height cand-size)))
 
 (defun my-font-use-proportional ()
   "Use proportional font for current buffer."
   (interactive)
-  (my-font-set 'default 'proportional 'face-remap-add-relative))
+  (setq buffer-face-mode-face (my-font 'proportional))
+  (buffer-face-mode t))
+
 (add-hook 'text-mode-hook #'my-font-use-proportional)
 
 ;;;;; highlight fic
@@ -645,39 +696,82 @@ function symbol."
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
+;;;;; color theme
+
+(use-package my-theme
+  :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme/"
+  :init (setq my-theme-use-bold nil)
+  :config (load-theme 'my t))
+
+(use-package material-theme :disabled t
+  :config (load-theme 'material))
+
+(use-package monokai-theme :disabled t
+  :config (load-theme 'monokai))
+
+(use-package spacemacs-theme :disabled t
+  :config (load-theme 'spacemacs-dark))
+
+(use-package solarized-theme :disabled t
+  :demand t
+  :config
+  (setq solarized-scale-org-headlines nil
+        solarized-height-plus-1 1.1
+        solarized-height-plus-2 1.1
+        solarized-height-plus-3 1.1
+        solarized-height-plus-4 1.1)
+  (load-theme 'solarized-dark))
+
+(use-package color-theme-sanityinc-tomorrow :disabled t
+  :demand t
+  :config (load-theme 'sanityinc-tomorrow-night))
+
 ;;;;; modeline packages
 
 (use-package delight
   :demand t
-  :config
-  ;; REVIEW check this actually works
-  (defmacro delight-with-advice (mode &optional func)
-    "Add :after advice to MODE delighting its lighter.
-
-A hack to deal with modes that don't delight correctly the usual
-way. If FUNC is provided, then add the advice to that function
-instead of MODE."
-    `(advice-add
-      ,(or func mode)
-      :after (lambda (&rest _args)
-               ,(format "Delight `%s'" (symbol-name (car (cdr mode))))
-               (delight ,mode))))
-  (delight-with-advice 'auto-fill-mode)
-  (delight-with-advice 'visual-line-mode)
-  (delight #'emacs-lisp-mode "Elisp" :major))
+  :config (delight #'emacs-lisp-mode "Elisp" :major))
 
 (use-package smart-mode-line            ; TODO Better modeline
   :demand t
-  :init (use-package powerline)
+  :init
+  (use-package powerline :config (setq powerline-default-separator 'contour))
+
+  (defun rm-add (mode &optional rep face regexpp)
+    "Add MODE-STR to `rm-whitelist', and REP and FACE to `rm-text-properties'.
+
+If REGEXPP is true then don't modify MODE before adding to
+`rm-text-properties' and don't add the form to `rm-whitelist'."
+    (let ((faces (if (listp face)
+                     (append face 'mode-line-emphasis)
+                   `(,face mode-line-emphasis)))
+          (mode-regexp (if regexpp mode (concat "^ " mode "$"))))
+      ;; add mode lighter to `rm-whitelist'
+      (unless regexpp
+        (setq rm-whitelist
+              (cond
+               ((or (not (bound-and-true-p rm-whitelist)) (string= rm-whitelist ""))
+                (concat " " mode))
+               ((not (string-match mode rm-whitelist))
+                (concat rm-whitelist "\\| " mode)))))
+      ;; add properties to `rm-text-properties'
+      (when (and (or rep face) (not (assoc mode-regexp rm-text-properties)))
+        (add-to-list
+         'rm-text-properties
+         `(,mode-regexp
+           ,@(if rep
+                 `('display (propertize ,(concat " " rep) 'face ',faces))
+               `('face ',faces)))))))
+
   :config
   (setq
    sml/theme 'respectful
    sml/battery-format "%b%p[%t]"
-   sml/full-mode-string " ⋯"           ; append this to modeline when full
-   sml/shorten-mode-string ""          ; no indication for all modes displayed
-   sml/mule-info nil                   ; don't show buffer encoding
-   sml/use-projectile-p t              ; projectile file prefix takes precedent
-   sml/projectile-replacement-format "[π:%s]"
+   sml/position-percentage-format ""    ; no percentage, we have nyan cat.
+   sml/full-mode-string " ⋯"            ; append this to modeline when full
+   sml/shorten-mode-string ""           ; no indication for all modes displayed
+   sml/mule-info nil                    ; don't show buffer encoding
+   ;; replacers for shortening file name
    sml/replacer-regexp-list '(("^/media/user/" ":θ:")
                               (":θ:dev/dotfiles/" ":.:")
                               (":\\.:emacs/" ":.ε:")
@@ -686,10 +780,31 @@ instead of MODE."
                               (":⌢:bst/" ":⌢:b:")
                               (":⌢:mth/" ":⌢:m:")
                               (":⌢:eng/" ":⌢:e:")
-                              (":⌢:sdd/" ":⌢:s:")))
-  ;; TODO set modeline format
-  (sml/setup))
+                              (":⌢:sdd/" ":⌢:s:"))
+   sml/use-projectile-p 'before-prefixes ; prioritize projectile prefixes
+   sml/projectile-replacement-format ":%s:")
 
+  ;; add rich-minority properties
+  (dolist (props '(("Ovwrt" "▄" error)        ; overwrite
+                   ("Fly" "〰")               ; flyspell
+                   ("SP/s" "⒮")               ; smartparens-strict
+                   ("Wg" "⦚")                 ; writegood
+                   ("RAS" "ᚪ")))              ; real-auto-save
+    (apply #'rm-add props))
+
+  (use-package smart-mode-line-my-theme
+    :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme/"
+    :config (setq sml/no-confirm-load-theme t sml/theme 'my))
+
+  (sml/setup)
+
+  ;; show nothing if no remote
+  (setq-default
+   mode-line-remote
+   '((sml/show-remote
+      (:propertize
+       (:eval (replace-regexp-in-string "^-$" " " (format-mode-line "%1@")))
+       face sml/remote)))))
 
 (use-package nyan-mode                  ; Nyan cat scroll bar
   :defer t
@@ -697,35 +812,48 @@ instead of MODE."
   :commands nyan-mode
   :init (nyan-mode t)
   :config
-  (setq-default nyan-wavy-trail t) ; TODO wavy nyan trail all the time ❥
+  (setq-default nyan-wavy-trail t)      ; TODO wavy nyan trail all the time ❥
+
+  (defun nyan-nyan ()
+    "Start or stop nyaning."
+    (interactive)
+    (if (and nyan-animate-nyancat
+             nyan-animation-timer)
+        (progn (nyan-stop-animation)
+               (nyan-stop-music))
+      (nyan-start-animation)
+      (nyan-start-music)))
+
   (defun nyan-mode-off () (nyan-mode -1)))
 
-(use-package which-func :disabled t                ; Modeline definition name
+(use-package which-func                 ; Modeline definition name
   :defer t
   :init (which-function-mode t)
   :config
   (defun which-func-current ()
-    "Return a formatted which-func string if possible, or nil if not."
-    (-if-let (current (gethash (selected-window) which-func-table))
+    "Return a formatted which-func string if possible."
+    (let ((current (gethash (selected-window) which-func-table)))
+      (when current
         (truncate-string-to-width
-         (concat
-          " ➤ "
-          (replace-regexp-in-string "%" "%%" current))
-         20 nil nil "⋯")
-      nil))
+          (replace-regexp-in-string
+           "%" "%%"
+           (if (eq major-mode 'emacs-lisp-mode)
+               ;; remove inline comments
+               (replace-regexp-in-string "\\([[:space:]]\\)*;.*$" "" current)
+             current))
+          21 nil nil " ⋯"))))
 
   (setq which-func-format
-        `((:propertize (:eval (which-func-current))
-                       local-map ,which-func-keymap
-                       func
-                       mouse-face mode-line-highlight))))
+        `((:propertize "  ➤ " face (font-lock-builtin-face . which-func))
+          (:propertize (:eval (which-func-current)) face which-func)
+          (:propertize "  " face which-func))))
 
-(use-package wc-goal-mode
+(use-package wc-goal-mode               ; WC and goal in modeline
   :defer t
   :init (add-hook 'text-mode-hook #'wc-goal-mode)
   :config
 
-  (defvar wc-format-strings '("[%twW]" "[%tlL]")
+  (defvar wc-format-strings '("%tww" "%tll")
     "`wc-goal-modeline-format' strings to cycle through.")
 
   (defun wc-format-cycle ()
@@ -743,22 +871,26 @@ instead of MODE."
 
 ;;;;; face packages
 
+(use-package hl-line                    ; Highlight current line
+  :defer t
+  :init (add-hook 'prog-mode-hook #'hl-line-mode)
+  :config (setq hl-line-face 'highlight))
+
 (use-package vline-mode                 ; Highlight current column
   :ensure nil :defer t
-  :config (setq vline-face 'hl-line
-                vline-visual-face 'hl-line))
+  :config (setq vline-face 'highlight
+                vline-visual-face 'highlight))
 
 (use-package hl-sentence                ; Highlight current sentence
   :defer t
   :init (add-hook 'text-mode-hook #'hl-sentence-mode)
-  :config (set-face-attribute 'hl-sentence-face nil :inherit 'highlight))
+  :config (setq hl-sentence-face 'highlight))
 
 (use-package highlight-numbers          ; Highlight numbers
   :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
 
 (use-package page-break-lines           ; Horizontal lines instead of ^L
   :defer t
-  :delight page-break-lines-mode
   :init (global-page-break-lines-mode t))
 
 (use-package paren-face                 ; Faces for parens
@@ -767,14 +899,11 @@ instead of MODE."
 
 (use-package rainbow-mode               ; Highlight color codes
   :defer t
-  :delight rainbow-mode
-  :init
-  (dolist (hook '(web-mode-hook css-mode-hook))
-    (add-hook hook #'rainbow-mode)))
+  :init (dolist (hook '(web-mode-hook css-mode-hook))
+          (add-hook hook #'rainbow-mode)))
 
 (use-package whitespace                 ; Faces for whitespace characters
   :defer t
-  :delight whitespace-mode
   :init (add-hook 'prog-mode-hook #'whitespace-mode)
   :config
   (setq
@@ -787,44 +916,13 @@ instead of MODE."
    ;; clean whitespace on write and warn if readonly
    whitespace-action '(auto-cleanup warn-if-read-only)))
 
-;;;;; color theme
-
-(use-package my-theme
-  :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme/"
-  :config (load-theme 'my))
-
-(use-package spacemacs-dark-theme :disabled t
-  :ensure nil :load-path "~/.emacs.d/elisp/spacemacs-theme/"
-  :config (load-theme 'spacemacs-dark))
-
-(use-package darcula-theme :disabled t
-  :config (load-theme 'darcula))
-
-(use-package solarized-theme :disabled t
-  :demand t
-  :config
-  (setq solarized-scale-org-headlines nil
-        solarized-height-plus-1 1.1
-        solarized-height-plus-2 1.1
-        solarized-height-plus-3 1.1
-        solarized-height-plus-4 1.1)
-  (load-theme 'solarized-dark))
-
-(use-package zenburn-theme :disabled t
-  :demand t
-  :config (load-theme 'zenburn-hc))
-
-(use-package color-theme-sanityinc-tomorrow :disabled t
-  :demand t
-  :config (load-theme 'sanityinc-tomorrow-night))
-
 ;;;;; misc face changes
 ;; applied after all others to ensure precedence
 (let ((font (my-font 'mono)))
-  (set-frame-font (concat (car font) "-"
-                          (number-to-string (/ (or (cdr font) 10) 10)))))
+  (set-frame-font (concat (nth 1 font) "-"
+                          (number-to-string (/ (or (nth 3 font) 10) 10)))))
 
-(my-font-set 'variable-pitch 'header)
+(apply #'set-face-attribute 'variable-pitch nil (my-font 'header))
 
 ;;;; interface
 
@@ -835,7 +933,6 @@ instead of MODE."
 (use-package golden-ratio :disabled t   ; TODO Resize windows to golden ratio
   :defer t
   ;; TODO get this to play nice with Helm
-  :delight golden-ratio-mode
   :init (golden-ratio-mode t)
   :config
   (setq
@@ -846,7 +943,6 @@ instead of MODE."
    golden-ratio-auto-scale t))
 
 (use-package hideshow                   ; Code folding
-  :delight hs-minor-mode " +"
   :init
   (use-package hideshowvis :disabled t
     :defer t
@@ -855,13 +951,13 @@ instead of MODE."
     (add-hook 'hs-minor-mode-hook #'hideshowvis-minor-mode))
   (add-hook 'prog-mode-hook #'hs-minor-mode)
 
+  (evil-bind-key :map hs-minor-mode-map "TAB" #'hs-toggle-hiding)
+
   :config
 
   ;; add folding for other modes with curly bracket delimiters
-  (mapc
-   (lambda (mode)
-     (add-to-list 'hs-special-modes-alist `(,mode "{" "}" "/[*/]" nil nil)))
-   '(css-mode web-mode))
+  (dolist (mode '(css-mode web-mode))
+    (add-to-list 'hs-special-modes-alist `(,mode "{" "}" "/[*/]" nil nil)))
 
   ;; TODO expand collapsed blocks when jumping to them
   ;; (defun my-hs-expand-advice (&rest _args)
@@ -881,8 +977,7 @@ instead of MODE."
         (when (condition-case nil (hs-toggle-hiding) (error t))
           (hs-show-all))
       (set-selective-display
-       (or column
-           (unless selective-display (1+ (current-column))))))))
+       (or column (unless selective-display (1+ (current-column))))))))
 
 (use-package popwin                     ; Popup window for minor buffers
   :defer t
@@ -908,13 +1003,12 @@ instead of MODE."
 
 (use-package writeroom-mode             ; Distraction-free writing mode
   :defer t
-  :delight writeroom-mode " Σ"
   :init (bind-key "<C-f11>" #'writeroom-mode text-mode-map)
   :config
   (setq writeroom-width 100)
   (defun my-writeroom-effect (arg)
     "Toggle additional functions for distraction-free writing."
-    (let ((off(if arg -1 t))
+    (let ((off (if arg -1 t))
           (on (if arg t -1)))
       (display-time-mode on)
       (display-battery-mode on)
@@ -929,17 +1023,18 @@ instead of MODE."
 
 ;;;; navigation
 
-(use-package ace-jump-mode              ; Jump to specific points with marks
-  :bind ("C-SPC" . ace-jump-mode))
+(use-package avy                        ; Jump to specific points
+  :init (my-bind-over-evil
+         ("C-e" . avy-goto-word-1)
+         ("C-S-e" . avy-goto-line))
+  :config (setq avy-background t))
 
-(use-package ace-window                 ; Quick window jumping
-  :bind (("M-w" . ace-window)
-         ("M-o" . ace-window))
-  :init
-  (bind-keys )
-  :config (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
+(use-package ace-window
+  :bind ([remap other-window] . ace-window)
+  :config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
 (use-package ag                         ; Fast search and navigation
+  :defer t
   :config
   (setq ag-reuse-buffers t
         ag-reuse-window t)
@@ -956,21 +1051,18 @@ instead of MODE."
           ;; helm-ag-source-type 'file-line
           helm-ag-fuzzy-match t)))
 
-(use-package desktop :disabled t                   ; Save buffers, windows and frames
+(use-package desktop                    ; Save buffers, windows and frames
   :defer t
   :init (desktop-save-mode t)
   :config
   (setq desktop-auto-save-timeout 60
+        desktop-save t                  ; always save
         desktop-dirname (expand-file-name "desktop" my-dir))
-  (my-add-list 'desktop-path desktop-dirname)
+  (add-to-list 'desktop-path desktop-dirname)
   (my-add-list 'desktop-modes-not-to-save '(magit-mode git-commit-mode)))
 
 (use-package expand-region              ; Expand functions block at a time
-  :bind ("C-z" . er/expand-region)
-  :init
-  (bind-keys :map (evil-normal-state-map
-                   evil-visual-state-map)
-             ("zz" . er/expand-region))
+  :init (evil-bind-key :state nmv "zz" #'er/expand-region)
   :config (setq expand-region-contract-fast-key "x"))
 
 (use-package savehist                   ; Save command history
@@ -988,22 +1080,19 @@ instead of MODE."
 
 (use-package projectile                 ; Project-based navigation
   :defer t
-  :init (projectile-global-mode t)
+  :init
+  (projectile-global-mode t)
+  (bind-keys
+   :map my-evil-leader-map
+   ("p" . projectile-find-file-dwim)
+   ("P" . projectile-switch-project))
   :config
   (setq
    projectile-globally-ignored-files '("TAGS" "*.odt" "*.docx" "*.doc")
    projectile-indexing-method 'alien    ; use faster OS methods
    ;; don't clutter my .emacs.d please
    projectile-cache-file (expand-file-name "projectile.cache" my-dir)
-   projectile-known-projects-file (expand-file-name
-                                   "projectile-known.eld" my-dir)
-   ;; pretty Greek symbols
-   projectile-mode-line '(:eval (format " π:%s" (projectile-project-name))))
-
-  (evil-bind-keys 'nmv
-    :map projectile-mode-map
-    (",p" . projectile-find-file-dwim)
-    (",P" . projectile-switch-project))
+   projectile-known-projects-file (expand-file-name "projectile.eld" my-dir))
 
   (use-package helm-projectile
     :defer t
@@ -1013,17 +1102,20 @@ instead of MODE."
           projectile-switch-project-action #'helm-projectile
           helm-projectile-fuzzy-match t)
 
-    (evil-bind-keys 'nmv
-      :map projectile-mode-map
-      (",p" . helm-projectile)
-      (",P" . helm-projectile-switch-project))))
+    (bind-keys
+     :map my-evil-leader-map
+     ([remap projectile-find-file-dwim] . helm-projectile)
+     ([remap projectile-switch-project] . helm-projectile-switch-project))))
 
 ;;;; editing
+
+(use-package multiple-cursors
+  :defer t
+  :init (multiple-cursors-mode t))
 
 (use-package drag-stuff                 ; TODO Transpose things
   ;; TODO fix dragging when newline is included
   ;; TODO? have dragging comply with smartparen-strict-mode
-  :delight drag-stuff-mode
   :init (drag-stuff-global-mode t))
 
 (use-package flycheck                   ; On-the-fly syntax checking
@@ -1034,64 +1126,89 @@ instead of MODE."
   (add-hook 'prog-mode-hook #'flycheck-mode)
   (add-hook 'sh-mode-hook #'flycheck-off)
 
+  (bind-keys
+   :map my-evil-leader-map
+   ("cj" . flycheck-next-error)
+   ("ck" . flycheck-previous-error))
+
   :config
-  (setq flycheck-mode-line
-        '(:eval (replace-regexp-in-string
-                 "FlyC" "Φ" (flycheck-mode-line-status-text)))
-        flycheck-indication-mode 'right-fringe)
-  (evil-bind-keys 'normal
-    :map flycheck-mode-map
-    (",cj" . flycheck-next-error)
-    (",ck" . flycheck-previous-error))
+  (defun my-flycheck-status (&optional status)
+    (let ((warn-internal "W")
+          (err-internal "E")
+          (success-str "σ")
+          (err-str "ε")
+          (warn-str "ς")
+          errs warns count)
+      (case (or status flycheck-last-status-change)
+        ('no-checker warn-internal)
+        ('running "")
+        ('interrupted warn-internal)
+        ('suspicious err-internal)
+        ('errored err-internal)
+        ('finished
+         (when flycheck-current-errors
+           (setq count (flycheck-count-errors flycheck-current-errors)
+                 errs (number-to-string (cdr (assoc 'error count)))
+                 warns (number-to-string (cdr (assoc 'warning count))))
+           (concat
+            (unless (or errs warnings) success-str)
+            (when errs (concat err-str errs))
+            (when warns (concat warn-str warns))))))))
+  (setq flycheck-mode-line '(" Φ" (:eval (my-flycheck-status))))
+  (let ((base (s-trim (car flycheck-mode-line))))
+    (dolist (args `((,base)                            ; base str
+                    (,(concat base "σ") ,base success) ; no errors
+                    (,(concat base "E") ,base error)   ; internal errors
+                    (,(concat base "W") ,base warning) ; internal warnings
+                    ("ε[0-9][0-9]?" nil error t)
+                    ("ς[0-9][0-9]?" nil warning t)
+                    ))
+      (apply #'rm-add args)))
+
+  (setq flycheck-indication-mode 'right-fringe)
 
   (use-package helm-flycheck
     :init
     (bind-key "C-c ! h" #'helm-flycheck flycheck-mode-map)
-    (evil-bind-keys 'normal
-      :map flycheck-mode-map
-      (",ch" . helm-flycheck)))
+    (bind-key "cc" #'helm-flycheck my-evil-leader-map))
 
   (use-package flycheck-tip             ; display errors by popup
     :config (flycheck-tip-use-timer 'verbose)))
 
 (use-package lorem-ipsum                ; Insert filler text
   :defer t
-  :init
+  :config
   ;; overwrite default `sgml-mode' entries
   (add-hook 'sgml-mode-hook
             (lambda () (setq lorem-ipsum-paragraph-separator "\n<p>"
                         lorem-ipsum-sentence-separator " ")))
-  :config
   ;; double spaces are still dumb
   (unless sentence-end-double-space (setq lorem-ipsum-sentence-separator " ")))
 
 (use-package writegood-mode             ; Highlight poor forms in writing
   :defer t
-  :delight writegood-mode
-  :init (add-hook 'text-mode-hook #'writegood-mode)
+  :init
+  (add-hook 'text-mode-hook #'writegood-mode)
+  (add-hook 'writegood-mode-hook #'writegood-passive-voice-turn-off)
   :config (my-add-list 'writegood-weasel-words
-                     '("thing" "different" "probably" "really")))
+                       '("thing" "different" "probably" "really")))
 
 (use-package abbrev                     ; Auto-correct words after typing
   :ensure nil
-  :delight abbrev-mode
   :init (abbrev-mode t)
-  :config
-  (setq save-abbrevs 'silently          ; save abbrevs when saving file
-        abbrev-all-caps t               ; expand in all-caps if written in caps
-        abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
+  :config (setq save-abbrevs 'silently  ; save abbrevs when saving file
+                abbrev-all-caps t       ; expand in all-caps if written in caps
+                abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
 
 (use-package auto-indent-mode           ; Automatic indentation
   ;; TODO get this working with indenting pasted code
   ;;      probably has something to do with Evil command hijacking
   :defer t
   :commands auto-indent-global-mode
-  :delight auto-indent-mode
   :init (auto-indent-global-mode t))
 
 (use-package company                    ; Autocompletion in code
   :defer t
-  :delight company-mode
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
   (setq company-idle-delay 0            ; attempt completion immediately
@@ -1126,11 +1243,11 @@ instead of MODE."
    ispell-silently-savep t
    ispell-quietly t)
   (my-add-list 'ispell-skip-region-alist
-             '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
-               ("#\\+BEGIN_SRC" . "#\\+END_SRC")
-               ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
+               '((":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:")
+                 ("#\\+BEGIN_SRC" . "#\\+END_SRC")
+                 ("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE")))
 
-  ;; Adated from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
+  ;; Adapted from http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
   (defun my-ispell-run-together (orig-func &rest args)
     "Use ispell --run-together options while ORIG-FUNC is being called."
     (let ((old-ispell-extra-args ispell-extra-args)
@@ -1147,12 +1264,12 @@ instead of MODE."
 
   (use-package flyspell                 ; On-the-fly spell checking
     :defer t
-    :delight flyspell-mode " 〰"
     :init
 
     (use-package helm-flyspell          ; Helm completion for spellcheck
       :defer t
-      :init (evil-bind-key "z=" #'helm-flyspell-correct flyspell-mode-map))
+      :init (evil-bind-key :map flyspell-mode-map
+                           "z=" #'helm-flyspell-correct))
 
     (use-package flyspell-lazy          ; Lazier checking for words
       :defer t
@@ -1165,7 +1282,8 @@ instead of MODE."
 
     :config
     ;; no messages
-    (setq flyspell-issue-welcome-flag nil
+    (setq flyspell-mode-line-string " 〰"
+          flyspell-issue-welcome-flag nil
           flyspell-issue-message-flag nil)
     (advice-add #'flyspell-auto-correct-word
                 :around #'my-ispell-run-together)))
@@ -1173,7 +1291,6 @@ instead of MODE."
 (use-package outline                    ; TODO Hierarchical outlining support
   ;; TODO modify outline-promote so if already max level then demote subtrees
   :ensure nil
-  :delight outline-minor-mode
   :init
   ;; fontify outline headers
   (defun my-outline-fontify-headlines ()
@@ -1184,8 +1301,7 @@ instead of MODE."
       (lambda (face)
         `(,(replace-regexp-in-string "<num>"
                                      (substring (symbol-name face) -1)
-                                     ;; (concat outline-regexp " \\(.+\\)$")
-                                     ";;;\\{<num>\\} \\(.+\\)$")
+                                     ";;;\\{<num>\\} \\(.+\\|###autoload\\)$")
           1 (quote ,face) t))
       '(outline-1 outline-2 outline-3 outline-4
                   outline-5 outline-6 outline-7 outline-8))))
@@ -1193,13 +1309,13 @@ instead of MODE."
 
   (use-package outline-magic
     :defer t
-    :init (evil-bind-key [tab] #'outline-cycle outline-minor-mode-map))
+    :init (evil-bind-key :map outline-minor-mode-map [tab] #'outline-cycle))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
   :config
   (bind-key "C-c o" #'outline-insert-heading outline-minor-mode-map)
-  (evil-bind-keys 'normal
+  (evil-bind-key
     :map outline-minor-mode-map
     ("gh" . outline-up-heading)
     ("gj" . outline-next-heading)
@@ -1210,16 +1326,18 @@ instead of MODE."
 
 (use-package smartparens-config      ; FIXME Balanced paren management
   ;; REVIEW autopairing quotes and backticks
-  ;; REVIEW delight modeline lighters
   :ensure smartparens
-  :delight smartparens-mode '(:eval
-                              (concat " " (when smartparens-strict-mode "⒮")))
   :init
   ;; disable builtin to avoid doubling
   (add-hook 'smartparens-mode-hook (lambda() (electric-pair-mode -1)))
 
+  (evil-bind-key
+    :state '(n m)
+    :map emacs-lisp-mode-map
+    ("+" . evil-indent)
+    ("=" . sp-indent-defun))
+
   (use-package evil-smartparens         ; Evil smartparen bindings
-    :delight evil-smartparens-mode
     :init
     (add-hook 'prog-mode-hook #'smartparens-strict-mode)
     (add-hook 'smartparens-strict-mode-hook #'evil-smartparens-mode)
@@ -1238,13 +1356,11 @@ instead of MODE."
       (sp-kill-hybrid-sexp 1)
       (evil-insert 1))
 
-    (evil-bind-keys 'normal
+    (evil-bind-key
       :map evil-smartparens-mode-map
-      ("+" . evil-indent)
-      ("=" . sp-indent-defun)
       ;; faster than evil-smartparens variants
-      ("C" . my-evil-sp-change-line)
-      ("D" . my-evil-sp-delete-line)))
+      ([remap evil-sp-change-line] . my-evil-sp-change-line)
+      ([remap evil-sp-delete-line] . my-evil-sp-delete-line)))
 
   (show-smartparens-global-mode t)
   :config
@@ -1253,11 +1369,9 @@ instead of MODE."
 
 (use-package typo                       ; Insert typographical characters
   :defer t
-  :delight typo-mode
   :init (add-hook 'text-mode-hook #'typo-mode))
 
 (use-package undo-tree                  ; Branching undo tree
-  :delight undo-tree-mode
   :init (global-undo-tree-mode t)
   :config
   (setq undo-tree-visualizer-timestamps t
@@ -1278,19 +1392,16 @@ instead of MODE."
 
 (use-package autorevert                 ; Auto revert to external modifications
   :defer t
-  :delight autorevert-mode
   :init (global-auto-revert-mode t)
   :config (setq global-auto-revert-non-file-buffers t))
 
 (use-package pandoc-mode                ; Markup conversion tool
-  :delight pandoc-mode '(:eval (concat " Π:" (pandoc--get 'write)))
   :bind ("C-c C-p" . pandoc-mode)
   :config
   (setq pandoc-data-dir (expand-file-name "pandoc" my-dir))
   (bind-key "C-c C-p" #'pandoc-run-pandoc pandoc-mode-map))
 
 (use-package real-auto-save             ; Auto save buffers
-  :delight real-auto-save-mode
   :commands real-auto-save-mode
   :init (add-hook #'after-save-hook #'real-auto-save-mode)
   :config (setq real-auto-save-interval 60))
@@ -1344,13 +1455,11 @@ instead of MODE."
   (add-to-list 'evil-emacs-state-modes 'dired-mode) ; Evil initial state
 
   (use-package dired+                   ; Dired extensions and syntax highlight
-    :init
-    (setq diredp-dwim-any-frame-flag t  ; allow dwim target other frame
-          dired-omit-verbose nil)
-    (add-hook 'dired-mode-hook #'dired-omit-mode)  ; omit uninteresting files
+    :defer t
+    :init (add-hook 'dired-mode-hook #'dired-omit-mode)  ; omit uninteresting files
     :config
-    ;; (delight-with-advice #'dired-omit-mode #'dired-omit-startup)
-    )
+    (setq diredp-dwim-any-frame-flag t  ; allow dwim target other frame
+          dired-omit-verbose nil))
 
   (bind-keys :map dired-mode-map
              ("q" . kill-buffer-and-window)
@@ -1362,9 +1471,8 @@ instead of MODE."
   :init (add-hook 'doc-view-minor-mode-hook #'undo-tree-mode-off)
   :config
   (setq doc-view-continuous t)
+  (my-add-binds doc-view-mode-map)
   (bind-keys :map doc-view-mode-map
-             ("SPC" . execute-extended-command)
-             (",b" . ibuffer)
              ("g" . nil)
              ("gg" . doc-view-first-page)
              ("gp" . doc-view-goto-page)
@@ -1375,14 +1483,13 @@ instead of MODE."
              ("j" . doc-view-next-line-or-next-page)
              ("k" . doc-view-previous-line-or-previous-page)
              ("C-d" . doc-view-next-page)
-             ("C-u" . doc-view-previous-page)
-             ("q" . kill-buffer-and-window)))
+             ("C-u" . doc-view-previous-page)))
 
 (use-package ediff                      ; Emacs diff utility
   :defer t
   :config
   (setq ediff-diff-options "-w")        ; ignore whitespace
-  (evil-bind-keys 'normal
+  (evil-bind-key
     :map ediff-mode
     ("j" . ediff-next-difference)
     ("k" . ediff-previous-difference)))
@@ -1403,7 +1510,7 @@ instead of MODE."
     (comint-goto-process-mark)
     (evil-append 1))
 
-  (evil-bind-keys 'normal
+  (evil-bind-key
     :map comint-mode-map
     ("I" . my-comint-evil-insert)
     ("A" . my-comint-evil-insert))
@@ -1515,7 +1622,6 @@ instead of MODE."
   :init
 
   (use-package magit                    ; Git version control management
-    :delight magit-auto-revert-mode
     :bind ("<f10>" . magit-status)
     :init (setq magit-last-seen-setup-instructions "1.4.0")
     :config
@@ -1538,6 +1644,8 @@ instead of MODE."
           (error "Can't find repository URL"))
         (browse-url url)))
 
+    (my-add-binds magit-status-mode-map)
+
     (bind-keys :map magit-status-mode-map
                ("<C-tab>" . magit-section-cycle)
                ("j" . next-line)
@@ -1546,8 +1654,7 @@ instead of MODE."
                ("<up>" . magit-goto-previous-sibling-section)
                ("C" . magit-commit)
                ("d" . magit-discard-item)
-               ("C-=" . magit-diff-working-tree)
-               (",b" . ibuffer)))
+               ("C-=" . magit-diff-working-tree)))
 
   (use-package git-gutter               ; Show diff with HEAD in fringe
     :bind ("<C-f10>" . git-gutter:toggle))
@@ -1557,9 +1664,8 @@ instead of MODE."
 
   (use-package git-commit-mode          ; Git commit messages
     :defer t
-    :delight server-buffer-clients
     :config
-    (evil-bind-keys 'normal
+    (evil-bind-key
       :map git-commit-mode-map
       (",w" . git-commit-commit)
       ("q" . git-commit-abort))))
@@ -1581,19 +1687,26 @@ instead of MODE."
 
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
-  :delight org-indent-mode
   :init
   (add-to-list
    'auto-insert-alist
-   '(org-mode
-     "Title: "
-     "#+TITLE:     " str
+   '(org-mode                           ; TODO TITLE isn't getting inserted
+     "#+TITLE:     " (file-name-base buffer-file-name)
      "\n#+AUTHOR:    " user-full-name
      "\n#+EMAIL:     " user-mail-address
      "\n#+SETUP FILE: \"../export.org\""
      "\n\n* "))
 
   :config
+  (defun org-insert-block (&optional name)
+    "Insert an org block of NAME, using 'quote' as a default."
+    (interactive "sblock: ")
+    (let ((name (upcase (if (or (string= name "") (not name))
+                            "quote"
+                          name))))
+      (insert "\n#+BEGIN_" name ":\n\n#+END_" name "\n"))
+    (forward-line -3))
+
   (setq
    org-edit-src-content-indentation 0   ; no initial indent for source code
    org-pretty-entities t                ; render UTF chars and sub/superscript
@@ -1603,23 +1716,19 @@ instead of MODE."
    org-special-ctrl-k t                 ; kill lines depending on org context
    org-return-follows-link t            ; follow links with RET
    org-catch-invisible-edits 'smart     ; smart editing of hidden things
-   org-todo-keywords '((sequence "☐" "☒"))
+   org-todo-keywords '((sequence "☐" "☑" "☒"))
    org-modules '(org-docview org-info org-gnus org-inlinetask)
    org-export-backends '(ascii html odt taskjuggler)
    org-startup-folded t                 ; start buffers with folded headers
    org-src-fontify-natively t           ; syntax highlight code in org buffer
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
 
-  (delight #'org-indent-mode)
   ;; set some faces to use mono font
   (dolist (face '(org-block
                   org-code
                   org-table
                   org-special-keyword))
-    (my-font-set face 'mono))
-  ;; set some faces to inherit from `variable-pitch'
-  (dolist (face '(org-todo org-done))
-    (set-face-attribute face nil :inherit 'variable-pitch))
+    (apply #'set-face-attribute face nil (my-font 'mono)))
 
   (bind-keys
    :map org-mode-map
@@ -1662,14 +1771,13 @@ instead of MODE."
                 :filter-return #'my-org-tj-add-project-options))
 
   (use-package evil-org                 ; TODO Evil org-mode bindings
-    :delight evil-org-mode
     :init (add-hook 'org-mode-hook #'evil-org-mode)
     :config
     ;; TODO get these to work
-    (evil-bind-keys 'normal
+    (evil-bind-key
       :map org-mode-map
       ("RET" . org-insert-heading-after-current)
-      ([tab] . org-back-to-heading)))
+      ([tab] . outline-cycle)))
 
   (defun org-export-to-odt-and-open ()
     "Export the current buffer and open in external application."
@@ -1711,7 +1819,7 @@ instead of MODE."
       ("-?[0-9]" . font-lock-constant-face))
     nil
     '(highlight-numbers-mode)
-    "Mode for pseudocode")
+    "Mode for highlighting pseudocode for SDD work.")
 
   (use-package conkyrc-mode :disabled t ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
@@ -1730,7 +1838,6 @@ instead of MODE."
 
   (use-package eldoc                    ; Documentation in echo area
     :defer t
-    :delight eldoc-mode
     :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
     :config (setq eldoc-idle-delay 0.3))
 
@@ -1740,11 +1847,10 @@ instead of MODE."
 
   (use-package elisp-slime-nav          ; Navigate elisp documentation
     :defer t
-    :delight elisp-slime-nav-mode
     :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
     :config
-    (evil-bind-keys 'normal
-      :map elisp-slime-nav-mode-map
+    (evil-bind-key
+      :map (elisp-slime-nav-mode-map help-mode-map)
       ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
       ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
 
@@ -1754,6 +1860,9 @@ instead of MODE."
   :defer t
   :config
   (setq python-shell-interpreter "python3") ; use Python 3
+  (setq-default
+   python-indent-guess-indent-offset nil
+   python-indent-offset 4)     ; something is setting this to 2
 
   (use-package elpy
     :defer t
@@ -1780,7 +1889,7 @@ instead of MODE."
   :defer t
   :mode "\\.s?css$"
   :config
-  (defvar my-sass-output-dir "../"
+  (defcustom my-sass-output-dir "../"
     "Directory to store compiled sass files.")
 
   (defun my-sass-watch ()
@@ -1805,7 +1914,6 @@ instead of MODE."
 (use-package web-mode
   :defer t
   :mode "\\.html?$"
-  :init (add-hook 'web-mode-hook #'rainbow-mode)
   :config
   (setq web-mode-enable-block-face t
         web-mode-enable-part-face t
