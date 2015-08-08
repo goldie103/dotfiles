@@ -1,7 +1,6 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
-;; TODO figure out wtf is opening network connections when writing use-package
-;; declarations
+;; TODO figure out wtf is opening network connections when adding use-package
 ;;; Code:
 ;;;; helper functions
 
@@ -279,6 +278,19 @@ narrowed."
                  minibuffer-local-isearch-map)
            ("<escape>" . minibuffer-keyboard-quit))
 
+(bind-keys
+ :prefix-map my-window-map
+ :prefix "C-w"
+ :prefix-docstring "My window related commands."
+ ("C-w" . other-window)
+ ("w" . other-window)
+ ("v" . split-window-vertically)
+ ("h" . split-window-horizontally)
+ ("=" . balance-windows)
+ ("f" . delete-frame)
+ ("d" . delete-window)
+ ("D" . delete-other-windows))
+
 ;;;;;; windows super key
 (when (eq system-type 'windows-nt)
   (setq w32-apps-modifier 'hyper
@@ -289,59 +301,18 @@ narrowed."
 
 ;;;; major packages
 
-(defmacro evil-bind-key (&rest args)
-    "Bind BINDS to evil STATE and MAP.
-
-STATE can be either a symbol specifying an evil state or a list
-of symbols.
-
-The rest of the arguments are conses of keybinding string, which
-will be passed to `read-kbd-macro' if necessary, and an unquoted
-function symbol."
-    (declare (indent 0))
-    (let* ((state-shorts '((n normal)
-                           (m motion)
-                           (v visual)
-                           (r replace)
-                           (o operator)
-                           (i insert)
-                           (nm normal motion)
-                           (nmv normal motion visual)
-                           (a normal motion visual replace insert)))
-           (map 'global-map)
-           (states '(normal))
-           (binds (cdr (cdr args))))
-      (dolist (arg (list (car args) (nth 1 args)))
-        (let ((shortened (cdr (assoc arg state-shorts))))
-          (cond
-           ((stringp arg) (setq binds (append arg binds)))
-           ((keymapp (symbol-value arg)) (setq map arg))
-           (shortened (setq states shortened)))))
-      ;; (macroexp-progn
-       (mapcar
-        (lambda (item)
-          `(evil-define-key ',(car item) ,(cdr item)
-             ,@(mapcar
-                (lambda (item) (if (stringp item) (read-kbd-macro item) item))
-                binds)))
-        ;; build (state . map) for each pairing
-        (apply
-         #'nconc
-         (mapcar
-          (lambda (s) (mapcar (lambda (m) (cons s m))
-                         (if (listp map) map (list map))))
-          states)))
-       ;; )
-       ))
-
-(macroexpand '(evil-bind-key 'm emacs-lisp-mode-map
-               "j" #'test))
-
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :commands evil-define-command evil-bind-key
-  :init
-  (evil-mode t)
+  :init (evil-mode t)
+  :config
+  (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
+        evil-want-fine-undo nil          ; undo insertions in single steps
+        evil-want-change-word-to-end nil ; don't let cw behave like ce
+        evil-echo-state nil              ; state is in the modeline anyway
+        evil-ex-substitute-global t)     ; global substitutions by default
+  (my-add-list 'evil-emacs-state-modes '(shell-mode term-mode multi-term-mode))
+  (my-add-list 'evil-insert-state-modes '(git-commit-mode))
 
   (defmacro evil-bind-key (&rest args)
     "Bind BINDS to evil STATE and MAP.
@@ -352,24 +323,36 @@ of symbols.
 The rest of the arguments are conses of keybinding string, which
 will be passed to `read-kbd-macro' if necessary, and an unquoted
 function symbol."
-    (declare (indent 0))
-    (let* ((maps (or (if (listp map) (nth 1 map) (list map)) 'global-map))
-           (state-shorts '((n normal)
+    (declare (indent 1))
+    (let* ((state-shorts '((n normal)
                            (m motion)
                            (v visual)
                            (r replace)
                            (o operator)
                            (i insert)
                            (nm normal motion)
+                           (nv normal visual)
                            (nmv normal motion visual)
                            (a normal motion visual replace insert)))
-           (states (or (cdr (assoc (nth 1 state) state-shorts)) '(normal))))
+           (map 'global-map)
+           (states '(normal))
+           (binds (cdr (cdr args))))
+      (dolist (arg (list (car args) (nth 1 args)))
+        (let ((shortened (ignore-errors (cdr (assoc (nth 1 arg) state-shorts)))))
+          (cond
+           ((stringp arg) (setq binds `(,arg ,@binds)))
+           (shortened (setq states shortened))
+           ((listp (cdr arg)) (setq map (car (cdr arg)))))))
+      (setq maps (if (listp map) map (list map)))
       (macroexp-progn
        (mapcar
         (lambda (item)
           `(evil-define-key ',(car item) ,(cdr item)
              ,@(mapcar
-                (lambda (item) (if (stringp item) (read-kbd-macro item) item))
+                (lambda (item)
+                  (if (stringp item)
+                      (read-kbd-macro item)
+                    item))
                 binds)))
         ;; build (state . map) for each pairing
         (apply
@@ -377,35 +360,17 @@ function symbol."
          (mapcar
           (lambda (s) (mapcar (lambda (m) (cons s m)) maps)) states))))))
 
-  :config
-  (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
-        evil-want-fine-undo nil          ; undo insertions in single steps
-        evil-want-change-word-to-end nil ; don't let cw behave like ce
-        evil-echo-state nil              ; state is in the modeline anyway
-        evil-ex-substitute-global t)     ; global substitutions by default
-  (my-add-list 'evil-emacs-state-modes '(shell-mode term-mode multi-term-mode))
-  (my-add-list 'evil-insert-state-modes '(git-commit-mode))
-
   (evil-define-command my-evil-yank-to-eol ()
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
 
-  ;; TODO
+  ;; remove bindings for access to own `my-window-map'
   (bind-keys
-   :prefix-map evil-window-map
-   :prefix "C-w"
-   :prefix-docstring "My window related commands."
-   ("C-w" . other-window)
-   ("w" . other-window)
-   ("v" . split-window-vertically)
-   ("h" . split-window-horizontally)
-   ("d" . delete-window)
-   ("D" . delete-other-windows))
+   :map (evil-motion-state-map evil-insert-state-map evil-emacs-state-map)
+   ("C-w" . nil))
 
   (bind-keys
-   :map (evil-normal-state-map
-         evil-motion-state-map
-         evil-visual-state-map)
+   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
    :prefix-map my-evil-leader-map
    :prefix ","
    :prefix-docstring "My evil leader key."
@@ -416,19 +381,19 @@ function symbol."
 
   (evil-bind-key 'm "y" #'evil-yank) ; Add yanking to motion map
   (evil-bind-key 'nmv
-                 "SPC" #'execute-extended-command
-                 "ESC" #'keyboard-quit
-                 ":" #'comment-dwim
-                 "Y" #'my-evil-yank-to-eol        ; more consistent
-                 "q" #'kill-buffer-and-window     ; consistency with other Emacs buffers
-                 "Q" #'evil-record-macro          ; Q replaces old q action
-                 ;; a-s is more memnonic but s-a follows keyboard order
-                 "s" #'evil-last-non-blank
-                 "a" #'evil-first-non-blank
-                 ;; movement
-                 "j" #'evil-next-visual-line
-                 "k" #'evil-previous-visual-line
-                 "\"" #'evil-jump-item)
+    "SPC" #'execute-extended-command
+    "ESC" #'keyboard-quit
+    ":" #'comment-dwim
+    "Y" #'my-evil-yank-to-eol        ; more consistent
+    "q" #'kill-buffer-and-window     ; consistency with other Emacs buffers
+    "Q" #'evil-record-macro          ; Q replaces old q action
+    ;; a-s is more memnonic but s-a follows keyboard order
+    "s" #'evil-last-non-blank
+    "a" #'evil-first-non-blank
+    ;; movement
+    "j" #'evil-next-visual-line
+    "k" #'evil-previous-visual-line
+    "\"" #'evil-jump-item)
 
   (use-package evil-escape              ; Escape from everything with two keys
     ;; trying this out instead of jk
@@ -450,14 +415,13 @@ function symbol."
     ;; TODO see if I can get this working with smartparen compliance
     :defer t
     :init (evil-commentary-mode t)
-    :config (evil-bind-key :map evil-commentary-mode-map
-                           ":" #'evil-commentary))
+    :config (evil-bind-key 'evil-commentary-mode-map ":" #'evil-commentary))
 
   (use-package evil-matchit             ; Manipulate tags
     :init (global-evil-matchit-mode t)
     :config
     (setq evilmi-may-jump-percentage nil) ; allow count usage
-    (evil-bind-key :map evil-matchit-mode-map "\"" #'evilmi-jump-items)))
+    (evil-bind-key 'evil-matchit-mode-map "\"" #'evilmi-jump-items)))
 
 (use-package ido :disabled t            ; As a backup for when Helm breaks
   :defer t
@@ -554,7 +518,7 @@ function symbol."
    ([remap apropos-command] . helm-apropos)
    ([remap apropos-documentation] . helm-apropos))
 
-  (evil-bind-key :state a "C-p" #'helm-show-kill-ring)
+  (evil-bind-key 'a "C-p" #'helm-show-kill-ring)
   (bind-key "hr" #'helm-resume my-evil-leader-map)
   (bind-key "C-/" #'helm-semantic-or-imenu emacs-lisp-mode-map)
 
@@ -700,8 +664,9 @@ function symbol."
 
 (use-package my-theme
   :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme/"
-  :init (setq my-theme-use-bold nil)
-  :config (load-theme 'my t))
+  :config
+  (setq my-theme-bold-p nil)
+  (load-theme 'my t))
 
 (use-package material-theme :disabled t
   :config (load-theme 'material))
@@ -951,7 +916,7 @@ If REGEXPP is true then don't modify MODE before adding to
     (add-hook 'hs-minor-mode-hook #'hideshowvis-minor-mode))
   (add-hook 'prog-mode-hook #'hs-minor-mode)
 
-  (evil-bind-key :map hs-minor-mode-map "TAB" #'hs-toggle-hiding)
+  (evil-bind-key 'hs-minor-mode-map "TAB" #'hs-toggle-hiding)
 
   :config
 
@@ -1062,7 +1027,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (my-add-list 'desktop-modes-not-to-save '(magit-mode git-commit-mode)))
 
 (use-package expand-region              ; Expand functions block at a time
-  :init (evil-bind-key :state nmv "zz" #'er/expand-region)
+  :init (evil-bind-key 'nmv "zz" #'er/expand-region)
   :config (setq expand-region-contract-fast-key "x"))
 
 (use-package savehist                   ; Save command history
@@ -1268,8 +1233,7 @@ If REGEXPP is true then don't modify MODE before adding to
 
     (use-package helm-flyspell          ; Helm completion for spellcheck
       :defer t
-      :init (evil-bind-key :map flyspell-mode-map
-                           "z=" #'helm-flyspell-correct))
+      :init (evil-bind-key 'flyspell-mode-map "z=" #'helm-flyspell-correct))
 
     (use-package flyspell-lazy          ; Lazier checking for words
       :defer t
@@ -1309,20 +1273,19 @@ If REGEXPP is true then don't modify MODE before adding to
 
   (use-package outline-magic
     :defer t
-    :init (evil-bind-key :map outline-minor-mode-map [tab] #'outline-cycle))
+    :init (evil-bind-key 'outline-minor-mode-map "TAB" #'outline-cycle))
 
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
   :config
   (bind-key "C-c o" #'outline-insert-heading outline-minor-mode-map)
-  (evil-bind-key
-    :map outline-minor-mode-map
-    ("gh" . outline-up-heading)
-    ("gj" . outline-next-heading)
-    ("gk" . outline-previous-heading)
-    ("gl" . outline-forward-same-level)
-    ("<" . outline-promote)
-    (">" . outline-demote)))
+  (evil-bind-key 'outline-minor-mode-map
+    "gh" #'outline-up-heading
+    "gj" #'outline-next-heading
+    "gk" #'outline-previous-heading
+    "gl" #'outline-forward-same-level
+    "<" #'outline-promote
+    ">" #'outline-demote))
 
 (use-package smartparens-config      ; FIXME Balanced paren management
   ;; REVIEW autopairing quotes and backticks
@@ -1331,11 +1294,10 @@ If REGEXPP is true then don't modify MODE before adding to
   ;; disable builtin to avoid doubling
   (add-hook 'smartparens-mode-hook (lambda() (electric-pair-mode -1)))
 
-  (evil-bind-key
-    :state '(n m)
-    :map emacs-lisp-mode-map
-    ("+" . evil-indent)
-    ("=" . sp-indent-defun))
+  (evil-bind-key 'nm
+    'emacs-lisp-mode-map
+    "+" #'evil-indent
+    "=" #'sp-indent-defun)
 
   (use-package evil-smartparens         ; Evil smartparen bindings
     :init
@@ -1356,11 +1318,10 @@ If REGEXPP is true then don't modify MODE before adding to
       (sp-kill-hybrid-sexp 1)
       (evil-insert 1))
 
-    (evil-bind-key
-      :map evil-smartparens-mode-map
+    (evil-bind-key 'evil-smartparens-mode-map
       ;; faster than evil-smartparens variants
-      ([remap evil-sp-change-line] . my-evil-sp-change-line)
-      ([remap evil-sp-delete-line] . my-evil-sp-delete-line)))
+      [remap evil-sp-change-line] #'my-evil-sp-change-line
+      [remap evil-sp-delete-line] #'my-evil-sp-delete-line))
 
   (show-smartparens-global-mode t)
   :config
@@ -1489,10 +1450,9 @@ If REGEXPP is true then don't modify MODE before adding to
   :defer t
   :config
   (setq ediff-diff-options "-w")        ; ignore whitespace
-  (evil-bind-key
-    :map ediff-mode
-    ("j" . ediff-next-difference)
-    ("k" . ediff-previous-difference)))
+  (evil-bind-key 'ediff-mode
+    "j" #'ediff-next-difference
+    "k" #'ediff-previous-difference))
 
 (use-package garak :disabled t          ; ELIM messenger front-end
   :enabled nil :load-path (concat my-dir-packages "elim"))
@@ -1510,10 +1470,9 @@ If REGEXPP is true then don't modify MODE before adding to
     (comint-goto-process-mark)
     (evil-append 1))
 
-  (evil-bind-key
-    :map comint-mode-map
-    ("I" . my-comint-evil-insert)
-    ("A" . my-comint-evil-insert))
+  (evil-bind-key 'comint-mode-map
+    "I" #'my-comint-evil-insert
+    "A" #'my-comint-evil-insert)
 
   (setenv "PAGER" "cat")
 
@@ -1665,10 +1624,9 @@ If REGEXPP is true then don't modify MODE before adding to
   (use-package git-commit-mode          ; Git commit messages
     :defer t
     :config
-    (evil-bind-key
-      :map git-commit-mode-map
-      (",w" . git-commit-commit)
-      ("q" . git-commit-abort))))
+    (evil-bind-key 'git-commit-mode-map
+      [remap save-buffer] #'git-commit-commit
+      [remap kill-buffer-and-window] #'git-commit-abort)))
 
 ;;;; languages
 
@@ -1774,10 +1732,9 @@ If REGEXPP is true then don't modify MODE before adding to
     :init (add-hook 'org-mode-hook #'evil-org-mode)
     :config
     ;; TODO get these to work
-    (evil-bind-key
-      :map org-mode-map
-      ("RET" . org-insert-heading-after-current)
-      ([tab] . outline-cycle)))
+    (evil-bind-key #'org-mode-map
+      "RET" #'org-insert-heading-after-current
+      "TAB" #'outline-cycle))
 
   (defun org-export-to-odt-and-open ()
     "Export the current buffer and open in external application."
@@ -1849,10 +1806,9 @@ If REGEXPP is true then don't modify MODE before adding to
     :defer t
     :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
     :config
-    (evil-bind-key
-      :map (elisp-slime-nav-mode-map help-mode-map)
-      ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
-      ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
+    (evil-bind-key '(elisp-slime-nav-mode-map help-mode-map)
+      "K" #'elisp-slime-nav-describe-elisp-thing-at-point
+      "gd" #'elisp-slime-nav-find-elisp-thing-at-point))
 
   :config (bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map))
 
