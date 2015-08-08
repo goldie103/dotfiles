@@ -379,14 +379,14 @@ function symbol."
    ("w" . save-buffer)
    ("SPC" . evil-ex))
 
-  (evil-bind-key 'm "y" #'evil-yank) ; Add yanking to motion map
+  (evil-bind-key 'm "y" #'evil-yank)    ; Add yanking to motion map
   (evil-bind-key 'nmv
     "SPC" #'execute-extended-command
     "ESC" #'keyboard-quit
     ":" #'comment-dwim
-    "Y" #'my-evil-yank-to-eol        ; more consistent
-    "q" #'kill-buffer-and-window     ; consistency with other Emacs buffers
-    "Q" #'evil-record-macro          ; Q replaces old q action
+    "Y" #'my-evil-yank-to-eol           ; more consistent
+    "q" #'kill-buffer-and-window        ; consistency with other Emacs buffers
+    "Q" #'evil-record-macro             ; Q replaces old q action
     ;; a-s is more memnonic but s-a follows keyboard order
     "s" #'evil-last-non-blank
     "a" #'evil-first-non-blank
