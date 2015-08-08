@@ -5,3 +5,4 @@
 # autosave files
 \.#.*
 /emacs/flycheck_init.el
+/emacs/#init.el#
