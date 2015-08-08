@@ -5,14 +5,18 @@
   "My custom theme, somewhat inspired by IntelliJ's Darcula.")
 
 ;;; variables
-(defcustom my-theme-use-bold t "If nil then don't use bold.")
+(defcustom my-theme-bold-p t "If nil then don't use bold.")
+(defcustom my-theme-light-p nil "If non-nil then use light background colours.") ; TODO
 
 ;;; faces
-(let ((bg       "#2b2b2b")
+(let ((bgd      "#2b2b2b")
+      (bgd1     "#313335")
       (bg0      "#202020")
-      (bg1      "#313335")
       (bg2      "#404040")
-      (fg       "#a9b7c6")
+      (bgl      "#fdf6e3")
+      (bgl1     "#eee8d5")
+      (fgd      "#a9b7c6")
+      (fgl      "#657b83")
       (fg0      "#808080")
       (fg01     "#465a61")
       (fg1      "#dcdcdc")
@@ -31,7 +35,11 @@
       (cyan0    "#4e807d")
       (green    "#a6c25c")
       (green0   "#629755")
-      (bold (if my-theme-use-bold 'bold 'normal)))
+      (bold (if my-theme-bold-p 'bold 'normal))
+      bg bg0 fg)
+  (if my-theme-light-p
+      (setq bg bgl bg1 bgl1 fg fgl)
+    (setq bg bgd bg1 bgd1 fg fgd))
   (custom-theme-set-faces
    'my
 ;;;; basic colouring
