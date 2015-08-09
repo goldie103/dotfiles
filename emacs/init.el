@@ -178,6 +178,17 @@ define it as ELEMENTS."
                 split-window-vertically))
   (advice-add func :after-while #'my-last-buf))
 
+(defun sudo-save ()
+  "Save the current buffer with sudo."
+  (interactive)
+  (write-file
+   (concat
+    "/sudo::"
+    (cond
+     (buffer-file-name)
+     ((fboundp 'helm-read-file-name) (helm-read-file-name "File: "))
+     ((fboundp 'ido-read-file-name) (ido-read-file-name "File: "))))))
+
 ;;;;; modes and hooks
 
 (mouse-wheel-mode t)                    ; Mouse wheel enabled
@@ -587,6 +598,10 @@ function symbol."
              ("u" . ucs-insert)
              ("i" . info-lookup-symbol)
              ("C-i" . info-emacs-manual)))
+
+(use-package info
+  :defer t
+  :config (add-to-list 'Info-directory-list "~/.config/info"))
 
 ;;;; appearance
 
@@ -1822,7 +1837,13 @@ If REGEXPP is true then don't modify MODE before adding to
 
   (use-package elpy
     :defer t
-    :init (elpy-enable)))
+    :init (elpy-enable)
+    :config (setq elpy-rpc-python-command "python3")
+
+    (info-lookup-add-help
+     :mode 'python-mode
+     :regexp "[[:alnum:]_]+"
+     :doc-spec '(("(python)Index" nil "")))))
 
 (use-package sh-script
   :defer t
