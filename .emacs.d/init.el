@@ -1,6 +1,7 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
 ;; TODO figure out wtf is opening network connections when adding use-package
+;; TODO byte compiler is angry
 ;;; Code:
 ;;;; helper functions
 
@@ -16,8 +17,6 @@ define it as ELEMENTS."
       (set list-var l)))
   (symbol-value list-var))
 
-;; Would normally use `bind-key*' for this, but that would also override
-;; `evil-insert-state', and that shouldn't be touched.
 (defmacro my-add-binds (map)            ; TODO
   "Add essential bindings to MAP with `bind-key'."
   `(bind-keys :map ,map
@@ -25,6 +24,8 @@ define it as ELEMENTS."
               ("q" . kill-buffer-and-window)
               (",b" . ibuffer)))
 
+;; Would normally use `bind-key*' for this, but that would also override
+;; `evil-insert-state', and that shouldn't be touched
 (defmacro my-bind-over-evil (&rest args)
   "Pass ARGS to `bind-keys' with `:map' set to evil states and `global-map'."
   `(bind-keys :map (global-map
@@ -99,10 +100,10 @@ define it as ELEMENTS."
 ;;;;; general
 
 (setq
- disabled-command-function nil          ; no disabld
+ disabled-command-function nil          ; no disabled commands
  comment-auto-fill-only-comments t
  smooth-scroll-margin 3                 ; fewer lines visible at buffer ends
- frame-title-format "%b " ; buffer name as frame title
+ frame-title-format "%b "               ; buffer name as frame title
  window-combination-resize t            ; use proportional window resize
  echo-keystrokes 0.1                    ; echo unfinished commands faster
  x-underline-at-descent-line t          ; draw underline lower
@@ -195,7 +196,6 @@ define it as ELEMENTS."
 (show-paren-mode t)                     ; Highlight matching parens
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
-(auto-insert-mode t)                    ; Auto insert text based on filetype
 ;; we don't need no stinkin GUI
 (size-indication-mode -1)
 (tool-bar-mode -1)
@@ -305,7 +305,6 @@ narrowed."
 ;;;;;; windows super key
 (when (eq system-type 'windows-nt)
   (setq w32-apps-modifier 'hyper
-        ;; Super is Windows key
         ;; Taken mappings: s-l s-r
         w32-lwindow-modifier 'super
         w32-pass-lwindow-to-system nil))
@@ -315,6 +314,7 @@ narrowed."
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :commands evil-define-command evil-bind-key
+  :defines my-evil-leader-map
   :init (evil-mode t)
   :config
   (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
@@ -347,11 +347,13 @@ function symbol."
                            (a normal motion visual replace insert)))
            (map 'global-map)
            (states '(normal))
-           (binds (cdr (cdr args))))
+           (binds (cdr (cdr args)))
+           maps)
       (dolist (arg (list (car args) (nth 1 args)))
-        (let ((shortened (ignore-errors (cdr (assoc (nth 1 arg) state-shorts)))))
+        (let ((shortened (ignore-errors
+                           (cdr (assoc (nth 1 arg) state-shorts)))))
           (cond
-           ((stringp arg) (setq binds `(,arg ,@binds)))
+           ((or (stringp arg) (vectorp arg)) (setq binds `(,arg ,@binds)))
            (shortened (setq states shortened))
            ((listp (cdr arg)) (setq map (car (cdr arg)))))))
       (setq maps (if (listp map) map (list map)))
@@ -431,7 +433,7 @@ function symbol."
   (use-package evil-matchit             ; Manipulate tags
     :init (global-evil-matchit-mode t)
     :config
-    (setq evilmi-may-jump-percentage nil) ; allow count usage
+    (setq evilmi-may-jump-by-percentage nil) ; allow count usage
     (evil-bind-key 'evil-matchit-mode-map "\"" #'evilmi-jump-items)))
 
 (use-package ido :disabled t            ; As a backup for when Helm breaks
@@ -613,7 +615,7 @@ function symbol."
                    "If valid, then set `valid-cand' and exit loop."
                    (when (find-font (font-spec :name cand))
                      (setq valid-cand cand)
-                     (throw 'found family))))
+                     (throw 'found (symbol-value 'family)))))
          (fonts '((proportional "Fira Sans"
                                 "Input Sans Condensed" "Input Sans"
                                 "DejaVu Sans" "Calibri" "Arial"
@@ -649,7 +651,7 @@ function symbol."
          (size (cdr (assoc valid-family sizes)))
          (cand-size (if (and size (not (floatp size))) (* size 10) size)))
     ;; return candidate and associated size in 1/10ths of a pt
-    (list :family valid-cand :height cand-size)))
+    `(:family ,valid-cand ,@(when cand-size `(:height ,cand-size)))))
 
 (defun my-font-use-proportional ()
   "Use proportional font for current buffer."
@@ -714,6 +716,7 @@ function symbol."
 
 (use-package smart-mode-line            ; TODO Better modeline
   :demand t
+  :defines sml/use-projectile-p sml/projectile-replacement-format
   :init
   (use-package powerline :config (setq powerline-default-separator 'contour))
 
@@ -765,11 +768,10 @@ If REGEXPP is true then don't modify MODE before adding to
    sml/projectile-replacement-format ":%s:")
 
   ;; add rich-minority properties
-  (dolist (props '(("Ovwrt" "▄" error)        ; overwrite
-                   ("Fly" "〰")               ; flyspell
-                   ("SP/s" "⒮")               ; smartparens-strict
-                   ("Wg" "⦚")                 ; writegood
-                   ("RAS" "ᚪ")))              ; real-auto-save
+  (dolist (props '(("Ovwrt" "▄" error)   ; overwrite
+                   ("SP/s" "⒮")          ; smartparens-strict
+                   ("Wg" "〰" warning)   ; writegood
+                   ("RAS" "α" success))) ; real-auto-save
     (apply #'rm-add props))
 
   (use-package smart-mode-line-my-theme
@@ -792,7 +794,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :commands nyan-mode
   :init (nyan-mode t)
   :config
-  (setq-default nyan-wavy-trail t)      ; TODO wavy nyan trail all the time ❥
+  (setq nyan-wavy-trail t)      ; TODO wavy nyan trail all the time ❥
 
   (defun nyan-nyan ()
     "Start or stop nyaning."
@@ -858,11 +860,12 @@ If REGEXPP is true then don't modify MODE before adding to
 
 (use-package vline-mode                 ; Highlight current column
   :ensure nil :defer t
-  :config (setq vline-face 'highlight
-                vline-visual-face 'highlight))
+  :defines vline-face vline-visual-face
+  :config (setq vline-face 'highlight vline-visual-face 'highlight))
 
 (use-package hl-sentence                ; Highlight current sentence
   :defer t
+  :defines hl-sentence-face
   :init (add-hook 'text-mode-hook #'hl-sentence-mode)
   :config (setq hl-sentence-face 'highlight))
 
@@ -902,6 +905,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (set-frame-font (concat (nth 1 font) "-"
                           (number-to-string (/ (or (nth 3 font) 10) 10)))))
 
+(my-font 'header)
 (apply #'set-face-attribute 'variable-pitch nil (my-font 'header))
 
 ;;;; interface
@@ -924,14 +928,15 @@ If REGEXPP is true then don't modify MODE before adding to
 
 (use-package hideshow                   ; Code folding
   :init
+
   (use-package hideshowvis :disabled t
     :defer t
     :init
     (hideshowvis-symbols)
     (add-hook 'hs-minor-mode-hook #'hideshowvis-minor-mode))
-  (add-hook 'prog-mode-hook #'hs-minor-mode)
 
   (evil-bind-key 'hs-minor-mode-map "TAB" #'hs-toggle-hiding)
+  (add-hook 'prog-mode-hook #'hs-minor-mode)
 
   :config
 
@@ -1104,7 +1109,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (setq flycheck-disabled-checkers '(emacs-lisp-checkdoc))
   (defun flycheck-mode-off () (flycheck-mode -1))
   (add-hook 'prog-mode-hook #'flycheck-mode)
-  (add-hook 'sh-mode-hook #'flycheck-off)
+  (add-hook 'sh-mode-hook #'flycheck-mode-off)
 
   (bind-keys
    :map my-evil-leader-map
@@ -1115,9 +1120,9 @@ If REGEXPP is true then don't modify MODE before adding to
   (defun my-flycheck-status (&optional status)
     (let ((warn-internal "W")
           (err-internal "E")
-          (success-str "σ")
-          (err-str "ε")
-          (warn-str "ς")
+          (success-str "S")
+          (err-str "?")
+          (warn-str "!")
           errs warns count)
       (case (or status flycheck-last-status-change)
         ('no-checker warn-internal)
@@ -1128,21 +1133,20 @@ If REGEXPP is true then don't modify MODE before adding to
         ('finished
          (when flycheck-current-errors
            (setq count (flycheck-count-errors flycheck-current-errors)
-                 errs (number-to-string (cdr (assoc 'error count)))
-                 warns (number-to-string (cdr (assoc 'warning count))))
+                 errs (cdr (assoc 'error count))
+                 warns (cdr (assoc 'warning count)))
            (concat
-            (unless (or errs warnings) success-str)
-            (when errs (concat err-str errs))
-            (when warns (concat warn-str warns))))))))
-  (setq flycheck-mode-line '(" Φ" (:eval (my-flycheck-status))))
-  (let ((base (s-trim (car flycheck-mode-line))))
-    (dolist (args `((,base)                            ; base str
-                    (,(concat base "σ") ,base success) ; no errors
-                    (,(concat base "E") ,base error)   ; internal errors
-                    (,(concat base "W") ,base warning) ; internal warnings
-                    ("ε[0-9][0-9]?" nil error t)
-                    ("ς[0-9][0-9]?" nil warning t)
-                    ))
+            (unless (or errs warns) success-str)
+            (when errs (concat err-str (number-to-string errs)))
+            (when warns (concat warn-str (number-to-string warns)))))))))
+  (let ((one "ⓕ") (two "Ⓕ"))
+    (setq flycheck-mode-line `(" " ,one (:eval (my-flycheck-status))))
+    (dolist (args `((,one)                           ; base str
+                    (,(concat one "S") "ⓕ" success)  ; no errors
+                    (,(concat one "E") ,two error)   ; internal errors
+                    (,(concat one "W") ,two warning) ; internal warnings
+                    ("\\?[0-9][0-9]?" nil error t)
+                    ("![0-9][0-9]?" nil warning t)))
       (apply #'rm-add args)))
 
   (setq flycheck-indication-mode 'right-fringe)
@@ -1187,6 +1191,18 @@ If REGEXPP is true then don't modify MODE before adding to
   :commands auto-indent-global-mode
   :init (auto-indent-global-mode t))
 
+(use-package autoinsert                 ; Auto insert text into buffers
+  :init (auto-insert-mode t)
+  :config
+  (add-to-list
+   'auto-insert-alist
+   '(org-mode                           ; TODO TITLE isn't getting inserted
+     "#+TITLE:     " (file-name-base buffer-file-name)
+     "\n#+AUTHOR:    " user-full-name
+     "\n#+EMAIL:     " user-mail-address
+     "\n#+SETUP FILE: \"../export.org\""
+     "\n\n* ")))
+
 (use-package company                    ; Autocompletion in code
   :defer t
   :init (add-hook 'prog-mode-hook #'company-mode)
@@ -1194,7 +1210,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
         company-statistics-file (expand-file-name "company-stats.el" my-dir)
-        company-tooltip-align-annonations t
+        company-tooltip-align-annotations t
         company-selection-wrap-around t)
 
   (bind-keys :map company-active-map
@@ -1217,7 +1233,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :defer t
   :config
   (setq
-   ispell-dictionary "british-ize"
+   ispell-dictionary "british-ise"
    ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB")
    ;; no messages please
    ispell-silently-savep t
@@ -1245,8 +1261,8 @@ If REGEXPP is true then don't modify MODE before adding to
   (use-package flyspell                 ; On-the-fly spell checking
     :defer t
     :init
-
     (use-package helm-flyspell          ; Helm completion for spellcheck
+      ;; TODO helm-flyspell-correct-previous-word
       :defer t
       :init (evil-bind-key 'flyspell-mode-map "z=" #'helm-flyspell-correct))
 
@@ -1261,8 +1277,7 @@ If REGEXPP is true then don't modify MODE before adding to
 
     :config
     ;; no messages
-    (setq flyspell-mode-line-string " 〰"
-          flyspell-issue-welcome-flag nil
+    (setq flyspell-issue-welcome-flag nil
           flyspell-issue-message-flag nil)
     (advice-add #'flyspell-auto-correct-word
                 :around #'my-ispell-run-together)))
@@ -1589,7 +1604,7 @@ If REGEXPP is true then don't modify MODE before adding to
      eshell-prompt-function #'epe-theme-geoffgarside)))
 
 (use-package malyon                     ; Z-machine text-based adventure reader
-  :ensure nil :defer t)
+  :ensure nil :defer t :commands malyon)
 
 (use-package vc-git                     ; Git Version Control
   :defer t :ensure nil
@@ -1660,16 +1675,6 @@ If REGEXPP is true then don't modify MODE before adding to
 
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
-  :init
-  (add-to-list
-   'auto-insert-alist
-   '(org-mode                           ; TODO TITLE isn't getting inserted
-     "#+TITLE:     " (file-name-base buffer-file-name)
-     "\n#+AUTHOR:    " user-full-name
-     "\n#+EMAIL:     " user-mail-address
-     "\n#+SETUP FILE: \"../export.org\""
-     "\n\n* "))
-
   :config
   (defun org-insert-block (&optional name)
     "Insert an org block of NAME, using 'quote' as a default."
@@ -1833,17 +1838,24 @@ If REGEXPP is true then don't modify MODE before adding to
   (setq python-shell-interpreter "python3") ; use Python 3
   (setq-default
    python-indent-guess-indent-offset nil
-   python-indent-offset 4)     ; something is setting this to 2
+   python-indent-offset 4)              ; something is setting this to 2
+
+  (defun my-py-run-doctests ()
+    "Run doctests on the current buffer."
+    (interactive)
+    (let ((match-str "[0-9]+ items had failures:\n")
+          (buf-name "*py-doctest*")
+          (s (shell-command-to-string
+              (format "%s -m doctest %s"
+                      python-shell-interpreter (buffer-file-name)))))
+      (when (and s (not (string= s "")))
+        (with-current-buffer (get-buffer-create buf-name) (insert s))
+        (display-buffer buf-name nil))))
 
   (use-package elpy
     :defer t
     :init (elpy-enable)
-    :config (setq elpy-rpc-python-command "python3")
-
-    (info-lookup-add-help
-     :mode 'python-mode
-     :regexp "[[:alnum:]_]+"
-     :doc-spec '(("(python)Index" nil "")))))
+    :config (setq elpy-rpc-python-command "python3")))
 
 (use-package sh-script
   :defer t
@@ -1853,8 +1865,9 @@ If REGEXPP is true then don't modify MODE before adding to
 (use-package vbnet-mode
   :defer t :ensure nil
   ;; use sensible faces instead of package-defined ones
+  :defines vbnet-funcall-face vbnet-namespace-face
   :config (setq vbnet-funcall-face 'font-lock-function-name-face
-              vbnet-namespace-face 'font-lock-preprocessor-face))
+                vbnet-namespace-face 'font-lock-preprocessor-face))
 
 (use-package js2-mode :disabled t
   :defer t
@@ -1864,10 +1877,12 @@ If REGEXPP is true then don't modify MODE before adding to
 
 (use-package css-mode
   :defer t
-  :mode "\\.s?css$"
+  :defines my-sass-output-dir
+  :mode "\\.s[ac]ss$"
   :config
   (defcustom my-sass-output-dir "../"
-    "Directory to store compiled sass files.")
+    "Directory to store compiled sass files."
+    :group 'css)
 
   (defun my-sass-watch ()
     "Start a sass process with `sass --watch' watching the current buffer."
@@ -1902,3 +1917,7 @@ If REGEXPP is true then don't modify MODE before adding to
         web-mode-markup-indent-offset 2))
 
 ;;; init.el ends here
+
+;; Local Variables:
+;; eval: (hs-minor-mode -1)
+;; End:

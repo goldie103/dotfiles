@@ -36,7 +36,7 @@
       (green    "#a6c25c")
       (green0   "#629755")
       (bold (if my-theme-bold-p 'bold 'normal))
-      bg bg0 fg)
+      bg bg1 fg)
   (if my-theme-light-p
       (setq bg bgl bg1 bgl1 fg fgl)
     (setq bg bgd bg1 bgd1 fg fgd))

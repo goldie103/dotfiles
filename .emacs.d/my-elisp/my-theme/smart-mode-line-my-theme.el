@@ -19,8 +19,8 @@
 (require 'powerline)
 
 ;;;; helpers
-(setq powerline-default-separator 'utf-8)
-(setq powerline-utf-8-separator-left #x25d7
+(setq powerline-default-separator 'utf-8 
+      powerline-utf-8-separator-left #x25d7
       powerline-utf-8-separator-right #x25d6)
 
 (defcustom my-theme-sml-evil
@@ -45,6 +45,8 @@
 
 (let* ((face (if (eq (frame-selected-window) (selected-window))
                  'mode-line 'mode-line-inactive))
+       (l " ")
+       (r " ")
        (bg-0 (face-attribute 'mode-line-emphasis :background))
        (fg-0 (face-attribute 'mode-line-emphasis :foreground))
        (fg-1 (face-attribute face :foreground))
@@ -75,8 +77,8 @@
    `(sml/name-filling ((t :inherit sml/global :weight normal)))
    `(sml/position-percentage ((t :inherit sml/global :weight normal)))
    `(sml/process ((t :inherit sml/global)))
-   `(sml/vc ((t :inherit font-lock-type-face)))
-   `(sml/vc-edited ((t :inherit font-lock-doc-face)))
+   `(sml/vc ((t :inherit font-lock-function-name-face)))
+   `(sml/vc-edited ((t :inherit font-lock-type-face)))
    `(sml/git ((t :inherit sml/vc)))
 ;;;;; major mode
    `(sml/modes ((t :inherit (sml/global font-lock-variable-name-face)
@@ -90,15 +92,21 @@
 ;;; vars
   (custom-theme-set-variables
    'smart-mode-line-my
-   '(sml/pre-id-separator '(:propertize "  " face mode-line-emphasis))
-   '(sml/pos-id-separator '(:propertize "  " face mode-line-emphasis))
-   '(sml/pre-modes-separator '(:propertize "  " face sml/modes))
+   '(mode-line-front-space
+     '(" "
+       (:eval (sml/generate-buffer-identification-if-necessary))
+       (sml/position-construct sml/position-construct (:eval (sml/compile-position-construct)))))
+   
+   `(sml/pre-id-separator `(" " (:propertize "  " face mode-line-emphasis)))
+   `(sml/pos-id-separator `((:propertize "  " face mode-line-emphasis) "  "))
+   '(sml/pre-modes-separator '(" " (:propertize "  " face sml/modes)))
    '(sml/pre-minor-modes-separator '(:propertize "  " face sml/modes))
    '(sml/pos-minor-modes-separator '(:propertize "  " face mode-line-emphasis))
    '(my-theme-sml-evil '((:propertize "  " face mode-line-emphasis)
                          (:propertize (:eval (substring (evil-state-property evil-state :tag t) 2 -2))
                                       face mode-line-emphasis)
                          (:propertize "  " face mode-line-emphasis)))
+
    ;; `(my-theme-sml-evil
    ;;   `(,@(my-theme-sml-sep 'left 'mode-line 'sml/minor-modes)
    ;;     (:eval (substring (evil-state-property evil-state :tag t) 2 -2))
