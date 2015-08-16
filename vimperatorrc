@@ -1,0 +1,50 @@
+" Kelly Stewart's vimperatorrc -*-mode: vimrc-*-
+
+source! "W:\\.config\\_vimperatorrc.local"
+
+" * Appearance
+colo solarized-dark
+set titlestring=Probably not work
+
+" * Behavior
+cd $HOME
+set editor=emacsclient -c
+set status=input,location,history,tabcount
+set rtp=$HOME/.config/vimperator,/media/user/.config/vimperator
+set newtab+=help,prefs,addons,downloads
+set passkeys+=improbableisland.com:abcdefghijklmnopqrstuvwxyz0123456789!
+set hintchars=asdfghjkl;
+
+" * User Commands
+com -description 'Search mp3 with ddg' -nargs=+ mus tabopen duckduckgo mp3 <args>
+autocmd LocationChange .* js modes.passAllKeys = /improbableisland\.com/.test(buffer.URL)
+
+" * Mappings
+nn U :undo<Space>
+nn s :stop<CR>
+nn <Space> :
+" escaping
+cno fd <Esc>
+ino fd <Esc>
+" quitting
+nn q d
+nn Q q
+" history
+nn H <C-o>
+nn L <C-i>
+nn gh :jumps<CR>
+nn gH :history<Space>
+" tab movement
+nn h gT
+nn l gt
+" next/previous page movement
+nn < [[
+nn > ]]
+" hints
+nn F f
+nn f F
+" copying text
+nn y Y
+nn Y y
+
+" vim: set ft=vimperator:
