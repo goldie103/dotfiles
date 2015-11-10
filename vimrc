@@ -1,14 +1,18 @@
 " Kelly Stewart
-set nocompatible
-if has('win32') || has('win64')
-  set runtimepath=$HOME/.vim,$VIM/vimfiles,$VIMRUNTIME,$VIM/vimfiles/after,$HOME/.vim/after
-endif
+" if has("win32") || has("win64")
+"     set rtp=$HOME/.vim,$VIM/vimfiles,$VIMRUNTIME,$VIM/vimfiles/after,$HOME/.vim/after
+" endif
 
 " Plugins {{{
 " Vundle setup {{{
 filetype off
-set rtp+=$HOME/.vim/bundle/Vundle.vim
-call vundle#begin()
+if has("win32") || has("win64")
+    set rtp+=$HOME\vimfiles\bundle\Vundle.vim
+    call vundle#begin('$HOME\vimfiles\bundle')
+else
+    set rtp+=$HOME/.vim/bundle/Vundle.vim
+    call vundle#begin()
+endif
 
 Plugin 'gmarik/Vundle.vim'
 
