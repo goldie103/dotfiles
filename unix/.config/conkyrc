@@ -22,6 +22,6 @@ TEXT
 ${font Fantasque Sans Mono:size=18}Things you must do
 ${voffset -10}${offset 15}$color1${font Fantasque Sans Mono:size=10:italic}BUT THOU MUST.$color
 $font
-$color1${exec cat ~/Documents/todo.txt | grep ^!}$color
-${exec cat ~/Documents/todo.txt | grep -v ^[!?]}
-$color2${exec cat ~/Documents/todo.txt | grep ^?}$color
+$color1${exec cat /media/user/Documents/todo.txt | grep ^!}$color
+${exec cat /media/user/Documents/todo.txt | grep -v ^[!?]}
+$color2${exec cat /media/user/Documents/todo.txt | grep ^?}$color
