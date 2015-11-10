@@ -1,6 +1,5 @@
 ;;; init.el --- Kelly Stewart's init file
 ;;; Commentary:
-;; TODO figure out wtf is opening network connections when adding use-package
 ;; TODO byte compiler is angry
 ;;; Code:
 ;;;; helper functions
@@ -59,14 +58,30 @@ define it as ELEMENTS."
   )
 
 ;;;; setup
-(defconst my-dir (expand-file-name  ".user/" user-emacs-directory))
-(defconst my-dir-elisp (expand-file-name "my-elisp" user-emacs-directory))
-(defconst my-dir-packages (expand-file-name "elisp/" user-emacs-directory))
 
-(add-to-list 'load-path my-dir-packages) ; non-MELPA packages
-(add-to-list 'load-path my-dir-elisp)    ; personal elisp files
+(defconst my-dir
+  (expand-file-name  ".user/" user-emacs-directory)
+  "Personal elisp settings files and generated files.")
 
-;; load custom file
+(defconst my-dir-elisp
+  (expand-file-name
+   "my-elisp/" (file-name-directory (file-truename user-init-file)))
+  "Personal elisp files.")
+(add-to-list 'load-path my-dir-elisp)
+
+(defconst my-dir-packages
+  (expand-file-name "elisp/" user-emacs-directory)
+  "Packages not available through a repository.")
+(add-to-list 'load-path my-dir-packages)
+
+(defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
+
+(defvar my-dir-cache
+  (if my-win-p "c:/users/kelly/appdata/local/emacs-cache/" "~/.cache/emacs/")
+  "Where to store cache files")
+
+
+
 (setq custom-file (expand-file-name "custom.el" my-dir))
 (load custom-file 'no-error 'no-message)
 
@@ -90,12 +105,6 @@ define it as ELEMENTS."
 (use-package bind-key)
 
 ;;;; basic settings
-
-;;;;; server
-(use-package server
-  :bind (("<f4>" . delete-frame)
-         ("<C-f4>" . server-edit))
-  :init (server-start))
 
 ;;;;; general
 
@@ -142,9 +151,11 @@ define it as ELEMENTS."
               fill-column 79)
 
 ;; UTF-8 everywhere
+(set-language-environment 'utf-8)
+(setq locale-coding-system 'utf-8)
+(set-default-coding-systems 'utf-8)
 (set-terminal-coding-system 'utf-8)
-(set-keyboard-coding-system 'utf-8)
-(set-selection-coding-system 'utf-8)
+(unless my-win-p (set-selection-coding-system 'utf-8))
 (prefer-coding-system 'utf-8)
 
 (fset #'yes-or-no-p #'y-or-n-p)
@@ -302,12 +313,12 @@ narrowed."
  ("d" . delete-window)
  ("D" . delete-other-windows))
 
-;;;;;; windows super key
-(when (eq system-type 'windows-nt)
-  (setq w32-apps-modifier 'hyper
-        ;; Taken mappings: s-l s-r
-        w32-lwindow-modifier 'super
-        w32-pass-lwindow-to-system nil))
+;;;;;; windows keys
+(when my-win-p
+  (setq
+   ;; w32-lwindow-modifier 'super
+   ;; w32-pass-lwindow-to-system nil
+   w32-apps-modifier 'hyper))
 
 ;;;; major packages
 
@@ -326,14 +337,31 @@ narrowed."
   (my-add-list 'evil-insert-state-modes '(git-commit-mode))
 
   (defmacro evil-bind-key (&rest args)
-    "Bind BINDS to evil STATE and MAP.
+    "Bind keys according to ARGS.
 
-STATE can be either a symbol specifying an evil state or a list
-of symbols.
+Binds to `evil-normal-state' and `global-map' by default.
+ARGS can be one of the following forms:
+STATE MAP BINDS
+MAP STATE BINDS
 
-The rest of the arguments are conses of keybinding string, which
-will be passed to `read-kbd-macro' if necessary, and an unquoted
-function symbol."
+MAP must be a quoted keymap to bind to. BINDS must consist of arguments like
+KEY DEF where KEY is the key to bind to and DEF is the quoted function.
+
+STATE must be a symbol referring to the evil state(s) to bind to.
+Valid values:
+n `evil-normal-state'
+m `evil-motion-state'
+v `evil-visual-state'
+r `evil-replace-state'
+o `evil-operator-state'
+i `evil-insert-state'
+
+STATE can also be a composite of different states, in which case BINDS will be
+bound to all states. Valid composite states:
+nm normal motion
+nv normal visual
+nmv normal motion visual
+a normal motion visual replace insert"
     (declare (indent 1))
     (let* ((state-shorts '((n normal)
                            (m motion)
@@ -680,7 +708,9 @@ function symbol."
 ;;;;; color theme
 
 (use-package my-theme
-  :ensure nil :load-path "~/.emacs.d/my-elisp/my-theme/"
+  :ensure nil
+  :defines my-theme-bold-p
+  :init (add-to-list 'load-path (expand-file-name "my-theme/" my-dir-elisp))
   :config
   (setq my-theme-bold-p nil)
   (load-theme 'my t))
@@ -832,11 +862,14 @@ If REGEXPP is true then don't modify MODE before adding to
 
 (use-package wc-goal-mode               ; WC and goal in modeline
   :defer t
+  :bind ("C-c w" . wc-format-cycle)
   :init (add-hook 'text-mode-hook #'wc-goal-mode)
   :config
 
-  (defvar wc-format-strings '("%tww" "%tll")
+  (defvar wc-format-strings '("γw%tw" "γl%tl")
     "`wc-goal-modeline-format' strings to cycle through.")
+  (setq wc-goal-modeline-format (car wc-format-strings))
+  (rm-add "γ[wl][0-9]+?")
 
   (defun wc-format-cycle ()
     "Cycle `wc-goal-modeline-format' through `wc-format-strings'."
@@ -849,7 +882,6 @@ If REGEXPP is true then don't modify MODE before adding to
                    (car wc-format-strings))
                   ((car forms)))))
       (setq wc-goal-modeline-format form))))
-
 
 ;;;;; face packages
 
@@ -1076,8 +1108,9 @@ If REGEXPP is true then don't modify MODE before adding to
    projectile-globally-ignored-files '("TAGS" "*.odt" "*.docx" "*.doc")
    projectile-indexing-method 'alien    ; use faster OS methods
    ;; don't clutter my .emacs.d please
-   projectile-cache-file (expand-file-name "projectile.cache" my-dir)
-   projectile-known-projects-file (expand-file-name "projectile.eld" my-dir))
+   projectile-cache-file (expand-file-name "projectile.cache" my-dir-cache)
+   projectile-known-projects-file (expand-file-name "projectile.eld"
+                                                    my-dir-cache))
 
   (use-package helm-projectile
     :defer t
@@ -1121,8 +1154,8 @@ If REGEXPP is true then don't modify MODE before adding to
     (let ((warn-internal "W")
           (err-internal "E")
           (success-str "S")
-          (err-str "?")
-          (warn-str "!")
+          (err-str "!")
+          (warn-str "?")
           errs warns count)
       (case (or status flycheck-last-status-change)
         ('no-checker warn-internal)
@@ -1145,8 +1178,8 @@ If REGEXPP is true then don't modify MODE before adding to
                     (,(concat one "S") "ⓕ" success)  ; no errors
                     (,(concat one "E") ,two error)   ; internal errors
                     (,(concat one "W") ,two warning) ; internal warnings
-                    ("\\?[0-9][0-9]?" nil error t)
-                    ("![0-9][0-9]?" nil warning t)))
+                    ("![0-9][0-9]?" nil error t)
+                    ("\\?[0-9][0-9]?" nil warning t)))
       (apply #'rm-add args)))
 
   (setq flycheck-indication-mode 'right-fringe)
@@ -1209,7 +1242,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :config
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
-        company-statistics-file (expand-file-name "company-stats.el" my-dir)
         company-tooltip-align-annotations t
         company-selection-wrap-around t)
 
@@ -1227,15 +1259,21 @@ If REGEXPP is true then don't modify MODE before adding to
     :ensure nil)
 
   (use-package company-statistics       ; Sort candidates by statistics
-    :init (company-statistics-mode t)))
+    :init (company-statistics-mode t)
+    :config
+    (setq company-statistics-file
+          (expand-file-name "company-stats.el" my-dir))))
 
 (use-package ispell                     ; Spell-checking
   :defer t
+  :init
+  (when my-win-p
+    (add-to-list 'exec-path "C:\\Program Files\\Emacs\\Aspell\\bin"))
   :config
   (setq
-   ispell-dictionary "british-ise"
+   ispell-program-name "aspell"
+   ispell-dictionary (if my-win-p "british" "british-ise")
    ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB")
-   ;; no messages please
    ispell-silently-savep t
    ispell-quietly t)
   (my-add-list 'ispell-skip-region-alist
@@ -1402,9 +1440,9 @@ If REGEXPP is true then don't modify MODE before adding to
   :init (recentf-mode t)
   :config
   (setq recentf-max-saved-items 300     ; increase history size
-        recentf-auto-cleanup 600        ; cleanup files after 10 minutes
+        ;; recentf-auto-cleanup 600        ; cleanup files after 10 minutes
         recentf-exclude '("COMMIT_EDITMSG")
-        recentf-save-file (expand-file-name "recentf" my-dir)))
+        recentf-save-file (expand-file-name "recentf" my-dir-cache)))
 
 ;;;; applications
 
@@ -1517,7 +1555,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (advice-add #'comint-previous-matching-input
               :around #'my-comint-suppress-message))
 
-(use-package eshell :disabled t         ; TODO Emacs shell
+(use-package eshell                     ;:disabled t         ; TODO Emacs shell
   :bind ("<f12>" . eshell)
   :config
   (setq
@@ -1527,61 +1565,62 @@ If REGEXPP is true then don't modify MODE before adding to
    ;; eshell-prompt-function #'my-eshell-prompt
    eshell-directory-name (expand-file-name my-dir "eshell/")
    eshell-cmpl-ignore-case t
-   eshell-banner-message (propertize (shell-command-to-string "fortune")
-                                     'face '(:foreground "#b58900")))
+   eshell-banner-message (if my-win-p
+                             ""
+                           (propertize (shell-command-to-string "fortune")
+                                       'face '(:foreground "#b58900"))))
 
-  (defmacro my-with-face (str face &rest props)
-    "Propertize STR with FACE and other PROPS."
-    `(propertize ,str 'face ',face ,@props))
+  ;; (defmacro my-with-face (str face &rest props)
+  ;;   "Propertize STR with FACE and other PROPS."
+  ;;   `(propertize ,str 'face ',face ,@props))
 
-  (defmacro my-with-col (str face &rest props)
-    "Propertize STR with the foreground color of FACE and other PROPS."
-    `(propertize ,str 'face '(:foreground ,(face-attribute face :foreground))
-                 ,@props))
+  ;; (defmacro my-with-col (str face &rest props)
+  ;;   "Propertize STR with the foreground color of FACE and other PROPS."
+  ;;   `(propertize ,str 'face '(:foreground ,(face-attribute face :foreground))
+  ;;                ,@props))
 
-  (defun my-esh-prompt-git ()
-    (let* ((branch (shell-command-to-string "git symbolic-ref HEAD --short"))
-           (detachedp (string-match "detached" branch))
-           (status (shell-command-to-string "git status --porcelain"))
-           (untrackedp (string-match "^\\?\\?" status))
-           (stashedp (not (string= (shell-command-to-string
-                                    "git stash list -n 1") "")))
-           (remote (shell-command-to-string (concat
-                                             "git config --get
-                                             branch" branch)))
-           (dirtyp
-            (string-match
-             "dirty" (shell-command-to-string
-                      "git diff-index --quiet HEAD -- || echo -n 'dirty'")))
-           (dirty-char "δ")
-           ())
-      ))
+  ;; (defun my-esh-prompt-git ()
+  ;;   (let* ((branch (shell-command-to-string "git symbolic-ref HEAD --short"))
+  ;;          (detachedp (string-match "detached" branch))
+  ;;          (status (shell-command-to-string "git status --porcelain"))
+  ;;          (untrackedp (string-match "^\\?\\?" status))
+  ;;          (stashedp (not (string= (shell-command-to-string
+  ;;                                   "git stash list -n 1") "")))
+  ;;          (remote (shell-command-to-string (concat
+  ;;                                            "git config --get
+  ;;                                            branch" branch)))
+  ;;          (dirtyp
+  ;;           (string-match
+  ;;            "dirty" (shell-command-to-string
+  ;;                     "git diff-index --quiet HEAD -- || echo -n 'dirty'")))
+  ;;          (dirty-char "δ")
+  ;;          ())
+  ;;     ))
 
-  (defun my-eshell-prompt ()
-    (concat
-     ;; abbreviated current working directory
-     (if (fboundp 'sml/replacer) (sml/replacer (eshell/pwd)) (eshell/pwd))
-     ;; git info
-     (when (and (eshell-searchpath "git")
-                (locate-dominating-file (eshell/pwd) ".git"))
-       (format
-        "( %s%s )"
+  ;; (defun my-eshell-prompt ()
+  ;;   (concat
+  ;;    ;; abbreviated current working directory
+  ;;    (if (fboundp 'sml/replacer) (sml/replacer (eshell/pwd)) (eshell/pwd))
+  ;;    ;; git info
+  ;;    (when (and (eshell-searchpath "git")
+  ;;               (locate-dominating-file (eshell/pwd) ".git"))
+  ;;      (format
+  ;;       "( %s%s )"
 
-        )
-       ;; dirty status
-       (and
-        )
-       ;; branch
-       (let ((name ))
-         (if (string-match "detached" name) "H" (substring name 0 -1)))
-       ;; untracked
-       (and (not (string=)))
-       ")"
-       )))
+  ;;       )
+  ;;      ;; dirty status
+  ;;      (and
+  ;;       )
+  ;;      ;; branch
+  ;;      (let ((name ))
+  ;;        (if (string-match "detached" name) "H" (substring name 0 -1)))
+  ;;      ;; untracked
+  ;;      (and (not (string=)))
+  ;;      ")"
+  ;;      )))
 
-  (use-package esh-module
-    :defer t :ensure nil
-    ;; REVIEW this should fix errors with `eshell-modules-list' undefined
+  (use-package esh-module :ensure nil
+    ;; TODO Why doesn't this fix eshell-modules-list being undefined
     :config (add-to-list 'eshell-modules-list 'eshell-smart))
   (use-package em-prompt :ensure nil :defer t)
   (use-package em-cmpl :ensure nil :defer t)
@@ -1591,17 +1630,18 @@ If REGEXPP is true then don't modify MODE before adding to
     :ensure nil
     :init (bind-key "<C-return>" #'helm-eshell-history eshell-mode-map))
 
-  (use-package eshell-prompt-extras     ; TODO this. all of this.
-    :init
-    (use-package virtualenvwrapper      ; Show Python venv info in prompt
-      :config (venv-initialize-interactive-shells))
-    :config
-    (setq
-     eshell-highlight-prompt nil
-     epe-git-dirty-char "δ"
-     epe-git-untracked-char "θ"
-     epe-git-detached-HEAD-char "Η"
-     eshell-prompt-function #'epe-theme-geoffgarside)))
+  (unless my-win-p
+    (use-package eshell-prompt-extras   ; TODO this. all of this.
+      :init
+      (use-package virtualenvwrapper    ; Show Python venv info in prompt
+        :config (venv-initialize-interactive-shells))
+      :config
+      (setq
+       eshell-highlight-prompt nil
+       epe-git-dirty-char "δ"
+       epe-git-untracked-char "θ"
+       epe-git-detached-HEAD-char "Η"
+       eshell-prompt-function #'epe-theme-geoffgarside))))
 
 (use-package malyon                     ; Z-machine text-based adventure reader
   :ensure nil :defer t :commands malyon)
@@ -1672,6 +1712,10 @@ If REGEXPP is true then don't modify MODE before adding to
   :init
   ;; capitalized comment keyword
   (add-hook 'bat-mode-hook (lambda () (setq comment-start "REM "))))
+
+(use-package conf-mode                  ; Configuration files
+  :defer t
+  :mode ("\\.inc$" . conf-windows-mode))
 
 (use-package org                        ; TODO
   ;; TODO modify org-promote so if already max level then demote all subtrees
@@ -1835,7 +1879,7 @@ If REGEXPP is true then don't modify MODE before adding to
 (use-package python
   :defer t
   :config
-  (setq python-shell-interpreter "python3") ; use Python 3
+  (unless my-win-p (setq python-shell-interpreter "python3")) ; use Python 3
   (setq-default
    python-indent-guess-indent-offset nil
    python-indent-offset 4)              ; something is setting this to 2
@@ -1852,10 +1896,23 @@ If REGEXPP is true then don't modify MODE before adding to
         (with-current-buffer (get-buffer-create buf-name) (insert s))
         (display-buffer buf-name nil))))
 
+  (defun my-python-shell-parse-command ()
+    "Calculate the string used to execute the inferior Python process.
+
+Use `shell-quote-argument' to get around issues with paths with
+spaces in Windows."
+    (let ((exec-path (python-shell-calculate-exec-path)))
+      (format "%s %s"
+              (shell-quote-argument (executable-find python-shell-interpreter))
+              python-shell-interpreter-args)))
+  (advice-add #'python-shell-parse-command :override
+              #'my-python-shell-parse-command)
+
   (use-package elpy
     :defer t
     :init (elpy-enable)
-    :config (setq elpy-rpc-python-command "python3")))
+    :config (unless my-win-p
+              (setq elpy-rpc-python-command "python3"))))
 
 (use-package sh-script
   :defer t
@@ -1916,8 +1973,27 @@ If REGEXPP is true then don't modify MODE before adding to
         web-mode-code-indent-offset 2
         web-mode-markup-indent-offset 2))
 
+;;;; server
+
+(use-package server
+  :commands server-edit
+  :init
+  (defun server-edit-dwim ()
+    (interactive)
+    (if server-clients (server-edit) (delete-frame)))
+  (bind-key "C-x C-c" #'server-edit-dwim)
+
+  (defun server-done-dwim ()
+    (interactive)
+    (if server-clients (server-edit) (kill-buffer-and-window)))
+  (evil-bind-key 'nmv "q" #'server-done-dwim)
+
+  (server-start))
+
+
 ;;; init.el ends here
 
 ;; Local Variables:
+;; company-backends: (company-elisp)
 ;; eval: (hs-minor-mode -1)
 ;; End:
