@@ -1320,30 +1320,14 @@ If REGEXPP is true then don't modify MODE before adding to
     (advice-add #'flyspell-auto-correct-word
                 :around #'my-ispell-run-together)))
 
-(use-package outline                    ; TODO Hierarchical outlining support
+(use-package outshine
   ;; TODO modify outline-promote so if already max level then demote subtrees
-  :ensure nil
   :init
-  ;; fontify outline headers
-  (defun my-outline-fontify-headlines ()
-    "Add font-lock-keywords for each outline level face."
-    (font-lock-add-keywords
-     nil
-     (mapcar
-      (lambda (face)
-        `(,(replace-regexp-in-string "<num>"
-                                     (substring (symbol-name face) -1)
-                                     ";;;\\{<num>\\} \\(.+\\|###autoload\\)$")
-          1 (quote ,face) t))
-      '(outline-1 outline-2 outline-3 outline-4
-                  outline-5 outline-6 outline-7 outline-8))))
-  (add-hook 'outline-minor-mode-hook #'my-outline-fontify-headlines)
-
-  (use-package outline-magic
-    :defer t
-    :init (evil-bind-key 'outline-minor-mode-map "TAB" #'outline-cycle))
-
+  (add-hook 'outline-minor-mode-hook #'outshine-hook-function)
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
+  (add-to-list 'company-begin-commands #'outshine-self-insert-command)
+
+  (evil-bind-key 'outline-minor-mode-map "TAB" #'outline-cycle)
 
   :config
   (bind-key "C-c o" #'outline-insert-heading outline-minor-mode-map)
@@ -1354,6 +1338,7 @@ If REGEXPP is true then don't modify MODE before adding to
     "gl" #'outline-forward-same-level
     "<" #'outline-promote
     ">" #'outline-demote))
+
 
 (use-package smartparens-config      ; FIXME Balanced paren management
   ;; REVIEW autopairing quotes and backticks
