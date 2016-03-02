@@ -23,17 +23,6 @@ define it as ELEMENTS."
               ("q" . kill-buffer-and-window)
               (",b" . ibuffer)))
 
-;; Would normally use `bind-key*' for this, but that would also override
-;; `evil-insert-state', and that shouldn't be touched
-(defmacro my-bind-over-evil (&rest args)
-  "Pass ARGS to `bind-keys' with `:map' set to evil states and `global-map'."
-  `(bind-keys :map (global-map
-                    evil-insert-state-map
-                    evil-motion-state-map
-                    evil-replace-state-map
-                    evil-visual-state-map)
-              ,@args))
-
 (defun my-cleanup ()
   "Clean up current buffer whitespace."
   (interactive)
@@ -326,8 +315,40 @@ narrowed."
   :demand t
   :commands evil-define-command evil-bind-key
   :defines my-evil-leader-map
+  :bind (:map evil-motion-state-map
+              ("y" . evil-yank))
   :init (evil-mode t)
   :config
+  (bind-keys :map (evil-motion-state-map evil-insert-state-map
+                                         evil-emacs-state-map)
+             ("C-w" . nil))
+
+  (bind-keys
+   :map (evil-normal-state-map evil-motion-state-map
+                               evil-visual-state-map)
+   ("SPC" . execute-extended-command)
+   (":" . comment-dwim)
+   ("Y" . my-evil-yank-to-eol)          ; more consistent
+   ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
+   ("Q" . evil-record-macro)            ; Q replaces old q action
+   ;; a-s is more memnonic but s-a follows keyboard order
+   ("s" . evil-last-non-blank)
+   ("a" . evil-first-non-blank)
+   ;; movement
+   ("j" . evil-next-visual-line)
+   ("k" . evil-previous-visual-line)
+   ("\"" . evil-jump-item))
+
+  (bind-keys
+   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
+   :prefix-map my-evil-leader-map
+   :prefix ","
+   :prefix-docstring "My evil leader key."
+   ("f" . find-file)
+   ("b" . list-buffers)
+   ("w" . save-buffer)
+   ("SPC" . evil-ex))
+
   (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
         evil-want-fine-undo nil          ; undo insertions in single steps
         evil-want-change-word-to-end nil ; don't let cw behave like ce
@@ -404,37 +425,6 @@ a normal motion visual replace insert"
   (evil-define-command my-evil-yank-to-eol ()
     "Call `evil-yank' with point to end of line."
     (evil-yank (point) (point-at-eol)))
-
-  ;; remove bindings for access to own `my-window-map'
-  (bind-keys
-   :map (evil-motion-state-map evil-insert-state-map evil-emacs-state-map)
-   ("C-w" . nil))
-
-  (bind-keys
-   :map (evil-normal-state-map evil-motion-state-map evil-visual-state-map)
-   :prefix-map my-evil-leader-map
-   :prefix ","
-   :prefix-docstring "My evil leader key."
-   ("f" . find-file)
-   ("b" . list-buffers)
-   ("w" . save-buffer)
-   ("SPC" . evil-ex))
-
-  (evil-bind-key 'm "y" #'evil-yank)    ; Add yanking to motion map
-  (evil-bind-key 'nmv
-    "SPC" #'execute-extended-command
-    "ESC" #'keyboard-quit
-    ":" #'comment-dwim
-    "Y" #'my-evil-yank-to-eol           ; more consistent
-    "q" #'kill-buffer-and-window        ; consistency with other Emacs buffers
-    "Q" #'evil-record-macro             ; Q replaces old q action
-    ;; a-s is more memnonic but s-a follows keyboard order
-    "s" #'evil-last-non-blank
-    "a" #'evil-first-non-blank
-    ;; movement
-    "j" #'evil-next-visual-line
-    "k" #'evil-previous-visual-line
-    "\"" #'evil-jump-item)
 
   (use-package evil-escape              ; Escape from everything with two keys
     ;; trying this out instead of jk
@@ -1041,9 +1031,13 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;; navigation
 
 (use-package avy                        ; Jump to specific points
-  :init (my-bind-over-evil
-         ("C-e" . avy-goto-word-1)
-         ("C-S-e" . avy-goto-line))
+  :bind (:map (global-map
+               evil-insert-state-map
+               evil-motion-state-map
+               evil-replace-state-map
+               evil-visual-state-map)
+              ("C-e" . avy-goto-word-1)
+              ("C-S-e" . avy-goto-line))
   :config (setq avy-background t))
 
 (use-package ace-window
@@ -1240,6 +1234,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :defer t
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
+
   (setq company-idle-delay 0            ; attempt completion immediately
         company-show-numbers t          ; allow M-num selection
         company-tooltip-align-annotations t
@@ -1325,7 +1320,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :init
   (add-hook 'outline-minor-mode-hook #'outshine-hook-function)
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
-  (add-to-list 'company-begin-commands #'outshine-self-insert-command)
+  (my-add-list 'company-begin-commands #'outshine-self-insert-command)
 
   (evil-bind-key 'outline-minor-mode-map "TAB" #'outline-cycle)
 
