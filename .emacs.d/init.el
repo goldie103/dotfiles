@@ -196,6 +196,7 @@ define it as ELEMENTS."
 (show-paren-mode t)                     ; Highlight matching parens
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
+(smooth-scrolling-mode t)               ; Sane scrolling
 ;; we don't need no stinkin GUI
 (size-indication-mode -1)
 (tool-bar-mode -1)
@@ -280,8 +281,6 @@ narrowed."
  ([remap comment-dwim] . my-comment-dwim)
  ([remap switch-to-buffer] . ibuffer))
 
-(my-add-binds package-menu-mode-map)
-
 (bind-keys :map (minibuffer-local-map
                  minibuffer-local-ns-map
                  minibuffer-local-completion-map
@@ -310,15 +309,101 @@ narrowed."
    w32-apps-modifier 'hyper))
 
 ;;;; major packages
+(bind-keys :map my-evil-override-map
+           ("SPC" . execute-extended-command)
+           ("q" . kill-buffer-and-window)
+           (",b" . ibuffer)
+           :map evil-motion-state-map
+           ("y" . evil-yank))
+
+(defmacro evil-bind-key (&rest args)
+    "Bind keys according to ARGS.
+
+Binds to `evil-normal-state' and `global-map' by default.
+ARGS can be one of the following forms:
+STATE MAP BINDS
+MAP STATE BINDS
+
+MAP must be a quoted keymap to bind to. BINDS must consist of arguments like
+KEY DEF where KEY is the key to bind to and DEF is the quoted function.
+
+STATE must be a symbol referring to the evil state(s) to bind to.
+Valid values:
+n `evil-normal-state'
+m `evil-motion-state'
+v `evil-visual-state'
+r `evil-replace-state'
+o `evil-operator-state'
+i `evil-insert-state'
+
+STATE can also be a composite of different states, in which case BINDS will be
+bound to all states. Valid composite states:
+nm normal motion
+nv normal visual
+nmv normal motion visual
+a normal motion visual replace insert"
+    (declare (indent 1))
+    (let* ((map (or (plist-get args :map) 'global-map))
+           (maps (if (listp map) map (list map)))
+           (state (or (plist-get args :state) 'normal))
+           (states (if (listp state) state (list state)))
+           (binds (progn
+                    (while (keywordp (car args)) (pop args) (pop args))
+                    args)))
+
+      ;; (macroexp-progn
+       (mapcar
+        (lambda (item)
+          `(evil-define-key ',(car item) ,(cdr item)
+             ,@(mapcar
+                (lambda (item)
+                  (if (stringp item)
+                      (read-kbd-macro item)
+                    item))
+                binds)))
+        (normal))
+       ;; )
+      ))
+
+(map)
+(list 'normal)
+
+(macroexp-progn (evil-bind-key ("SPC" . execute-extended-command)))
+
+(evil-bind-key
+ :state ()
+ :map ()
+ ("SPC" . execute-extended-command)
+ (":" . comment-dwim)
+ ("Y" . my-evil-yank-to-eol)          ; more consistent
+ ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
+ ("Q" . evil-record-macro)            ; Q replaces old q action
+ ;; a-s is more memnonic but s-a follows keyboard order
+ ("s" . evil-last-non-blank)
+ ("a" . evil-first-non-blank)
+ ;; movement
+ ("j" . evil-next-visual-line)
+ ("k" . evil-previous-visual-line)
+ ("\"" . evil-jump-item))
+
+(bind-keys
+   :map (evil-normal-state-map evil-motion-state-map
+                               evil-visual-state-map)
 
 (use-package evil                       ; Vim keybindings and modal editing
   :demand t
   :commands evil-define-command evil-bind-key
   :defines my-evil-leader-map
-  :bind (:map evil-motion-state-map
-              ("y" . evil-yank))
   :init (evil-mode t)
   :config
+
+  (bind-keys :map my-evil-override-map
+           ("SPC" . execute-extended-command)
+           ("q" . kill-buffer-and-window)
+           (",b" . ibuffer)
+           :map evil-motion-state-map
+           ("y" . evil-yank))
+
   (bind-keys :map (evil-motion-state-map evil-insert-state-map
                                          evil-emacs-state-map)
              ("C-w" . nil))
@@ -348,6 +433,8 @@ narrowed."
    ("b" . list-buffers)
    ("w" . save-buffer)
    ("SPC" . evil-ex))
+
+(my-add-list 'evil-overriding-maps '((my-evil-override-map)))
 
   (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
         evil-want-fine-undo nil          ; undo insertions in single steps
@@ -462,6 +549,7 @@ a normal motion visual replace insert"
   (defalias #'ibuffer #'ido-switch-buffer)
   (ido-mode t))
 
+
 (use-package helm                       ; Fuzzy minibuffer completion
   :demand t
   :init (helm-mode t)
@@ -502,7 +590,7 @@ a normal motion visual replace insert"
   (use-package helm-imenu :ensure nil :defer t)
 
   (defun my-helm-imenu-transformer (candidates)
-    "Custom imenu transformer with added headings and faces."
+    "Custom imenu transformer to add colouring for headings."
     (cl-loop
      for (k . v) in candidates
      for types = (or (helm-imenu--get-prop k) (list "Function" k))
@@ -549,6 +637,8 @@ a normal motion visual replace insert"
    ([remap apropos-command] . helm-apropos)
    ([remap apropos-documentation] . helm-apropos))
 
+  (bind-key
+   "C-p")
   (evil-bind-key 'a "C-p" #'helm-show-kill-ring)
   (bind-key "hr" #'helm-resume my-evil-leader-map)
   (bind-key "C-/" #'helm-semantic-or-imenu emacs-lisp-mode-map)
@@ -1240,6 +1330,8 @@ If REGEXPP is true then don't modify MODE before adding to
         company-tooltip-align-annotations t
         company-selection-wrap-around t)
 
+  (my-add-list 'company-begin-commands #'outshine-self-insert-command)
+
   (bind-keys :map company-active-map
              ("M-j" . company-select-next)
              ("M-k" . company-select-previous)
@@ -1320,7 +1412,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :init
   (add-hook 'outline-minor-mode-hook #'outshine-hook-function)
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
-  (my-add-list 'company-begin-commands #'outshine-self-insert-command)
 
   (evil-bind-key 'outline-minor-mode-map "TAB" #'outline-cycle)
 
