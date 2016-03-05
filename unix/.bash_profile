@@ -1,5 +1,5 @@
-# Find user directory
-[[ -d $USER_DIR ]] && USER_DIR="/media/user"
+# set user directory if not already set
+[[ -d $USER_DIR ]] || USER_DIR="/media/user"
 
 # * settings
 shopt -s nocaseglob             # case insensitive globbing
@@ -22,19 +22,18 @@ add_path "$HOME/bin"             # private bin
 add_path "$HOME/.local/bin"      # local application bin
 add_path "/usr/local/heroku/bin" # heroku apps
 
-# source files
-source_file () {
-    # find source directory
-    SRC_DIR=$USER_DIR/dev/dotfiles/unix/src
-    if [[ ! -d $SRC_DIR ]]; then
-        echo "Can't find source directory, using $HOME."
-        SRC_DIR=$HOME
-    fi
+# find source directory
+SRC_DIR=$USER_DIR/dev/dotfiles/unix/src
+if [[ ! -d $SRC_DIR ]]; then
+  echo "Can't find source directory, using $HOME."
+  SRC_DIR=$HOME
+fi
 
+
+source_file () {
     # source file if it exists
     [[ -f $SRC_DIR/$1 ]] && source $SRC_DIR/$1
 }
-
 
 source_file .bashrc
 source_file liquidprompt
