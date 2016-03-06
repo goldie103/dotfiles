@@ -90,7 +90,8 @@ define it as ELEMENTS."
   (package-install 'use-package))
 (eval-when-compile (require 'use-package))
 (setq use-package-verbose t             ; log message after loading a package
-      use-package-always-ensure t)      ; ensure all packages are installed
+      use-package-always-ensure t       ; ensure all packages are installed
+      use-package-always-defer t)       ; defer all packages
 (use-package bind-key)
 
 ;;;; basic settings
@@ -428,7 +429,6 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
   (use-package evil-escape              ; Escape from everything with two keys
     ;; trying this out instead of jk
-    :defer t
     :init
     ;; make dummy keymaps to silence errors
     (dolist (map '(evil-lisp-state-map
@@ -439,11 +439,10 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
     (evil-escape-mode t))
 
   (use-package evil-surround            ; Operators for surrounding elements
-    :defer t :init (global-evil-surround-mode t))
+    :init (global-evil-surround-mode t))
 
   (use-package evil-commentary          ; Operator for comments
     ;; TODO see if I can get this working with smartparen compliance
-    :defer t
     :init (evil-commentary-mode t)
     :config (evil-bind-key ":" #'evil-commentary evil-commentary-mode-map))
 
@@ -454,7 +453,6 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
     (evil-bind-key "\"" #'evilmi-jump-items evil-matchit-mode-map)))
 
 (use-package ido :disabled t            ; As a backup for when Helm breaks
-  :defer t
   :init
   (use-package smex                     ; Mini buffer command completion
     :bind ([remap execute-extended-command] . smex))
@@ -525,15 +523,6 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
   (helm-autoresize-mode t)
 
-  ;; load packages manually to avoid byte-compiler warnings
-  (use-package helm-files :ensure nil :defer t)
-  (use-package helm-mode :ensure nil :defer t)
-  (use-package helm-semantic :ensure nil :defer t)
-  (use-package helm-buffers :ensure nil :defer t)
-  (use-package helm-command :ensure nil :defer t)
-  (use-package helm-elisp :ensure nil :defer t)
-  (use-package helm-imenu :ensure nil :defer t)
-
   (defun my-helm-imenu-transformer (candidates)
     "Custom imenu transformer to add colouring for headings."
     (cl-loop
@@ -594,7 +583,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
                 guide-key/guide-key-sequence '("C-x" "C-c" "C-w" ",")))
 
 (use-package help-mode
-  :ensure nil :defer t
+  :ensure nil
   :bind (:map help-mode-map
               ("H" . help-go-back)
               ("L" . help-go-forward)
@@ -617,7 +606,6 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
   (use-package help-fns+ :bind ("<help> o" . describe-option)))
 
 (use-package info
-  :defer t
   :config (add-to-list 'Info-directory-list "~/.config/info"))
 
 ;;;; appearance
@@ -812,7 +800,6 @@ If REGEXPP is true then don't modify MODE before adding to
        face sml/remote)))))
 
 (use-package nyan-mode                  ; Nyan cat scroll bar
-  :defer t
   ;; TODO nyan music ☹
   :commands nyan-mode
   :init (nyan-mode t)
@@ -832,7 +819,6 @@ If REGEXPP is true then don't modify MODE before adding to
   (defun nyan-mode-off () (nyan-mode -1)))
 
 (use-package which-func                 ; Modeline definition name
-  :defer t
   :init (which-function-mode t)
   :config
   (defun which-func-current ()
@@ -854,7 +840,6 @@ If REGEXPP is true then don't modify MODE before adding to
           (:propertize "  " face which-func))))
 
 (use-package wc-goal-mode               ; WC and goal in modeline
-  :defer t
   :bind ("C-c w" . wc-format-cycle)
   :init (add-hook 'text-mode-hook #'wc-goal-mode)
   :config
@@ -879,17 +864,15 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;;; face packages
 
 (use-package hl-line                    ; Highlight current line
-  :defer t
   :init (add-hook 'prog-mode-hook #'hl-line-mode)
   :config (setq hl-line-face 'highlight))
 
 (use-package vline-mode                 ; Highlight current column
-  :ensure nil :defer t
+  :ensure nil
   :defines vline-face vline-visual-face
   :config (setq vline-face 'highlight vline-visual-face 'highlight))
 
 (use-package hl-sentence                ; Highlight current sentence
-  :defer t
   :defines hl-sentence-face
   :init (add-hook 'text-mode-hook #'hl-sentence-mode)
   :config (setq hl-sentence-face 'highlight))
@@ -898,20 +881,16 @@ If REGEXPP is true then don't modify MODE before adding to
   :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
 
 (use-package page-break-lines           ; Horizontal lines instead of ^L
-  :defer t
   :init (global-page-break-lines-mode t))
 
 (use-package paren-face                 ; Faces for parens
-  :defer t
   :init (add-hook 'emacs-lisp-mode-hook #'paren-face-mode))
 
 (use-package rainbow-mode               ; Highlight color codes
-  :defer t
   :init (dolist (hook '(web-mode-hook css-mode-hook))
           (add-hook hook #'rainbow-mode)))
 
 (use-package whitespace                 ; Faces for whitespace characters
-  :defer t
   :init (add-hook 'prog-mode-hook #'whitespace-mode)
   :config
   (setq
@@ -935,11 +914,9 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;; interface
 
 (use-package linum                      ; Line numbers
-  :defer t
   :init (add-hook 'prog-mode-hook #'linum-mode))
 
 (use-package golden-ratio :disabled t   ; TODO Resize windows to golden ratio
-  :defer t
   ;; TODO get this to play nice with Helm
   :init (golden-ratio-mode t)
   :config
@@ -954,7 +931,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :init
 
   (use-package hideshowvis :disabled t
-    :defer t
     :init
     (hideshowvis-symbols)
     (add-hook 'hs-minor-mode-hook #'hideshowvis-minor-mode))
@@ -991,7 +967,6 @@ If REGEXPP is true then don't modify MODE before adding to
        (or column (unless selective-display (1+ (current-column))))))))
 
 (use-package popwin                     ; Popup window for minor buffers
-  :defer t
   :commands popwin-mode
   :init (popwin-mode t)
   :config
@@ -1007,13 +982,11 @@ If REGEXPP is true then don't modify MODE before adding to
                 uniquify-trailing-separator-p t))
 
 (use-package winner                     ; Window configuration undo
-  :defer t
   :bind (("s-j" . winner-undo)
          ("s-k" . winner-redo))
   :init (winner-mode t))
 
 (use-package writeroom-mode             ; Distraction-free writing mode
-  :defer t
   :init (bind-key "<C-f11>" #'writeroom-mode text-mode-map)
   :config
   (setq writeroom-width 100)
@@ -1028,7 +1001,6 @@ If REGEXPP is true then don't modify MODE before adding to
   (add-to-list 'writeroom-global-effects #'my-writeroom-effect))
 
 (use-package visual-fill-column
-  :defer t
   :init (add-hook 'text-mode-hook #'visual-fill-column-mode)
   :config (setq-default visual-fill-column-width 100))
 
@@ -1048,7 +1020,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
 (use-package ag                         ; Fast search and navigation
-  :defer t
   :config
   (setq ag-reuse-buffers t
         ag-reuse-window t)
@@ -1066,7 +1037,6 @@ If REGEXPP is true then don't modify MODE before adding to
           helm-ag-fuzzy-match t)))
 
 (use-package desktop                    ; Save buffers, windows and frames
-  :defer t
   :init (desktop-save-mode t)
   :config
   (setq desktop-auto-save-timeout 60
@@ -1081,7 +1051,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :config (setq expand-region-contract-fast-key "x"))
 
 (use-package savehist                   ; Save command history
-  :defer t
   :init (savehist-mode t)
   :config (setq savehist-file (expand-file-name "savehist" my-dir)
                 history-delete-duplicates t
@@ -1094,7 +1063,6 @@ If REGEXPP is true then don't modify MODE before adding to
   (setq save-place-file (expand-file-name "places" my-dir)))
 
 (use-package projectile                 ; Project-based navigation
-  :defer t
   :bind (:map my-evil-leader-map
               ("p" . projectile-find-file-dwim)
               ("P" . projectile-switch-project))
@@ -1109,7 +1077,6 @@ If REGEXPP is true then don't modify MODE before adding to
                                                     my-dir-cache))
 
   (use-package helm-projectile
-    :defer t
     :init (helm-projectile-on)
     :bind (:map my-evil-leader-map
                 ([remap projectile-find-file-dwim] . helm-projectile)
@@ -1122,7 +1089,6 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;; editing
 
 (use-package multiple-cursors
-  :defer t
   :init (multiple-cursors-mode t))
 
 (use-package drag-stuff                 ; TODO Transpose things
@@ -1131,7 +1097,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :init (drag-stuff-global-mode t))
 
 (use-package flycheck                   ; On-the-fly syntax checking
-  :defer t
   :bind (:map my-evil-leader-map
               ("cj" . flycheck-next-error)
               ("ck" . flycheck-previous-error))
@@ -1187,7 +1152,6 @@ If REGEXPP is true then don't modify MODE before adding to
     :config (flycheck-tip-use-timer 'verbose)))
 
 (use-package lorem-ipsum                ; Insert filler text
-  :defer t
   :config
   ;; overwrite default `sgml-mode' entries
   (add-hook 'sgml-mode-hook
@@ -1197,7 +1161,6 @@ If REGEXPP is true then don't modify MODE before adding to
   (unless sentence-end-double-space (setq lorem-ipsum-sentence-separator " ")))
 
 (use-package writegood-mode             ; Highlight poor forms in writing
-  :defer t
   :init
   (add-hook 'text-mode-hook #'writegood-mode)
   (add-hook 'writegood-mode-hook #'writegood-passive-voice-turn-off)
@@ -1214,7 +1177,6 @@ If REGEXPP is true then don't modify MODE before adding to
 (use-package auto-indent-mode           ; Automatic indentation
   ;; TODO get this working with indenting pasted code
   ;;      probably has something to do with Evil command hijacking
-  :defer t
   :commands auto-indent-global-mode
   :init (auto-indent-global-mode t))
 
@@ -1258,7 +1220,6 @@ If REGEXPP is true then don't modify MODE before adding to
           (expand-file-name "company-stats.el" my-dir))))
 
 (use-package ispell                     ; Spell-checking
-  :defer t
   :init
   (when my-win-p
     (add-to-list 'exec-path "C:\\Program Files\\Emacs\\Aspell\\bin"))
@@ -1290,15 +1251,12 @@ If REGEXPP is true then don't modify MODE before adding to
   (advice-add #'ispell-word :around #'my-ispell-run-together)
 
   (use-package flyspell                 ; On-the-fly spell checking
-    :defer t
     :init
     (use-package helm-flyspell          ; Helm completion for spellcheck
       ;; TODO helm-flyspell-correct-previous-word
-      :defer t
       :init (evil-bind-key "z=" #'helm-flyspell-correct 'flyspell-mode-map))
 
     (use-package flyspell-lazy          ; Lazier checking for words
-      :defer t
       :init
       (add-hook 'flyspell-mode #'flyspell-lazy-mode)
       (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
@@ -1375,7 +1333,6 @@ If REGEXPP is true then don't modify MODE before adding to
   (sp-local-pair 'html-mode "<" ">"))
 
 (use-package typo                       ; Insert typographical characters
-  :defer t
   :init (add-hook 'text-mode-hook #'typo-mode))
 
 (use-package undo-tree                  ; Branching undo tree
@@ -1392,13 +1349,11 @@ If REGEXPP is true then don't modify MODE before adding to
   (unbind-key "C-/" undo-tree-map))
 
 (use-package yasnippet                  ; Snippet insertion
-  :defer t
   :config (setq yas-snippet-dirs
                 `(,(expand-file-name "snippets/" my-dir)
                   yas-installed-snippets-dir)))
 
 (use-package autorevert                 ; Auto revert to external modifications
-  :defer t
   :init (global-auto-revert-mode t)
   :config (setq global-auto-revert-non-file-buffers t))
 
@@ -1415,7 +1370,6 @@ If REGEXPP is true then don't modify MODE before adding to
   :config (setq real-auto-save-interval 60))
 
 (use-package recentf                    ; List recent files
-  :defer t
   :init (recentf-mode t)
   :config
   (setq recentf-max-saved-items 300     ; increase history size
@@ -1426,7 +1380,6 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;; applications
 
 (use-package compile                    ; Compilation
-  :defer t
   :config
   (setq
    compilation-always-kill t      ; kill old processes before starting new ones
@@ -1437,7 +1390,6 @@ If REGEXPP is true then don't modify MODE before adding to
    compilation-ask-about-save nil))
 
 (use-package paradox                    ; Better package management
-  :defer t
   :config
   (use-package async)
   (setq paradox-execute-asynchronously t))
@@ -1463,14 +1415,13 @@ If REGEXPP is true then don't modify MODE before adding to
   (add-to-list 'evil-emacs-state-modes 'dired-mode) ; Evil initial state
 
   (use-package dired+                   ; Dired extensions and syntax highlight
-    :defer t
     :init (add-hook 'dired-mode-hook #'dired-omit-mode)  ; omit uninteresting files
     :config
     (setq diredp-dwim-any-frame-flag t  ; allow dwim target other frame
           dired-omit-verbose nil)))
 
 (use-package doc-view                   ; In-buffer document viewer
-  :ensure nil :defer t
+  :ensure nil
   :bind (:map doc-view-mode-map
               ("g" . nil)
              ("gg" . doc-view-first-page)
@@ -1489,7 +1440,6 @@ If REGEXPP is true then don't modify MODE before adding to
   (my-add-binds doc-view-mode-map))
 
 (use-package ediff                      ; Emacs diff utility
-  :defer t
   :config
   (setq ediff-diff-options "-w")        ; ignore whitespace
   (evil-bind-key :map ediff-mode
@@ -1500,7 +1450,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :enabled nil :load-path (concat my-dir-packages "elim"))
 
 (use-package comint                     ; Emacs terminal emulator
-  :ensure nil :defer t
+  :ensure nil
   :config
   (setq comint-completion-addsuffix t   ; add space/slash after file completion
         comint-input-ignoredups t       ; ignore duplicates in command history
@@ -1596,9 +1546,9 @@ If REGEXPP is true then don't modify MODE before adding to
   (use-package esh-module :ensure nil
     ;; TODO Why doesn't this fix eshell-modules-list being undefined
     :config (add-to-list 'eshell-modules-list 'eshell-smart))
-  (use-package em-prompt :ensure nil :defer t)
-  (use-package em-cmpl :ensure nil :defer t)
-  (use-package em-banner :ensure nil :defer t)
+  (use-package em-prompt :ensure nil)
+  (use-package em-cmpl :ensure nil)
+  (use-package em-banner :ensure nil)
 
   (use-package helm-eshell
     :ensure nil
@@ -1619,10 +1569,10 @@ If REGEXPP is true then don't modify MODE before adding to
        eshell-prompt-function #'epe-theme-geoffgarside))))
 
 (use-package malyon                     ; Z-machine text-based adventure reader
-  :ensure nil :defer t :commands malyon)
+  :ensure nil :commands malyon)
 
 (use-package vc-git                     ; Git Version Control
-  :defer t :ensure nil
+  :ensure nil
   :init
 
   (use-package magit                    ; Git version control management
@@ -1666,7 +1616,6 @@ If REGEXPP is true then don't modify MODE before adding to
     :bind ("<M-f10>" . git-timemachine-toggle))
 
   (use-package git-commit-mode          ; Git commit messages
-    :defer t
     :config
     (evil-bind-key :map git-commit-mode-map
       ([remap save-buffer] . git-commit-commit)
@@ -1675,14 +1624,13 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;; languages
 
 ;; various unconfigured language packages
-(use-package bbcode-mode :defer t)
-(use-package lua-mode :defer t)
-(use-package gitignore-mode :defer t)
-(use-package markdown-mode :defer t)
-(use-package vimrc-mode :mode "[._]?pentadactylrc$" "\\.penta$" :defer t)
+(use-package bbcode-mode)
+(use-package lua-mode)
+(use-package gitignore-mode)
+(use-package markdown-mode)
+(use-package vimrc-mode :mode "[._]?pentadactylrc$" "\\.penta$")
 
 (use-package conf-mode                  ; Configuration files
-  :defer t
   :mode ("\\.inc$" . conf-windows-mode))
 
 (use-package org                        ; TODO
@@ -1726,17 +1674,16 @@ If REGEXPP is true then don't modify MODE before adding to
     (apply #'set-face-attribute face nil (my-font 'mono)))
 
   (use-package org-clock
-    :ensure nil :defer t
+    :ensure nil
     :config
     (setq org-clock-persist t           ; save clock and clock history on exit
           org-clock-in-resume t))       ; resume if clocking in with open clock
 
   (use-package ox-odt
-    :ensure nil :defer t
+    :ensure nil
     :config (setq org-odt-preferred-output-format 'doc))
 
   (use-package org-plus-contrib
-    :defer t
     :config
 
   (use-package evil-org                 ; TODO Evil org-mode bindings
@@ -1754,7 +1701,7 @@ If REGEXPP is true then don't modify MODE before adding to
     (org-open-file (org-odt-export-to-odt)))))
 
 (use-package generic-x                  ; Collection of generic modes
-  :ensure nil :defer t
+  :ensure nil
   :config
   (my-add-list 'generic-extras-enable-list generic-mswindows-modes)
 
@@ -1778,7 +1725,7 @@ If REGEXPP is true then don't modify MODE before adding to
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 (use-package lisp-mode
-  :defer t :ensure nil
+  :ensure nil
   :bind (:map emacs-lisp-mode-map
               ("C-c C-c" . eval-defun))
   :init
@@ -1792,16 +1739,13 @@ If REGEXPP is true then don't modify MODE before adding to
   (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
 
   (use-package eldoc                    ; Documentation in echo area
-    :defer t
     :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
     :config (setq eldoc-idle-delay 0.3))
 
   (use-package highlight-quoted      ; Faces for lisp quotes and quoted symbols
-    :defer t
     :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
 
   (use-package elisp-slime-nav          ; Navigate elisp documentation
-    :defer t
     :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
     :config
     (evil-bind-key :map (elisp-slime-nav-mode-map help-mode-map)
@@ -1809,7 +1753,6 @@ If REGEXPP is true then don't modify MODE before adding to
                    ("gd" . elisp-slime-nav-find-elisp-thing-at-point))))
 
 (use-package python
-  :defer t
   :config
   (unless my-win-p (setq python-shell-interpreter "python3")) ; use Python 3
   (setq-default
@@ -1841,31 +1784,27 @@ spaces in Windows."
               #'my-python-shell-parse-command)
 
   (use-package elpy
-    :defer t
     :init (elpy-enable)
     :config (unless my-win-p
               (setq elpy-rpc-python-command "python3"))))
 
 (use-package sh-script
-  :defer t
   ;; two-space indentation
   :config (setq sh-indentation 2 sh-basic-offset 2))
 
 (use-package vbnet-mode
-  :defer t :ensure nil
+  :ensure nil
   ;; use sensible faces instead of package-defined ones
   :defines vbnet-funcall-face vbnet-namespace-face
   :config (setq vbnet-funcall-face 'font-lock-function-name-face
                 vbnet-namespace-face 'font-lock-preprocessor-face))
 
 (use-package js2-mode :disabled t
-  :defer t
   :mode "\\.js$"
   :init (defalias 'javascript-generic-mode #'js2-mode)
   :config (setq-default js-indent-level 2))
 
 (use-package css-mode
-  :defer t
   :defines my-sass-output-dir
   :mode "\\.s[ac]ss$"
   :config
@@ -1893,7 +1832,6 @@ spaces in Windows."
     :init (add-hook 'css-mode-hook #'css-eldoc-enable)))
 
 (use-package web-mode
-  :defer t
   :mode "\\.html?$"
   :config
   (setq web-mode-enable-block-face t
