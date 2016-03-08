@@ -390,6 +390,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
             (lambda (s) (mapcar (lambda (m) (cons s m)) maps)) states)))))))
 
   (evil-unbind "C-w")                   ; for use in personal window bindings
+  (evil-unbind "TAB")                   ; evil TAB is pretty much useless to me
   (evil-bind-key "y" #'evil-yank 'motion) ; add yanking to motion map
 
   (evil-bind-key
@@ -685,24 +686,24 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 (defmacro my-use-theme (theme)
   "Load THEME with `use-package'."
   (let* ((theme (nth 1 theme))
-         (themes '((material)
-                   (monokai)
-                   (molokai)
-                   (gruvbox)
-                   (solarized solarized-dark
-                              (setq solarized-scale-org-headlines nil
-                                    solarized-height-plus-1 1.1
-                                    solarized-height-plus-2 1.1
-                                    solarized-height-plus-3 1.1
-                                    solarized-height-plus-4 1.1))
-                   (my
-                    nil
-                    (setq my-theme-bold-p nil)
-                    (:ensure nil
-                             :defines my-theme-bold-p
-                             :init (add-to-list 'load-path
-                                                (expand-file-name
-                                                 "my-theme/" my-dir-elisp))))))
+         (themes
+          '((material)
+            (monokai)
+            (molokai)
+            (gruvbox)
+            (solarized
+             solarized-dark
+             (setq solarized-scale-org-headlines nil
+                   solarized-height-plus-1 1.1
+                   solarized-height-plus-2 1.1
+                   solarized-height-plus-3 1.1
+                   solarized-height-plus-4 1.1))
+            (my
+             nil
+             (setq my-theme-bold-p nil)
+             (:ensure nil :init (add-to-list 'load-path
+                                             (expand-file-name
+                                              "my-theme/" my-dir-elisp))))))
          (package (intern (concat (symbol-name theme) "-theme")))
          (name (or (nth 1 (assoc theme themes)) theme))
          (keywords (nth 3 (assoc theme themes)))
@@ -864,8 +865,7 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;;; face packages
 
 (use-package hl-line                    ; Highlight current line
-  :init (add-hook 'prog-mode-hook #'hl-line-mode)
-  :config (setq hl-line-face 'highlight))
+  :init (add-hook 'prog-mode-hook #'hl-line-mode))
 
 (use-package vline-mode                 ; Highlight current column
   :ensure nil
@@ -1218,6 +1218,9 @@ If REGEXPP is true then don't modify MODE before adding to
     :config
     (setq company-statistics-file
           (expand-file-name "company-stats.el" my-dir))))
+
+(use-package imenu-anywhere :disabled t ; imenu across all buffers
+  :bind ([remap helm-semantic-or-imenu] . helm-imenu-anywhere))
 
 (use-package ispell                     ; Spell-checking
   :init
@@ -1725,17 +1728,17 @@ If REGEXPP is true then don't modify MODE before adding to
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 (use-package lisp-mode
-  :ensure nil
+  :ensure nil :demand t
   :bind (:map emacs-lisp-mode-map
               ("C-c C-c" . eval-defun))
   :init
-
   (defun my-imenu-decls ()
     "Add custom declarations to `imenu-generic-expression'."
-    (dolist (expr
-             `(("Packages" "\\(^\\s-*(use-package +\\)\\(\\_<.+\\_>\\)" 2)
-               ("Headings" "^;;;+ \\(.+\\)$" 1)))
-      (add-to-list 'imenu-generic-expression expr)))
+    (when (string= (file-name-nondirectory buffer-file-name) "init.el")
+      (my-add-list
+       'imenu-generic-expression
+       '(("Packages" "^\\s-*(\\(use-package\\)\\s-+\\(\\(\\sw\\|\\s_\\)+\\)" 2)
+         ("Headings" "^;;;+ \\(.+\\)$" 1)))))
   (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
 
   (use-package eldoc                    ; Documentation in echo area
@@ -1866,5 +1869,5 @@ spaces in Windows."
 
 ;; Local Variables:
 ;; company-backends: (company-elisp)
-;; eval: (hs-minor-mode -1)
+;; eval: (progn (hs-minor-mode -1) (my-imenu-decls))
 ;; End:
