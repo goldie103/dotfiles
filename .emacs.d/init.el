@@ -939,6 +939,7 @@ If REGEXPP is true then don't modify MODE before adding to
                  :map hs-minor-mode-map
                  ("TAB"  . hs-toggle-hiding))
   (add-hook 'prog-mode-hook #'hs-minor-mode)
+  (add-hook 'outline-minor-mode-hook (lambda () (hs-minor-mode -1)))
 
   :config
 
@@ -1727,34 +1728,33 @@ If REGEXPP is true then don't modify MODE before adding to
   (use-package conkyrc-mode :disabled t ; System monitor setup language
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
-(use-package lisp-mode
-  :ensure nil :demand t
-  :bind (:map emacs-lisp-mode-map
-              ("C-c C-c" . eval-defun))
-  :init
-  (defun my-imenu-decls ()
-    "Add custom declarations to `imenu-generic-expression'."
-    (when (string= (file-name-nondirectory buffer-file-name) "init.el")
-      (my-add-list
-       'imenu-generic-expression
-       '(("Packages" "^\\s-*(\\(use-package\\)\\s-+\\(\\(\\sw\\|\\s_\\)+\\)" 2)
-         ("Headings" "^;;;+ \\(.+\\)$" 1)))))
-  (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
+;;;;; lisp
+(defun my-imenu-decls ()
+  "Add custom declarations to `imenu-generic-expression'."
+  (when (string= (file-name-nondirectory buffer-file-name) "init.el")
+    (my-add-list
+     'imenu-generic-expression
+     '(("Packages" "^\\s-*(\\(use-package\\)\\s-+\\(\\(\\sw\\|\\s_\\)+\\)" 2)
+       ("Headings" "^;;;+ \\(.+\\)$" 1)))))
+(add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
 
-  (use-package eldoc                    ; Documentation in echo area
-    :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
-    :config (setq eldoc-idle-delay 0.3))
+(bind-key :map emacs-lisp-mode-map ("C-c C-c" . eval-defun))
 
-  (use-package highlight-quoted      ; Faces for lisp quotes and quoted symbols
-    :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
+(use-package eldoc                      ; Documentation in echo area
+  :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
+  :config (setq eldoc-idle-delay 0.3))
 
-  (use-package elisp-slime-nav          ; Navigate elisp documentation
-    :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
-    :config
-    (evil-bind-key :map (elisp-slime-nav-mode-map help-mode-map)
-                   ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
-                   ("gd" . elisp-slime-nav-find-elisp-thing-at-point))))
+(use-package highlight-quoted        ; Faces for lisp quotes and quoted symbols
+  :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
 
+(use-package elisp-slime-nav            ; Navigate elisp documentation
+  :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
+  :config
+  (evil-bind-key :map (elisp-slime-nav-mode-map help-mode-map)
+                 ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
+                 ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
+
+;;;;; python
 (use-package python
   :config
   (unless my-win-p (setq python-shell-interpreter "python3")) ; use Python 3
@@ -1869,5 +1869,4 @@ spaces in Windows."
 
 ;; Local Variables:
 ;; company-backends: (company-elisp)
-;; eval: (progn (hs-minor-mode -1) (my-imenu-decls))
 ;; End:
