@@ -197,7 +197,7 @@ define it as ELEMENTS."
 (show-paren-mode t)                     ; Highlight matching parens
 (electric-indent-mode t)                ; Auto indent
 (electric-pair-mode t)                  ; Auto add parens
-(smooth-scrolling-mode t)               ; Sane scrolling
+;;(smooth-scrolling-mode t)               ; Sane scrolling
 ;; we don't need no stinkin GUI
 (size-indication-mode -1)
 (tool-bar-mode -1)
@@ -282,12 +282,12 @@ narrowed."
  ([remap comment-dwim] . my-comment-dwim)
  ([remap switch-to-buffer] . ibuffer))
 
-;;(bind-keys :map (minibuffer-local-map
-;;                 minibuffer-local-ns-map
-;;                 minibuffer-local-completion-map
-;;                 minibuffer-local-must-match-map
-;;                 minibuffer-local-isearch-map)
-;;           ("<escape>" . minibuffer-keyboard-quit))
+(dolist (map '(minibuffer-local-map
+                minibuffer-local-ns-map
+                minibuffer-local-completion-map
+                minibuffer-local-must-match-map
+                minibuffer-local-isearch-map))
+  (bind-key "<escape>" #'minibuffer-keyboard-quit (symbol-value map)))
 
 (bind-keys
  :prefix-map my-window-map
@@ -417,7 +417,6 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
    ("SPC" . evil-ex))
 
   (setq evil-want-C-w-in-emacs-state t   ; prefix window commands with C-w
-        evil-want-fine-undo nil          ; undo insertions in single steps
         evil-want-change-word-to-end nil ; don't let cw behave like ce
         evil-echo-state nil              ; state is in the modeline anyway
         evil-ex-substitute-global t)     ; global substitutions by default
@@ -612,6 +611,24 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 ;;;; appearance
 
 ;;;;; fonts
+(defvar my-font-classes
+  '((proportional "Fira Sans"
+                  "Input Sans Condensed" "Input Sans"
+                  "DejaVu Sans" "Calibri" "Arial"
+                  "Sans Serif")
+    (mono "Fantasque Sans Mono" "Input Mono Condensed" "Input Mono" "Envy Code R"
+          "DejaVu Sans Mono" "Consolas" "Courier" "Monospace")
+    (header "Fantasque Sans Mono" proportional)
+    (cursive "Kelly Normal"))
+  "Fonts categorized for their use")
+
+(defvar my-font-sizes
+  '(("Input Sans Condensed" . 9)
+    ("Fantasque Sans Mono" . 7)
+    ("Input Mono" . 8)
+    ("Kelly Normal" . 22))
+  "Fonts that have a custom size other than the default")
+
 (defun my-font (type)
   "Return the first valid font of TYPE and it's associated size, if given."
   (let* (valid-cand
@@ -620,22 +637,6 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
                    (when (find-font (font-spec :name cand))
                      (setq valid-cand cand)
                      (throw 'found (symbol-value 'family)))))
-         (fonts '((proportional "Fira Sans"
-                                "Input Sans Condensed" "Input Sans"
-                                "DejaVu Sans" "Calibri" "Arial"
-                                "Sans Serif")
-                  (mono "Input Mono Condensed" "Input Mono" "Envy Code R"
-                        "DejaVu Sans Mono" "Consolas" "Courier" "Monospace")
-                  (header "Fantasque Sans Mono" proportional)
-                  (cursive "Kelly Normal")))
-         (sizes '(("Fira Sans" . 10)
-                  ("Input Sans" . 10)
-                  ("Input Sans Condensed" . 10)
-                  ("Envy Code R" . 10)
-                  ("Fantasque Sans Mono" . 1.15)
-                  ("Input Mono Condensed" . 10)
-                  ("Input Mono" . 8)
-                  ("Kelly Normal" . 22)))
          (valid-family
           ;; get a valid family from `fonts'
           (catch 'found
@@ -646,13 +647,13 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
                       (mapcar
                        (lambda (cand)
                          (if (symbolp cand)
-                             (cdr (assoc cand fonts))
+                             (cdr (assoc cand my-font-classes))
                            (list cand)))
-                       (cdr (assoc type fonts)))))
+                       (cdr (assoc type my-font-classes)))))
               (funcall handle family)
               ;; check unspaced name for odd font naming
               (funcall handle (replace-regexp-in-string " " "" family)))))
-         (size (cdr (assoc valid-family sizes)))
+         (size (cdr (assoc valid-family my-font-sizes)))
          (cand-size (if (and size (not (floatp size))) (* size 10) size)))
     ;; return candidate and associated size in 1/10ths of a pt
     `(:family ,valid-cand ,@(when cand-size `(:height ,cand-size)))))
@@ -905,9 +906,10 @@ If REGEXPP is true then don't modify MODE before adding to
 
 ;;;;; misc face changes
 ;; applied after all others to ensure precedence
+;; set frame font
 (let ((font (my-font 'mono)))
   (set-frame-font (concat (nth 1 font) "-"
-                          (number-to-string (/ (or (nth 3 font) 10) 10)))))
+                          (number-to-string (/ (or (nth 3 font) 100) 10)))))
 
 (apply #'set-face-attribute 'variable-pitch nil (my-font 'header))
 
@@ -1619,11 +1621,13 @@ If REGEXPP is true then don't modify MODE before adding to
   (use-package git-timemachine          ; Travel through commit history
     :bind ("<M-f10>" . git-timemachine-toggle))
 
-  (use-package git-commit-mode          ; Git commit messages
+  (use-package log-edit                 ; VCS commit messages
+    :ensure nil
     :config
     (evil-bind-key :map git-commit-mode-map
       ([remap save-buffer] . git-commit-commit)
-      ([remap kill-buffer-and-window] . git-commit-abort))))
+      ([remap kill-buffer-and-window] . git-commit-abort)))
+  )
 
 ;;;; languages
 
@@ -1738,7 +1742,7 @@ If REGEXPP is true then don't modify MODE before adding to
        ("Headings" "^;;;+ \\(.+\\)$" 1)))))
 (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
 
-(bind-key :map emacs-lisp-mode-map ("C-c C-c" . eval-defun))
+(bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map)
 
 (use-package eldoc                      ; Documentation in echo area
   :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)

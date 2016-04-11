@@ -1,0 +1,18 @@
+export PATH="$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
+
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export DOT=${DOT:-$HOME/dotfiles}
+
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+export ZSH=$ZDOTDIR/oh-my-zsh
+export HISTFILE="$XDG_CONFIG_HOME/zsh/history"
+
+# this doesn't work :(
+#export XINITRC="$XDG_CONFIG_HOME/X11/xinitrc"
+
+export VIMPERATOR_INIT=":source '$XDG_CONFIG_HOME/vimperator/init.vimp"
+#export PENTADACTYL_INIT=":source '$XDG_CONFIG_HOME/pentadactyl/init.penta"
+
+export VIMINIT='let $MYVIMRC="$XDG_CONFIG_HOME/vim/init.vim" | source $MYVIMRC'
+export VIMDOTDIR="$XDG_CONFIG_HOME/vim"

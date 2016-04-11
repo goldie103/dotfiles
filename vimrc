@@ -1,16 +1,13 @@
 " Kelly Stewart
-" if has("win32") || has("win64")
-"     set rtp=$HOME/.vim,$VIM/vimfiles,$VIMRUNTIME,$VIM/vimfiles/after,$HOME/.vim/after
-" endif
 
 " Plugins {{{
 " Vundle setup {{{
 filetype off
 if has("win32") || has("win64")
-    set rtp+=$HOME\vimfiles\bundle\Vundle.vim
+    set rtp+=$VIMDOTDIR\bundle\Vundle.vim
     call vundle#begin('$HOME\vimfiles\bundle')
 else
-    set rtp+=$HOME/.vim/bundle/Vundle.vim
+    set rtp+=$VIMDOTDIR/bundle/Vundle.vim
     call vundle#begin()
 endif
 
@@ -18,7 +15,6 @@ Plugin 'gmarik/Vundle.vim'
 
 " TODO vim-args
 Plugin 'nefo-mi/nyan-modoki.vim'
-Plugin 'koron/nyancat-vim'              " nyan cat?
 Plugin 'tpope/vim-commentary'           " comment manipulation
 Plugin 'tpope/vim-surround'             " deal with surrounding elements
 Plugin 'bling/vim-airline'              " status bar additions
@@ -26,24 +22,19 @@ Plugin 'bling/vim-bufferline'           " buffer list in command or status bar
 Plugin 'tpope/vim-fugitive'             " call git commands within vim with G prefix
 Plugin 'kien/ctrlp.vim'                 " fuzzy file search
 
-Plugin 'altercation/vim-colors-solarized'
-"Plugin 'morhetz/gruvbox'
+Plugin 'morhetz/gruvbox'
 "Plugin 'whatyouhide/vim-gotham'
 
-Plugin 'dogrover/vim-pentadactyl'        " pentadactylrc syntax highlighting
+"Plugin 'dogrover/vim-pentadactyl'        " pentadactylrc syntax highlighting
+Plugin 'vimperator/vimperator.vim'       " vimperatorrc syntax highlighting
 
 call vundle#end()
 filetype plugin indent on
 " }}}
-" nyan-modoki.vim {{{
-set laststatus=2
-set statusline=%{g:NyanModoki()}
-let g:nyan_modoki_select_cat_face_number=2
-let g:nyan_modoki_animation_enabled=1
-" }}}
 " solarized {{{
-let g:solarized_menu=0
-let g:solarized_termtrans=1     " use terminal transparency
+"Plugin 'altercation/vim-colors-solarized'
+"let g:solarized_menu=0
+"let g:solarized_termtrans=1     " use terminal transparency
 " }}}
 " ctrlp.vim {{{
 " Fuzzy file search
@@ -72,10 +63,16 @@ let g:airline_symbols.paste = 'ρ'
 let g:airline_symbols.whitespace = 'Ξ'
 
 " }}}
+" nyan-modoki.vim {{{
+set laststatus=2
+set statusline=%{g:NyanModoki()}
+let g:nyan_modoki_select_cat_face_number=2
+let g:nyan_modoki_animation_enabled=1
+" }}}
 " }}}
 " Appearance {{{
 syntax on
-color solarized
+colo gruvbox
 set background=dark
 set showmatch                  " highlight matching brackets
 set matchtime=2                " 10ths of second to blink when matching brackets
@@ -93,13 +90,6 @@ set number relativenumber      " show both relative and absolute line numbers
 
 set guicursor+=a:blinkon0      " turn off cursor blinking
 set guioptions-=T              " no toolbar
-
-" fonts
-if has("gui_win32")
-    set guifont=InputMonoCondensed:h8
-elseif has("gui_gtk2")
-    set guifont=Input\ Mono\ Condensed\ 8
-endif
 
 " }}}
 " Formatting {{{
@@ -121,7 +111,7 @@ augroup END
 " }}}
 " Behavior {{{
 set formatoptions+=j            " delete comment char when joining lines
-set viminfo+=n$HOME/.vim/viminfo " don't clutter my home directory
+set viminfo+=n$XDG_CACHE_HOME/vim/viminfo " don't clutter my home directory
 set ttimeout ttimeoutlen=100    " time out period for keypresses
 set ignorecase smartcase   		" use case sensitive search when case is used
 set incsearch		    		" do incremental searching

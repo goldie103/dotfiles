@@ -1,0 +1,53 @@
+" miscoined's vimperatorrc
+set rtp=$XDG_CONFIG_HOME/vimperator
+
+" * Appearance
+" colo solarized-dark
+set titlestring=ff
+
+" * Behavior
+cd $HOME
+"set editor=emacsclient -c
+
+" status bar
+set status=input,location,history,tabcount
+" use letters for hinting
+set hintchars=asdfghjkl;
+" open all things in new tabs
+set newtab+=help,prefs,addons,downloads
+" tabopen order: tabs, location bar entries, local files
+set complete=tlf
+" auto focus: addons, downloads, extension options, help
+set activate=addons,downloads,extoptions,help
+" C-d and C-u scroll by one line only
+set scroll=1
+
+" hide close buttons
+set! browser.tabs.closeButtons=2
+" open tabs in background
+set! browser.tabs.loadDivertedInBackground=true
+" spell check textareas and inputs
+set! layout.spellcheckDefault=2
+
+
+" * Mappings
+nnoremap U :undo<Space>
+nnoremap s :stop<CR>
+" use these for fine scrolling as smooziee takes jk
+nnoremap J <C-d>
+nnoremap K <C-u>
+" access gui elements
+nnoremap ge :emenu 
+" history
+nnoremap <C-j> L
+nnoremap <C-k> H
+nnoremap gh :jumps<CR>
+nnoremap gH :history<Space>
+" tab movement
+nnoremap h gT
+nnoremap l gt
+" next/previous page movement
+nnoremap < [[
+nnoremap > ]]
+
+" vim: set ft=vimperator:
