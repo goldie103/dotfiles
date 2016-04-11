@@ -63,11 +63,11 @@ define it as ELEMENTS."
   "Packages not available through a repository.")
 (add-to-list 'load-path my-dir-packages)
 
-(defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
-
 (defvar my-dir-cache
-  (if my-win-p "c:/users/kelly/appdata/local/emacs-cache/" "~/.cache/emacs/")
+  "$XDG_CACHE_HOME/emacs/"
   "Where to store cache files")
+
+(defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
 
 
 
