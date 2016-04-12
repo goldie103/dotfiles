@@ -64,7 +64,7 @@ define it as ELEMENTS."
 (add-to-list 'load-path my-dir-packages)
 
 (defvar my-dir-cache
-  "$XDG_CACHE_HOME/emacs/"
+  (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
   "Where to store cache files")
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
