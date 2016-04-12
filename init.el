@@ -64,7 +64,7 @@ define it as ELEMENTS."
 (add-to-list 'load-path my-dir-packages)
 
 (defvar my-dir-cache
-  "$XDG_CACHE_HOME/emacs/"
+  (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
   "Where to store cache files")
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
@@ -396,7 +396,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
   (evil-bind-key
    :state (normal motion visual)
    ("SPC" . execute-extended-command)
-   (":" . comment-dwim)
+   ("C-:" . comment-dwim)
    ("," . my-evil-leader-map)           ; personal leader bindings
    ("Y" . my-evil-yank-to-eol)          ; more consistent
    ("q" . kill-buffer-and-window)       ; consistency with other Emacs buffers
@@ -1380,7 +1380,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :config
   (setq recentf-max-saved-items 300     ; increase history size
         ;; recentf-auto-cleanup 600        ; cleanup files after 10 minutes
-        recentf-exclude '("COMMIT_EDITMSG")
+        recentf-exclude '("COMMIT_EDITMSG") ; exclude commit messages
         recentf-save-file (expand-file-name "recentf" my-dir-cache)))
 
 ;;;; applications
@@ -1669,7 +1669,7 @@ If REGEXPP is true then don't modify MODE before adding to
    org-catch-invisible-edits 'smart     ; smart editing of hidden things
    org-todo-keywords '((sequence "☐" "☑" "☒"))
    org-modules '(org-docview org-info org-gnus org-inlinetask)
-   org-export-backends '(ascii html odt taskjuggler)
+   org-export-backends '(ascii html odt taskjuggler latex )
    org-startup-folded t                 ; start buffers with folded headers
    org-src-fontify-natively t           ; syntax highlight code in org buffer
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
@@ -1852,7 +1852,7 @@ spaces in Windows."
 
 ;;;; server
 
-(use-package server
+(use-package server :disabled t
   :commands server-edit
   :bind ("C-x C-c" . server-edit-dwim)
   :init
