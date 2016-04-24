@@ -612,8 +612,8 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 ;;;;; fonts
 (defvar my-font-classes
-  '((proportional "Fira Sans"
-                  "Input Sans Condensed" "Input Sans"
+  '((proportional "Fantasque Sans Mono" "Fira Sans"
+                  "Input Sans Narrow Light" "Input Sans"
                   "DejaVu Sans" "Calibri" "Arial"
                   "Sans Serif")
     (mono "Fantasque Sans Mono" "Input Mono Condensed" "Input Mono" "Envy Code R"
@@ -624,7 +624,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 (defvar my-font-sizes
   '(("Input Sans Condensed" . 9)
-    ("Fantasque Sans Mono" . 7)
+    ("Fantasque Sans Mono" . 10)
     ("Input Mono" . 8)
     ("Kelly Normal" . 22))
   "Fonts that have a custom size other than the default")
@@ -1177,7 +1177,9 @@ If REGEXPP is true then don't modify MODE before adding to
                 abbrev-all-caps t       ; expand in all-caps if written in caps
                 abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
 
-(use-package auto-indent-mode           ; Automatic indentation
+(bind-key* "TAB" #'self-insert-command)
+
+(use-package auto-indent-mode :disabled t; Automatic indentation
   ;; TODO get this working with indenting pasted code
   ;;      probably has something to do with Evil command hijacking
   :commands auto-indent-global-mode

@@ -24,7 +24,24 @@ if [[ ! -d $VIMLOC/vundle ]]; then
 fi
 
 # vimperator
-if [[ ! -d $VIMPERATOR_RUNTIME/plugin ]]; then
-	mkdir "$VIMPERATOR_RUNTIME/plugin" &&
-	curl -o "$VIMPERATOR_RUNTIME/plugin/smooziee.js" https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/_smooziee.js
-fi
+init_vimperator () { [[ ! -L $1/init.vimp || $3 ]] && ln -sv $DOT/init.vimp $1/init.vimp }
+init_vimperator_plugin () {
+  local plugin_dir=$1/plugin
+  echo "Getting smooziee.js"
+  [[ ! -d $plugin_dir ]] && mkdir "$plugin_dir"
+  curl -o "$plugin_dir/smooziee.js" https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/_smooziee.js
+}
+
+# emacs
+init_emacs () {
+  if [[ ! -d $HOME/.emacs.d || $3 ]]; then
+    echo "Setting up emacs..."
+    mkdir "$HOME/.emacs.d"
+    ln -sv $2/init.el $1/init.el
+    ln -sv $2/my-elisp $1/my-elisp
+  fi
+}
+
+init_emacs $HOME/.emacs.d $DOT/.emacs.d
+init_vimperator $VIMPERATOR_RUNTIME
+[[ ! -f $VIMPERATOR_RUNTIME
