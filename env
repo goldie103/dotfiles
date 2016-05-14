@@ -2,18 +2,23 @@ export PATH="/bin:$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/sit
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-export DOT=${DOT:-$HOME/dotfiles}
 
 export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 export ZSH=$ZDOTDIR/oh-my-zsh
 export HISTFILE="$XDG_CONFIG_HOME/zsh/history"
-
-# this doesn't work :(
 #export XINITRC="$XDG_CONFIG_HOME/X11/xinitrc"
-
 export VIMPERATOR_RUNTIME=$XDG_CONFIG_HOME/vimperator
 export VIMPERATOR_INIT=":source $VIMPERATOR_RUNTIME/init.vimp"
 #export PENTADACTYL_INIT=":source $XDG_CONFIG_HOME/pentadactyl/init.penta"
-
 export VIMDOTDIR="$XDG_CONFIG_HOME/vim"
 export VIMINIT='let $MYVIMRC="$VIMDOTDIR/init.vim" | source $MYVIMRC'
+
+if [[ -d /mnt/User ]]; then
+  export USERDIR=${USERDIR:-/media/User}
+else
+  echo "Can't find /media/User, using $HOME"
+  export USERDIR=${USERDIR:$HOME}
+fi
+
+export DOT=${DOT:-$USERDIR/dev/dot}
+

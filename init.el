@@ -63,10 +63,6 @@ define it as ELEMENTS."
   "Packages not available through a repository.")
 (add-to-list 'load-path my-dir-packages)
 
-(defvar my-dir-cache
-  (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
-  "Where to store cache files")
-
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
 
 
@@ -97,7 +93,7 @@ define it as ELEMENTS."
 ;;;; basic settings
 
 ;;;;; general
-
+(bind-key "TAB" #'indent-according-to-mode)
 (setq
  disabled-command-function nil          ; no disabled commands
  comment-auto-fill-only-comments t
@@ -112,7 +108,7 @@ define it as ELEMENTS."
  kill-do-not-save-duplicates t
  line-move-visual t
  ;; formatting
- tab-always-indent nil                  ; tab inserts a character
+ tab-always-indent t ; tab inserts a character
  require-final-newline t
  tab-width 4
  sentence-end-double-space nil
@@ -137,7 +133,7 @@ define it as ELEMENTS."
  user-full-name "Kelly Stewart"
  user-mail-address "stewart.g.kelly@gmail.com")
 
-(setq-default indent-tabs-mode nil      ; turn tabs to spaces
+(setq-default indent-tabs-mode t ; turn tabs to spaces
               fill-column 79)
 
 ;; UTF-8 everywhere
@@ -572,6 +568,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
            :map helm-swoop-map
            ("M-/" . helm-multi-swoop-all-from-helm-swoop))))
 
+
 ;;;; help
 
 (use-package discover-my-major          ; List current major mode bindings
@@ -616,15 +613,19 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
                   "Input Sans Condensed" "Input Sans"
                   "DejaVu Sans" "Calibri" "Arial"
                   "Sans Serif")
-    (mono "Fantasque Sans Mono" "Input Mono Condensed" "Input Mono" "Envy Code R"
-          "DejaVu Sans Mono" "Consolas" "Courier" "Monospace")
+    (mono
+     "Input Mono Condensed" "Input Mono"
+     "Fantasque Sans Mono"
+     "Envy Code R"
+     "DejaVu Sans Mono"
+     "Consolas" "Courier" "Monospace")
     (header "Fantasque Sans Mono" proportional)
     (cursive "Kelly Normal"))
   "Fonts categorized for their use")
 
 (defvar my-font-sizes
   '(("Input Sans Condensed" . 9)
-    ("Fantasque Sans Mono" . 7)
+    ("Fantasque Sans Mono" . 12)
     ("Input Mono" . 8)
     ("Kelly Normal" . 22))
   "Fonts that have a custom size other than the default")
@@ -1075,9 +1076,9 @@ If REGEXPP is true then don't modify MODE before adding to
    projectile-globally-ignored-files '("TAGS" "*.odt" "*.docx" "*.doc")
    projectile-indexing-method 'alien    ; use faster OS methods
    ;; don't clutter my .emacs.d please
-   projectile-cache-file (expand-file-name "projectile.cache" my-dir-cache)
+   projectile-cache-file (expand-file-name "projectile.cache" my-dir)
    projectile-known-projects-file (expand-file-name "projectile.eld"
-                                                    my-dir-cache))
+                                                    my-dir))
 
   (use-package helm-projectile
     :init (helm-projectile-on)
@@ -1177,7 +1178,7 @@ If REGEXPP is true then don't modify MODE before adding to
                 abbrev-all-caps t       ; expand in all-caps if written in caps
                 abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
 
-(use-package auto-indent-mode           ; Automatic indentation
+(use-package auto-indent-mode :disabled t ; Automatic indentation
   ;; TODO get this working with indenting pasted code
   ;;      probably has something to do with Evil command hijacking
   :commands auto-indent-global-mode
@@ -1300,12 +1301,14 @@ If REGEXPP is true then don't modify MODE before adding to
 
 (use-package smartparens-config      ; FIXME Balanced paren management
   ;; REVIEW autopairing quotes and backticks
+  :disabled t
   :ensure smartparens
   :init
   ;; disable builtin to avoid doubling
   (add-hook 'smartparens-mode-hook (lambda () (electric-pair-mode -1)))
 
   (evil-bind-key :state (normal motion)
+				 :mode smartparens-mode-map
                  ("+" . evil-indent)
                  ("=" . sp-indent-defun))
 
@@ -1381,7 +1384,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (setq recentf-max-saved-items 300     ; increase history size
         ;; recentf-auto-cleanup 600        ; cleanup files after 10 minutes
         recentf-exclude '("COMMIT_EDITMSG") ; exclude commit messages
-        recentf-save-file (expand-file-name "recentf" my-dir-cache)))
+        recentf-save-file (expand-file-name "recentf" my-dir)))
 
 ;;;; applications
 
@@ -1758,7 +1761,7 @@ If REGEXPP is true then don't modify MODE before adding to
                  ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
                  ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
 
-;;;;; python
+;;;;;;; python
 (use-package python
   :config
   (unless my-win-p (setq python-shell-interpreter "python3")) ; use Python 3
@@ -1849,6 +1852,16 @@ spaces in Windows."
         web-mode-css-indent-offset 2
         web-mode-code-indent-offset 2
         web-mode-markup-indent-offset 2))
+
+(use-package java-mode :ensure nil
+  :init
+  (defun my-java-formats ()
+    (interactive)
+	(setq c-basic-offset 4
+		  tab-width 4
+		  indent-tabs-mode t))
+  :config
+  (add-hook 'java-mode-hook #'my-java-formats))
 
 ;;;; server
 

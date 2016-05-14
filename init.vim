@@ -1,20 +1,18 @@
 " Kelly Stewart
+set rtp+=$XDG_CONFIG_HOME\vim\bundle\Vundle.vim,$XDG_CONFIG_HOME\nvim\bundle\Vundle.vim,$XDG_CONFIG_HOME/vim/bundle/Vundle.vim,$XDG_CONFIG_HOME/nvim/bundle/Vundle.vim
 
 " Plugins {{{
 " Vundle setup {{{
 filetype off
 if has("win32") || has("win64")
-    set rtp+=$VIMDOTDIR\bundle\Vundle.vim
-    call vundle#begin('$HOME\vimfiles\bundle')
+    call vundle#begin('$XDG_CONFIG_HOME\bundle')
 else
-    set rtp+=$VIMDOTDIR/bundle/Vundle.vim
     call vundle#begin()
 endif
 
 Plugin 'gmarik/Vundle.vim'
 
 " TODO vim-args
-Plugin 'nefo-mi/nyan-modoki.vim'
 Plugin 'tpope/vim-commentary'           " comment manipulation
 Plugin 'tpope/vim-surround'             " deal with surrounding elements
 Plugin 'bling/vim-airline'              " status bar additions
@@ -23,7 +21,6 @@ Plugin 'tpope/vim-fugitive'             " call git commands within vim with G pr
 Plugin 'kien/ctrlp.vim'                 " fuzzy file search
 
 Plugin 'morhetz/gruvbox'
-"Plugin 'whatyouhide/vim-gotham'
 
 "Plugin 'dogrover/vim-pentadactyl'        " pentadactylrc syntax highlighting
 Plugin 'vimperator/vimperator.vim'       " vimperatorrc syntax highlighting
@@ -111,7 +108,6 @@ augroup END
 " }}}
 " Behavior {{{
 set formatoptions+=j            " delete comment char when joining lines
-set viminfo+=n$XDG_CACHE_HOME/vim/viminfo " don't clutter my home directory
 set ttimeout ttimeoutlen=100    " time out period for keypresses
 set ignorecase smartcase   		" use case sensitive search when case is used
 set incsearch		    		" do incremental searching
