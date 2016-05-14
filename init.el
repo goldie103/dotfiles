@@ -609,8 +609,8 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 ;;;;; fonts
 (defvar my-font-classes
-  '((proportional "Fira Sans"
-                  "Input Sans Condensed" "Input Sans"
+  '((proportional "Fantasque Sans Mono" "Fira Sans"
+                  "Input Sans Narrow Light" "Input Sans"
                   "DejaVu Sans" "Calibri" "Arial"
                   "Sans Serif")
     (mono
