@@ -26,6 +26,9 @@ fi
   xrandr --output HDMI-1 --primary --auto \
 	 --output DVI-I-0 --auto --left-of HDMI-1
 
+# daemons
+emacs --daemon
+
 # start window manager
 exec i3
 

@@ -13,8 +13,9 @@ export VIMPERATOR_INIT=":source $VIMPERATOR_RUNTIME/init.vimp"
 #export PENTADACTYL_INIT=":source $XDG_CONFIG_HOME/pentadactyl/init.penta"
 #export VIMDOTDIR="$XDG_CONFIG_HOME/vim"
 #export VIMINIT='let $MYVIMRC "$VIMDOTDIR/init.vim" | source $MYVIMRC'
+export ALTERNATE_EDITOR=""
 export EDITOR='nvim'
-export VISUAL='emacs'
+export VISUAL='emacsclient -c -a emacs'
 
 export UDIR=/media/User && [[ ! -d $UDIR ]] && export UDIR=$HOME
 export DOT=$UDIR/dev/dot && [[ ! -d $DOT ]] && export DOT=$UDIR/dotfiles
