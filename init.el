@@ -30,22 +30,6 @@ define it as ELEMENTS."
   (indent-region (point-min) (point-max))
   (when (fboundp 'whitespace-cleanup) (whitespace-cleanup)))
 
-;; TODO this
-(defun my-english-count-lines ()
-  "Count screen lines in a region with handwriting font activated."
-  (interactive)
-  ;; (message "hi")
-  (face-remap-add-relative 'default :family "Kelly Normal" :height 220)
-  ;; (let ((handwriting '(:family "Kelly Normal" :height 220)))
-  ;;   ;; (unless (member `(default ,handwriting default) face-remapping-alist)
-  ;;   ;;   (face-remap-add-relative 'default handwriting))
-  ;;   (face-remap-add-relative 'default handwriting)
-  ;;   ;; (message "%s" (count-screen-lines (region-beginning) (region-end)))
-  ;;   ;; (face-remap-remove-relative
-  ;;   ;;  (face-remap-add-relative 'default handwriting))
-  ;;   )
-  )
-
 ;;;; setup
 
 (defconst my-dir
@@ -614,21 +598,23 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
                   "DejaVu Sans" "Calibri" "Arial"
                   "Sans Serif")
     (mono
+     "monospace"
+     "Monoid Regular"
      "Input Mono Condensed" "Input Mono"
      "Fantasque Sans Mono"
      "Envy Code R"
      "DejaVu Sans Mono"
-     "Consolas" "Courier" "Monospace")
+     "Consolas" "Courier")
     (header "Fantasque Sans Mono" proportional)
     (cursive "Kelly Normal"))
-  "Fonts categorized for their use")
+  "Fonts categorized for their use.")
 
 (defvar my-font-sizes
   '(("Input Sans Condensed" . 9)
     ("Fantasque Sans Mono" . 12)
     ("Input Mono" . 8)
     ("Kelly Normal" . 22))
-  "Fonts that have a custom size other than the default")
+  "Fonts that have a custom size other than the default.")
 
 (defun my-font (type)
   "Return the first valid font of TYPE and it's associated size, if given."
@@ -664,6 +650,13 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
   (interactive)
   (setq buffer-face-mode-face (my-font 'proportional))
   (buffer-face-mode t))
+
+(defun my-font-set-frame ()
+  "Set frame font to monospace."
+  (interactive)
+  (let ((font (my-font 'mono)))
+    (set-frame-font (concat (nth 1 font) "-"
+			    (number-to-string (/ (or (nth 3 font) 100) 10))))))
 
 (add-hook 'text-mode-hook #'my-font-use-proportional)
 
@@ -908,9 +901,7 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;;; misc face changes
 ;; applied after all others to ensure precedence
 ;; set frame font
-(let ((font (my-font 'mono)))
-  (set-frame-font (concat (nth 1 font) "-"
-                          (number-to-string (/ (or (nth 3 font) 100) 10)))))
+
 
 (apply #'set-face-attribute 'variable-pitch nil (my-font 'header))
 
@@ -1045,7 +1036,7 @@ If REGEXPP is true then don't modify MODE before adding to
   :config
   (setq desktop-auto-save-timeout 60
         desktop-save t                  ; always save
-        desktop-dirname (expand-file-name "desktop" my-dir))
+        desktop-dirname my-dir)
   (add-to-list 'desktop-path desktop-dirname)
   (my-add-list 'desktop-modes-not-to-save '(magit-mode git-commit-mode)))
 
@@ -1552,7 +1543,7 @@ If REGEXPP is true then don't modify MODE before adding to
   ;;      ")"
   ;;      )))
 
-  (use-package esh-module :ensure nil
+  (use-package esh-module :ensure nil :disabled t
     ;; TODO Why doesn't this fix eshell-modules-list being undefined
     :config (add-to-list 'eshell-modules-list 'eshell-smart))
   (use-package em-prompt :ensure nil)
@@ -1565,7 +1556,7 @@ If REGEXPP is true then don't modify MODE before adding to
                 ("<C-return>" . helm-eshell-history)))
 
   (unless my-win-p
-    (use-package eshell-prompt-extras   ; TODO this. all of this.
+    (use-package eshell-prompt-extras   :disabled t ; TODO this. all of this.
       :init
       (use-package virtualenvwrapper    ; Show Python venv info in prompt
         :config (venv-initialize-interactive-shells))
@@ -1736,30 +1727,32 @@ If REGEXPP is true then don't modify MODE before adding to
     :load-path "~/.emacs.d/elisp/" :ensure nil))
 
 ;;;;; lisp
-(defun my-imenu-decls ()
-  "Add custom declarations to `imenu-generic-expression'."
-  (when (string= (file-name-nondirectory buffer-file-name) "init.el")
-    (my-add-list
-     'imenu-generic-expression
-     '(("Packages" "^\\s-*(\\(use-package\\)\\s-+\\(\\(\\sw\\|\\s_\\)+\\)" 2)
-       ("Headings" "^;;;+ \\(.+\\)$" 1)))))
-(add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
+(use-package lisp :ensure nil
+  :bind (:map emacs-lisp-mode-map ("C-c C-c" . eval-defun))
+  :init
+  (use-package eldoc                      ; Documentation in echo area
+    :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
+    :config (setq eldoc-idle-delay 0.3))
 
-(bind-key "C-c C-c" #'eval-defun emacs-lisp-mode-map)
+  (use-package highlight-quoted        ; Faces for lisp quotes and quoted symbols
+    :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
 
-(use-package eldoc                      ; Documentation in echo area
-  :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
-  :config (setq eldoc-idle-delay 0.3))
-
-(use-package highlight-quoted        ; Faces for lisp quotes and quoted symbols
-  :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
-
-(use-package elisp-slime-nav            ; Navigate elisp documentation
-  :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
-  :config
-  (evil-bind-key :map (elisp-slime-nav-mode-map help-mode-map)
-                 ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
-                 ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
+  (use-package elisp-slime-nav            ; Navigate elisp documentation
+    :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
+    :config
+    (evil-bind-key :map (elisp-slime-nav-mode-map help-mode-map)
+                   ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
+                   ("gd" . elisp-slime-nav-find-elisp-thing-at-point)))
+;;  :config
+;;  (defun my-imenu-decls ()
+;;    "Add custom declarations to `imenu-generic-expression'."
+;;    (when (string= (file-name-nondirectory buffer-file-name) "init.el")
+;;      (my-add-list
+;;       'imenu-generic-expression
+;;       '(("Packages" "^\\s-*(\\(use-package\\)\\s-+\\(\\(\\sw\\|\\s_\\)+\\)" 2)
+;;         ("Headings" "^;;;+ \\(.+\\)$" 1)))))
+;;  (add-hook 'emacs-lisp-mode-hook #'my-imenu-decls)
+  )
 
 ;;;;;;; python
 (use-package python
