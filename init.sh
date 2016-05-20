@@ -1,25 +1,57 @@
 #!/bin/zsh
 
-source ./env && ln -svi $DOT/env $HOME/.zshenv
+f="-i"
+v=""
+while getopts "vif" opt; do
+  case $opt in
+    v) v="-v";;
+    f) f="-f";;
+    \?) echo "Invalid option: -$OPTARG" >&2 && exit 1;;
+  esac
+done
 
-d () { mkdir -pv "$1" }
-l () { mkdir -pv "$1" && ln -svi "$DOT/$2" "$1/${3:-$2}" }
+d () { mkdir -p $v "$1" }
+l () { d "$1" && ln -s $v $f "$DOT/$2" "$1/${3:-$2}" }
 
-setup_vim_vundle () {
-  if [[ ! -d $1 ]]; then
-    git clone https://github.com/VundleVim/Vundle.vim.git "$1/bundle/Vundle.vim"
-    vim +PluginInstall +qall
+source ./env && l $HOME env .zshenv
+
+vimp_plugin () {
+  if [[ ! -e $1 ]]; then
+    [[ ! -d $VIMPERATOR_RUNTIME ]] && d $VIMPERATOR_RUNTIME
+    curl -o "$1" "https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/$1"
   fi
 }
-setup_vimperator_plugin () {
-  if [[ ! -f "$1/smooziee.js" ]]; then
-    d $1
-    curl -o "$1/smooziee.js" https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/_smooziee.js
+
+init_zsh () {
+  l $1 init.zsh .zshrc
+  l $1 profile .zprofile
+  l $1 zsh custom
+  local dir="$1/oh-my-zsh"
+  l $dir/themes my.zsh-theme
+  [[ ! -d $dir ]] && git clone git://github.com/robbyrussell/oh-my-zsh.git "$dir"
+}
+init_vim () {
+  l $1 init.vim
+  local vundlepath=$1/bundle/Vundle.vim
+  if [[ ! -e $vundlepath ]]; then
+    git clone https://github.com/VundleVim/Vundle.vim.git "$vundlepath"
+    ${2:-vim} +PluginInstall +qall
   fi
 }
+init_emacs () {
+  l $1 init.el
+  l $1 my-elisp
+}
+init_vimp () {
+  l $1 init.vimp
+  vimp_plugin "_smooziee.js"
+}
 
-l $VIMDOTDIR init.vim && setup_vim_vundle $VIMDOTDIR
-l $VIMPERATOR_RUNTIME init.vimp && setup_vimperator_plugin $VIMPERATOR_RUNTIME
-l $HOME/.emacs.d init.el && l $HOME/.emacs.d/ my-elisp
-l $ZDOTDIR init.zsh .zshrc
 
+l $HOME profile .bash_profile
+l $XDG_CONFIG_HOME/X11 Xresources
+l $HOME xinputrc .xinputrc
+init_emacs $HOME/.emacs.d
+init_vim $XDG_CONFIG_HOME/nvim nvim
+init_vimp $VIMPERATOR_RUNTIME
+init_zsh $ZDOTDIR
