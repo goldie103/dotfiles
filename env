@@ -1,3 +1,4 @@
+# vim: set ft=sh
 export PATH="/bin:$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -10,15 +11,10 @@ export HISTFILE="$XDG_CONFIG_HOME/zsh/history"
 export VIMPERATOR_RUNTIME=$XDG_CONFIG_HOME/vimperator
 export VIMPERATOR_INIT=":source $VIMPERATOR_RUNTIME/init.vimp"
 #export PENTADACTYL_INIT=":source $XDG_CONFIG_HOME/pentadactyl/init.penta"
-export VIMDOTDIR="$XDG_CONFIG_HOME/vim"
-export VIMINIT='let $MYVIMRC="$VIMDOTDIR/init.vim" | source $MYVIMRC'
+#export VIMDOTDIR="$XDG_CONFIG_HOME/vim"
+#export VIMINIT='let $MYVIMRC "$VIMDOTDIR/init.vim" | source $MYVIMRC'
+export EDITOR='nvim'
+export VISUAL='emacs'
 
-if [[ -d /mnt/User ]]; then
-  export USERDIR=${USERDIR:-/media/User}
-else
-  echo "Can't find /media/User, using $HOME"
-  export USERDIR=${USERDIR:$HOME}
-fi
-
-export DOT=${DOT:-$USERDIR/dev/dot}
-
+export UDIR=/media/User && [[ ! -d $UDIR ]] && export UDIR=$HOME
+export DOT=$UDIR/dev/dot && [[ ! -d $DOT ]] && export DOT=$UDIR/dotfiles
