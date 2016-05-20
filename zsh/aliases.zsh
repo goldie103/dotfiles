@@ -37,7 +37,16 @@ hash -d -- WM2=/home/kelly/Documents/work/math1002
 hash -d -- WI9=/home/kelly/Documents/work/info1903
 hash -d -- WI1=/home/kelly/Documents/work/info1103
 hash -d -- WE=/home/kelly/Documents/work/engg1805
+hash -d -- WM1=/home/kelly/math1001
+hash -d -- WM2=/home/kelly/math1002
+hash -d -- WI9=/home/kelly/info1903
+hash -d -- WI1=/home/kelly/info1103
+hash -d -- WE=/home/kelly/engg1805
 
 # arch pacman aliases
 alias i='sudo pacman -S'
 alias iu='sudo pacman -U'  
+
+# editor
+alias e="$EDITOR"
+alias ed="$VISUAL"
