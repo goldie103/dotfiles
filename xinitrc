@@ -1,15 +1,35 @@
-# source everything in /etc/X11/xinit/xinitrc.d
-if [ -d /etc/X11/xinit/xinit.d ]; then
-  for f in /etc/X11/xinit/xinitrc.d/?*.sh; do
-    [ -x "$f" ] && . "$f"
-  done
-  unset f
+#!/bin/sh
+
+# merge in defaults and keymaps
+userresources=$HOME/.Xresources
+usermodmap=$HOME/.Xmodmap
+sysresources=/etc/X11/xinit/.Xresources
+sysmodmap=/etc/X11/xinit/.Xmodmap
+[ -f $sysresources ] && xrdb -merge $sysresources
+[ -f $sysmodmap ] && xmodmap $sysmodmap
+[ -f "$userresources" ] && xrdb -merge "$userresources"
+[ -f "$usermodmap" ] && xmodmap "$usermodmap"
+
+if [ -d /etc/X11/xinit/xinitrc.d ] ; then
+ for f in /etc/X11/xinit/xinitrc.d/?*.sh ; do
+  [ -x "$f" ] && . "$f"
+ done
+ unset f
 fi
 
-# this won't work through xorg for some reason
-xrandr --output HDMI-1 --primary --auto --output DVI-I-0 --auto --left-of HDMI-1
+# add bitmap fonts
+xset +fp $HOME/.local/share/fonts/fixed/ &
+xset fp rehash &
 
-[[ -f $XDG_CONFIG_HOME/X11/Xresources ]] && xrdb -merge -I$XDG_CONFIG_HOME/X11 $XDG_CONFIG_HOME/X11/Xresources
+# merge Xresources
+[[ -f $XDG_CONFIG_HOME/X11/Xresources ]] &&
+  xrdb -merge -I$XDG_CONFIG_HOME/X11 $XDG_CONFIG_HOME/X11/Xresources
 
-# window manager yay
-exec awesome
+# set up monitors if on my desktop
+[[ $HOST -eq "lyngbakr" ]] &&
+  xrandr --output HDMI-1 --primary --auto \
+	 --output DVI-I-0 --auto --left-of HDMI-1
+
+# start window manager
+exec i3
+
