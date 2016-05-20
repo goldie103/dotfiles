@@ -17,10 +17,6 @@ if [ -d /etc/X11/xinit/xinitrc.d ] ; then
  unset f
 fi
 
-# add bitmap fonts
-xset +fp $HOME/.local/share/fonts/fixed/ &
-xset fp rehash &
-
 # merge Xresources
 [[ -f $XDG_CONFIG_HOME/X11/Xresources ]] &&
   xrdb -merge -I$XDG_CONFIG_HOME/X11 $XDG_CONFIG_HOME/X11/Xresources
