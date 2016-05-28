@@ -48,6 +48,8 @@ define it as ELEMENTS."
 (add-to-list 'load-path my-dir-packages)
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
+(defvar my-laptop-p (string= system-name "hraesvelgr")
+  "Non-nil if on desktop machine")
 
 
 
@@ -77,7 +79,6 @@ define it as ELEMENTS."
 ;;;; basic settings
 
 ;;;;; general
-(bind-key "TAB" #'indent-according-to-mode)
 (setq
  disabled-command-function nil          ; no disabled commands
  comment-auto-fill-only-comments t
@@ -92,7 +93,6 @@ define it as ELEMENTS."
  kill-do-not-save-duplicates t
  line-move-visual t
  ;; formatting
- tab-always-indent t ; tab inserts a character
  require-final-newline t
  tab-width 4
  sentence-end-double-space nil
@@ -117,8 +117,7 @@ define it as ELEMENTS."
  user-full-name "Kelly Stewart"
  user-mail-address "stewart.g.kelly@gmail.com")
 
-(setq-default indent-tabs-mode t ; turn tabs to spaces
-              fill-column 79)
+(setq-default fill-column 100)
 
 ;; UTF-8 everywhere
 (set-language-environment 'utf-8)
@@ -592,40 +591,32 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 ;;;; appearance
 
 ;;;;; fonts
-(defvar my-font-classes
-  '((proportional "Fantasque Sans Mono" "Fira Sans"
-                  "Input Sans Narrow Light" "Input Sans"
-                  "DejaVu Sans" "Calibri" "Arial"
-                  "Sans Serif")
-    (mono
-     "monospace"
-     "Monoid Regular"
-     "Input Mono Condensed" "Input Mono"
-     "Fantasque Sans Mono"
-     "Envy Code R"
-     "DejaVu Sans Mono"
-     "Consolas" "Courier")
-    (header "Fantasque Sans Mono" proportional)
-    (cursive "Kelly Normal"))
+(defvar my-fonts
+  '((proportional (my-win-p . ("Fantasque Sans Mono" . 12)) "sans serif")
+    (mono (my-win-p . "Monoid Regular") "monospace")
+    (fixed ("fixed" . 7))
+    (header proportional)
+    (frame (my-laptop-p fixed) mono))
   "Fonts categorized for their use.")
-
-(defvar my-font-sizes
-  '(("Input Sans Condensed" . 9)
-    ("Fantasque Sans Mono" . 12)
-    ("Input Mono" . 8)
-    ("Kelly Normal" . 22))
-  "Fonts that have a custom size other than the default.")
 
 (defun my-font (type)
   "Return the first valid font of TYPE and it's associated size, if given."
-  (let* (valid-cand
-         (handle (lambda (cand)
-                   "If valid, then set `valid-cand' and exit loop."
-                   (when (find-font (font-spec :name cand))
+  (let* (
+	 (cand
+	  ;; return the first true item determined by it's predicate
+	  (catch 'found
+	    (dolist (cands (assoc type my-fonts))
+	      (cond
+	       ((and (listp cands) (stringp (car cands))) ; ("name" . size)
+		))))
+	  )
+         (handle (lambda (var)
+                   "If VAR is true, then set `valid-cand' and exit"
+                   (when (symbol-value var)
                      (setq valid-cand cand)
                      (throw 'found (symbol-value 'family)))))
-         (valid-family
-          ;; get a valid family from `fonts'
+         (valid-candidate
+          ;; get a valid candidate from `fonts', including size
           (catch 'found
             (dolist (family
                      ;; get font list, following symbols if they exist
@@ -633,8 +624,12 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
                       #'nconc
                       (mapcar
                        (lambda (cand)
+			 (cond
+			  ((symbolp cand) (cdr (assoc cand my-fonts)))
+			  ((listp cand) ())
+			  )
                          (if (symbolp cand)
-                             (cdr (assoc cand my-font-classes))
+
                            (list cand)))
                        (cdr (assoc type my-font-classes)))))
               (funcall handle family)
@@ -1273,7 +1268,6 @@ If REGEXPP is true then don't modify MODE before adding to
   ;; TODO modify outline-promote so if already max level then demote subtrees
   :commands outshine-hook-function
   :bind (:map outline-minor-mode-map
-              ("TAB" . outline-cycle)
               ("C-c o" . outline-insert-heading))
   :init
   (add-hook 'outline-minor-mode-hook #'outshine-hook-function)
@@ -1282,6 +1276,7 @@ If REGEXPP is true then don't modify MODE before adding to
   (evil-bind-key
       :state (normal motion visual)
       :map outline-minor-mode-map
+    ("TAB" . outline-cycle)
     ("gh" . outline-up-heading)
     ("gj" . outline-next-heading)
     ("gk" . outline-previous-heading)
@@ -1489,10 +1484,11 @@ If REGEXPP is true then don't modify MODE before adding to
    ;; eshell-prompt-function #'my-eshell-prompt
    eshell-directory-name (expand-file-name my-dir "eshell/")
    eshell-cmpl-ignore-case t
-   eshell-banner-message (if my-win-p
-                             ""
-                           (propertize (shell-command-to-string "fortune")
-                                       'face '(:foreground "#b58900"))))
+   eshell-banner-message (if (or my-win-p (executable-find-exe))
+			     ""
+			   (propertize (shell-command-to-string "fortune")
+				       'face '(:foreground "#b58900")))
+   )
 
   ;; (defmacro my-with-face (str face &rest props)
   ;;   "Propertize STR with FACE and other PROPS."
@@ -1757,9 +1753,10 @@ If REGEXPP is true then don't modify MODE before adding to
 ;;;;;;; python
 (use-package python
   :config
-  (unless my-win-p (setq python-shell-interpreter "python3")) ; use Python 3
   (setq-default
    python-indent-guess-indent-offset nil
+   python-shell-interpreter "python3"
+   python-check-command "flake8"
    python-indent-offset 4)              ; something is setting this to 2
 
   (defun my-py-run-doctests ()
@@ -1788,8 +1785,7 @@ spaces in Windows."
 
   (use-package elpy
     :init (elpy-enable)
-    :config (unless my-win-p
-              (setq elpy-rpc-python-command "python3"))))
+    :config (setq elpy-rpc-python-command "python3")))
 
 (use-package sh-script
   ;; two-space indentation
@@ -1850,9 +1846,10 @@ spaces in Windows."
   :init
   (defun my-java-formats ()
     (interactive)
-	(setq c-basic-offset 4
-		  tab-width 4
-		  indent-tabs-mode t))
+    (setq c-basic-offset 4
+	  tab-width 4
+	  indent-tabs-mode t
+	  fill-column 100))
   :config
   (add-hook 'java-mode-hook #'my-java-formats))
 

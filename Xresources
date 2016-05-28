@@ -6,10 +6,10 @@ urxvt.scrollTtyOutput: false
 ! scroll to bottom on keypress
 urxvt.scrollTtyKeypress: true
 ! font
-urxvt.font: xft:fantasque sans mono:pixelsize=14:antialias=true, \
-			xft:envy code r:pixelsize=14:antialias=true, \
-			xft:babelstone han:pixelsize=14:antialias=true, \
-			xft:symbola:pixelsize=14:antialias=true
+!urxvt.font: xft:fantasque sans mono:pixelsize=14:antialias=true, \
+!			xft:envy code r:pixelsize=14:antialias=true, \
+!			xft:babelstone han:pixelsize=14:antialias=true, \
+!			xft:symbola:pixelsize=14:antialias=true
 ! no scrollbar
 urxvt.scrollBar: false
 ! clickable URLs

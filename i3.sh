@@ -1,3 +1,4 @@
+# -*- sh -*-
 # windows key modifier
 set $mod Mod4
 
@@ -124,3 +125,7 @@ bar {
 for_window [class="^.*"] border pixel 0
 gaps inner 12
 gaps outer 4
+
+# wallpaper
+exec --no-startup-id feh --bg-fill ~/Pictures/wall/wall --no-fehbg
+exec compton -b --config ~/.config/compton/config.conf
