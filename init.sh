@@ -50,7 +50,7 @@ init_vimp () {
 
 l $HOME profile .bash_profile
 l $XDG_CONFIG_HOME/X11 Xresources
-l $HOME xinputrc .xinputrc
+l $HOME xinitrc .xinitrc
 init_emacs $HOME/.emacs.d
 init_vim $XDG_CONFIG_HOME/nvim nvim
 init_vimp $VIMPERATOR_RUNTIME
