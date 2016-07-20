@@ -1,0 +1,50 @@
+# vim:ft=sh
+general {
+  colors = true
+}
+
+order += "window_title_async"
+order += "net"
+order += "disk /"
+order += "cpu_temperature 0"
+order += "load"
+order += "volume_status"
+order += "time"
+order += "battery_level"
+
+disk "/" {
+	format = "%percentage_used_of_avail"
+}
+
+wireless _first_ {
+	format_up = " %essid %ip"
+	format_down = "no wifi :("
+}
+
+volume_status {
+	button_mute = 2
+	format = "♪ {percentage}"
+	format_muted = "no ♪"
+}
+
+battery 1 {
+	format = "%status with %percentage and %remaining remaining"
+	hide_seconds = true
+	status_chr = "⚇ charging"
+	status_bat = "⚡ battery"
+	low_threshold = 20
+	threshold_type = "time"
+}
+
+time {
+  format = "%m-%d %H:%M:%S"
+  on_click 1 = "restart"
+}
+
+cpu_temperature 0 {
+	format = "your CPU is at %degrees °C"
+}
+
+load {
+        format = "%1min"
+}
