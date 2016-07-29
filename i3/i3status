@@ -1,50 +1,71 @@
 # vim:ft=sh
 general {
   colors = true
+	color_good = "#689d6a"
+	color_degraded = "#d65d0e"
+	color_bad = "#fb4934"
 }
 
-order += "window_title_async"
+order += "title"
 order += "net"
-order += "disk /"
-order += "cpu_temperature 0"
-order += "load"
-order += "volume_status"
-order += "time"
-order += "battery_level"
+order += "sysdata"
+order += "clock"
+order += "vol"
+order += "group b"
+order += "static_string"
 
-disk "/" {
-	format = "%percentage_used_of_avail"
+title {
+	color = "#a89984"
+	format = "{title}        "
 }
 
-wireless _first_ {
-	format_up = " %essid %ip"
-	format_down = "no wifi :("
+net {
+	format = "  {info} "
+	background = "#8ec07c"
+	down_msg = ""
+	color = "#282828"
 }
 
-volume_status {
+sysdata {
+	format = " ⮡ {cpu_usage}%  ⮦ {mem_used_percent}% "
+}
+
+clock {
+	format = "  %a-%e  ⮖%l:%M "
+	color = "#282828"
+	background = "#282828"
+	color_night = "#458588"
+	invert = true
+}
+
+vol {
+	button_down = 1
 	button_mute = 2
-	format = "♪ {percentage}"
-	format_muted = "no ♪"
+	button_up = 3
+	format = "⮞ "
+	format_good = "⮟ "
+	format_muted = "⮝ "
+	use_color = false
 }
 
-battery 1 {
-	format = "%status with %percentage and %remaining remaining"
-	hide_seconds = true
-	status_chr = "⚇ charging"
-	status_bat = "⚡ battery"
-	low_threshold = 20
-	threshold_type = "time"
+group b {
+	button_next = 1
+
+	battery_level 0 {
+		charging_character = "⮎"
+		color_charging = "#fabd2f"
+		blocks = "⮐⮑⮏⮒"
+		threshold_bad = 5
+		threshold_degraded = 10
+	}
+
+	battery_level 1 {
+		charging_character = "⮎"
+		color_charging = "#fabd2f"
+		blocks = "⮐⮑⮏⮒"
+		threshold_bad = 5
+		threshold_degraded = 10
+		format = "{icon} {percent}% {time_remaining}"
+	}
 }
 
-time {
-  format = "%m-%d %H:%M:%S"
-  on_click 1 = "restart"
-}
-
-cpu_temperature 0 {
-	format = "your CPU is at %degrees °C"
-}
-
-load {
-        format = "%1min"
-}

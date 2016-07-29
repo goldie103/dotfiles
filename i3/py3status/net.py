@@ -2,6 +2,9 @@
 """
 Py3status module that toggles information about the current internet status.
 
+Tweaked from Py3status wifi_status module to toggle what information is shown
+and show public IP on right click.
+
 """
 
 import re
@@ -12,11 +15,13 @@ class Py3status:
     
     cache_timeout = 10          # amount of time before refresh
     device = 'wlan0'            # wireless device to check connection of
-    msg = 'W: {info}'           # message template to show
+    format  = 'W: {info}'       # message template to show
     down_msg = 'down'           # what to add if there is no wifi signal
     no_ip_msg = "no ip"         # what to add if there is no IP
     ip_button = 1               # button to toggle between SSID and IP
     public_button = 3           # button to toggle between public and local IP
+    background = None           # background color -- specifically for i3-gaps
+    color = None                # foreground color
     # Address to retrieve public IP from. Must return a plaintext IP address.
     public_ip_url = "icanhazip.com"
 
@@ -47,7 +52,9 @@ class Py3status:
 
         return {
             'cached_until': time() + self.cache_timeout,
-            'full_text': self.msg.format(info=get_text())
+            'full_text': self.format.format(info=get_text()),
+            'background': self.background,
+            'color': self.color
         }
 
     def on_click(self, event):
