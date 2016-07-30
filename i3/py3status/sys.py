@@ -41,7 +41,7 @@ class Py3status:
             # Subtract free, buffers, and cached from total to get used space
             used = total - free - sum(to_gb(next(f)) for _ in range(2))
 
-        return total, used, used / total
+        return total, used, used / total * 100
 
     def _get_cpu_usage(self):
         """Return CPU usage as nonidle/total % time from /proc/stat
