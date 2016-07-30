@@ -8,7 +8,7 @@ general {
 
 order += "title"
 order += "net"
-order += "sysdata"
+order += "sys"
 order += "clock"
 order += "vol"
 order += "group b"
@@ -16,18 +16,21 @@ order += "static_string"
 
 title {
 	color = "#a89984"
-	format = "{title}        "
+	format = "{title} "
 }
 
 net {
 	format = "  {info} "
-	background = "#8ec07c"
+	background = "#fe8019"
 	down_msg = ""
 	color = "#282828"
 }
 
-sysdata {
-	format = " ⮡ {cpu_usage}%  ⮦ {mem_used_percent}% "
+sys {
+	format = " ⮡ {cpu_usage}%  ⮦ {mem_usage}% "
+	indicator = "border"
+	color = "#fe8019"
+	border_bottom = 1
 }
 
 clock {
