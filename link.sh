@@ -18,7 +18,7 @@ source ./env && l $HOME env .zshenv
 vimp_plugin () {
   if [[ ! -e $1 ]]; then
     [[ ! -d $VIMPERATOR_RUNTIME ]] && d $VIMPERATOR_RUNTIME
-    curl -o "$1" "https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/$1"
+    curl -o "$VIMPERATOR_RUNTIME/${2:-$1}" "https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/$1"
   fi
 }
 
@@ -43,8 +43,9 @@ init_emacs () {
   l $1 my-elisp
 }
 init_vimp () {
-  l $1 init.vimp
-  vimp_plugin "_smooziee.js"
+  l $1 vimperatorrc.vimp init.vimp
+  vimp_plugin "_smooziee.js" "smooziee.js"
+  vimp_plugin "stylish.js"
 }
 
 

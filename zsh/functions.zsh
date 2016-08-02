@@ -1,15 +1,12 @@
 # download a package from AUR and attempt to build it
-# aur discord
-aur () {
-  cd $HOME/src
-  git clone https://aur.archlinux.org/"$1".git
-  cd "$1"
-  makepkg -s
-}
-
 # make required directories before moving
-md () { mkdir -vp "$(dirname $2)" && mv -i "$@" }
+function md() {
+  dest="${@:$#}"
+  dir="${$dest%/*}"
+  echo "$dir" "${@:1:$# -1}" "$dest"
+  #/bin/mkdir -vp "$dir" && /bin/mv -i "${@:1:$# -1}" "$dest"
+}
 
 # merge multiple pdfs into one
 # gsmerge output.pdf input1.pdf input2.pdf
-gsmerge () { gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$1 "${@:2}" }
+function gsmerge() { gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$1 "${@:2}" }

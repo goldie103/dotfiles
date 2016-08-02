@@ -12,30 +12,43 @@ class Py3status:
     cache_timeout = 10
     sunrise = 7         # Hour of sunrise
     sunset = 5 + 12     # Hour of sunset
-    color_night = None  # Night color
+    night = None        # Night color
+    day = None          # Day color
     color = None        # Normal color
-    invert = False      # Invert colors at night
-    background = None   # Only works with i3-gaps
-
-    def _get_colors(self, is_day):
-        if is_day:
-            return {}
-        if not self.invert:
-            return {"color": self.color_night}
-        return {"color": self.background, "background": self.color_night}
+    invert = False      # Swap background and foreground at night
+    indicator = 'color' # What to change to indicate time; 'background', 'color', 'border'
+    # i3-gaps options
+    background = None
+    border = None
+    border_top = None
+    border_bottom = None
+    border_left = None
+    border_right = None
 
     def clock(self):
         now = datetime.now()
-        colors = self._get_colors(self.sunrise < now.hour < self.sunset)
+        is_day = self.sunrise < now.hour < self.sunset
 
         response = {
             "cached_until": time() + self.cache_timeout,
             "full_text": now.strftime(self.format),
             "color": self.color,
-            "background": self.background
+            "background": self.background,
+            "border": self.border,
+            "border_top": self.border_top,
+            "border_bottom": self.border_bottom,
+            "border_left": self.border_left,
+            "border_right": self.border_right,
         }
-        response.update(colors)
+        response.update({self.indicator: self.day if is_day else self.night})
         return response
             
 
+if __name__ == "__main__":
+    """Run module in test mode"""
+    from py3status.module_test import module_test
+    module_test(Py3status, config={
+        'day': '#FF0000',
+        'night': '#FFFF00',
+    })
     

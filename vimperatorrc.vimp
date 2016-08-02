@@ -6,13 +6,16 @@ set rtp=$XDG_CONFIG_HOME/vimperator
 set titlestring=ff
 
 " * Behavior
-cd $HOME
+cd $HOME/dow
 "set editor=emacsclient -c
 
-" status bar
+set maxitems=10
+set defsearch=g
 set status=input,location,history,tabcount
-" use letters for hinting
 set hintchars=asdfghjkl;
+set animations
+" don't go into insert mode when loading a page
+set focuscontent
 " open all things in new tabs
 set newtab+=help,prefs,addons,downloads
 " tabopen order: tabs, location bar entries, local files
@@ -22,13 +25,10 @@ set activate=addons,downloads,extoptions,help
 " C-d and C-u scroll by one line only
 set scroll=1
 
-" hide close buttons
-set! browser.tabs.closeButtons=2
 " open tabs in background
 set! browser.tabs.loadDivertedInBackground=true
 " spell check textareas and inputs
 set! layout.spellcheckDefault=2
-
 
 " * Mappings
 nnoremap U :undo<Space>

@@ -7,11 +7,11 @@ general {
 }
 
 order += "title"
-order += "net"
+order += "group net"
 order += "sys"
 order += "clock"
 order += "vol"
-order += "group b"
+order += "group batt"
 order += "static_string"
 
 title {
@@ -19,13 +19,43 @@ title {
 	format = "{title} "
 }
 
-net {
-	format = "  {info} "
-	background = "#fe8019"
-	down_msg = ""
-	color = "#282828"
-}
+group net {
+	button_next = 1
 
+	net name {
+		blocks = ""
+		format_up = " {icon} {ssid} "
+		format_down = " no internet "
+	  color = "#282828"
+		color_good = "#fe8019"
+		background = "#fe8019"
+		indicator = "border"
+		border_bottom = 1
+	}
+
+	net ip {
+		blocks = ""
+		format_up = " {icon} {ip} "
+		format_down = " no internet "
+	  color = "#282828"
+		color_good = "#fe8019"
+		background = "#fe8019"
+		indicator = "border"
+		border_bottom = 1
+	}
+
+	net publicip {
+		blocks = ""
+		format_up = " {icon} {public_ip} "
+		format_down = " no internet "
+	  color = "#282828"
+		color_good = "#fe8019"
+		background = "#fe8019"
+		indicator = "border"
+		border_bottom = 1
+	}
+}
+		
 sys {
 	format = " ⮡ {cpu_usage}%  ⮦ {mem_usage}% "
 	indicator = "border"
@@ -36,22 +66,20 @@ sys {
 clock {
 	format = "  %a-%e  ⮖%l:%M "
 	color = "#282828"
-	background = "#282828"
-	color_night = "#458588"
-	invert = true
+	day = "#fe8019"
+	night = "#458588"
+	indicator = "background"
 }
 
 vol {
 	button_down = 1
 	button_mute = 2
-	button_up = 3
-	format = "⮞ "
-	format_good = "⮟ "
-	format_muted = "⮝ "
-	use_color = false
+	button_full = 3
+	blocks = "⮝⮞⮟"
+	format = "{icon} "
 }
 
-group b {
+group batt {
 	button_next = 1
 
 	battery_level 0 {

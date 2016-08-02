@@ -93,7 +93,7 @@ set guioptions-=T              " no toolbar
 filetype plugin indent on
 set autoindent smartindent
 set shiftround                  " round to indent width
-set expandtab smarttab          " turn tabs to spaces
+"set expandtab smarttab          " turn tabs to spaces
 set sw=4 ts=4 sts=4	            " indents of width 4
 set wrap textwidth=80           " wrap lines at 80 cols
 

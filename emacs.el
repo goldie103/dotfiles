@@ -16,13 +16,6 @@ define it as ELEMENTS."
       (set list-var l)))
   (symbol-value list-var))
 
-(defmacro my-add-binds (map)            ; TODO
-  "Add essential bindings to MAP with `bind-key'."
-  `(bind-keys :map ,map
-              ("SPC" . execute-extended-command)
-              ("q" . kill-buffer-and-window)
-              (",b" . ibuffer)))
-
 (defun my-cleanup ()
   "Clean up current buffer whitespace."
   (interactive)
@@ -33,7 +26,7 @@ define it as ELEMENTS."
 ;;;; setup
 
 (defconst my-dir
-  (expand-file-name  ".user/" user-emacs-directory)
+  (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
   "Personal elisp settings files and generated files.")
 
 (defconst my-dir-elisp
@@ -44,13 +37,12 @@ define it as ELEMENTS."
 
 (defconst my-dir-packages
   (expand-file-name "elisp/" user-emacs-directory)
-  "Packages not available through a repository.")
+  "Directory for packages not available through a repository.")
 (add-to-list 'load-path my-dir-packages)
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
 (defvar my-laptop-p (string= system-name "hraesvelgr")
   "Non-nil if on desktop machine")
-
 
 
 (setq custom-file (expand-file-name "custom.el" my-dir))
@@ -591,54 +583,54 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 ;;;; appearance
 
 ;;;;; fonts
-(defvar my-fonts
-  '((proportional (my-win-p . ("Fantasque Sans Mono" . 12)) "sans serif")
-    (mono (my-win-p . "Monoid Regular") "monospace")
-    (fixed ("fixed" . 7))
-    (header proportional)
-    (frame (my-laptop-p fixed) mono))
-  "Fonts categorized for their use.")
+;; (defvar my-fonts
+;;   '((proportional (my-win-p . ("Fantasque Sans Mono" . 12)) "sans serif")
+;;     (mono (my-win-p . "Monoid Regular") "monospace")
+;;     (fixed ("fixed" . 7))
+;;     (header proportional)
+;;     (frame (my-laptop-p fixed) mono))
+;;   "Fonts categorized for their use.")
 
-(defun my-font (type)
-  "Return the first valid font of TYPE and it's associated size, if given."
-  (let* (
-	 (cand
-	  ;; return the first true item determined by it's predicate
-	  (catch 'found
-	    (dolist (cands (assoc type my-fonts))
-	      (cond
-	       ((and (listp cands) (stringp (car cands))) ; ("name" . size)
-		))))
-	  )
-         (handle (lambda (var)
-                   "If VAR is true, then set `valid-cand' and exit"
-                   (when (symbol-value var)
-                     (setq valid-cand cand)
-                     (throw 'found (symbol-value 'family)))))
-         (valid-candidate
-          ;; get a valid candidate from `fonts', including size
-          (catch 'found
-            (dolist (family
-                     ;; get font list, following symbols if they exist
-                     (apply
-                      #'nconc
-                      (mapcar
-                       (lambda (cand)
-			 (cond
-			  ((symbolp cand) (cdr (assoc cand my-fonts)))
-			  ((listp cand) ())
-			  )
-                         (if (symbolp cand)
+;; (defun my-font (type)
+;;   "Return the first valid font of TYPE and it's associated size, if given."
+;;   (let* (
+;; 	 (cand
+;; 	  ;; return the first true item determined by it's predicate
+;; 	  (catch 'found
+;; 	    (dolist (cands (assoc type my-fonts))
+;; 	      (cond
+;; 	       ((and (listp cands) (stringp (car cands))) ; ("name" . size)
+;; 		))))
+;; 	  )
+;;          (handle (lambda (var)
+;;                    "If VAR is true, then set `valid-cand' and exit"
+;;                    (when (symbol-value var)
+;;                      (setq valid-cand cand)
+;;                      (throw 'found (symbol-value 'family)))))
+;;          (valid-candidate
+;;           ;; get a valid candidate from `fonts', including size
+;;           (catch 'found
+;;             (dolist (family
+;;                      ;; get font list, following symbols if they exist
+;;                      (apply
+;;                       #'nconc
+;;                       (mapcar
+;;                        (lambda (cand)
+;; 			 (cond
+;; 			  ((symbolp cand) (cdr (assoc cand my-fonts)))
+;; 			  ((listp cand) ())
+;; 			  )
+;;                          (if (symbolp cand)
 
-                           (list cand)))
-                       (cdr (assoc type my-font-classes)))))
-              (funcall handle family)
-              ;; check unspaced name for odd font naming
-              (funcall handle (replace-regexp-in-string " " "" family)))))
-         (size (cdr (assoc valid-family my-font-sizes)))
-         (cand-size (if (and size (not (floatp size))) (* size 10) size)))
-    ;; return candidate and associated size in 1/10ths of a pt
-    `(:family ,valid-cand ,@(when cand-size `(:height ,cand-size)))))
+;;                            (list cand)))
+;;                        (cdr (assoc type my-font-classes)))))
+;;               (funcall handle family)
+;;               ;; check unspaced name for odd font naming
+;;               (funcall handle (replace-regexp-in-string " " "" family)))))
+;;          (size (cdr (assoc valid-family my-font-sizes)))
+;;          (cand-size (if (and size (not (floatp size))) (* size 10) size)))
+;;     ;; return candidate and associated size in 1/10ths of a pt
+;;     `(:family ,valid-cand ,@(when cand-size `(:height ,cand-size)))))
 
 (defun my-font-use-proportional ()
   "Use proportional font for current buffer."
@@ -649,11 +641,14 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 (defun my-font-set-frame ()
   "Set frame font to monospace."
   (interactive)
-  (let ((font (my-font 'mono)))
-    (set-frame-font (concat (nth 1 font) "-"
-			    (number-to-string (/ (or (nth 3 font) 100) 10))))))
+    (set-frame-font "Dina-8")
 
-(add-hook 'text-mode-hook #'my-font-use-proportional)
+  ;;(let ((font (my-font 'mono)))
+  ;;(set-frame-font (concat (nth 1 font) "-" (number-to-string (/ (or (nth 3 font) 100) 10)))))
+  )
+
+
+;;(add-hook 'text-mode-hook #'my-font-use-proportional)
 
 ;;;;; highlight fic
 
@@ -898,7 +893,7 @@ If REGEXPP is true then don't modify MODE before adding to
 ;; set frame font
 
 
-(apply #'set-face-attribute 'variable-pitch nil (my-font 'header))
+;; (apply #'set-face-attribute 'variable-pitch nil (my-font 'header))
 
 ;;;; interface
 
@@ -1484,10 +1479,7 @@ If REGEXPP is true then don't modify MODE before adding to
    ;; eshell-prompt-function #'my-eshell-prompt
    eshell-directory-name (expand-file-name my-dir "eshell/")
    eshell-cmpl-ignore-case t
-   eshell-banner-message (if (or my-win-p (executable-find-exe))
-			     ""
-			   (propertize (shell-command-to-string "fortune")
-				       'face '(:foreground "#b58900")))
+   eshell-banner-message ""
    )
 
   ;; (defmacro my-with-face (str face &rest props)
@@ -1665,11 +1657,11 @@ If REGEXPP is true then don't modify MODE before adding to
    org-list-allow-alphabetical t)       ; allow single-char alphabetical lists
 
   ;; set some faces to use mono font
-  (dolist (face '(org-block
-                  org-code
-                  org-table
-                  org-special-keyword))
-    (apply #'set-face-attribute face nil (my-font 'mono)))
+  ;; (dolist (face '(org-block
+                  ;; org-code
+                  ;; org-table
+                  ;; org-special-keyword))
+    ;; (apply #'set-face-attribute face nil (my-font 'mono)))
 
   (use-package org-clock
     :ensure nil
@@ -1852,6 +1844,8 @@ spaces in Windows."
 	  fill-column 100))
   :config
   (add-hook 'java-mode-hook #'my-java-formats))
+
+(use-package groovy-mode)
 
 ;;;; server
 
