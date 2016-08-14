@@ -94,17 +94,8 @@ filetype plugin indent on
 set autoindent smartindent
 set shiftround                  " round to indent width
 "set expandtab smarttab          " turn tabs to spaces
-set sw=4 ts=4 sts=4	            " indents of width 4
+set sw=2 ts=2 sts=2	            " indents of width 4
 set wrap textwidth=80           " wrap lines at 80 cols
-
-" File Specific Formatting
-augroup configgroup
-    autocmd!
-    " 2-space indents
-    autocmd FileType html setlocal sw=2 ts=2 sts=2
-    autocmd FileType css setlocal sw=2 ts=2 sts=2
-    autocmd FileType sh setlocal sw=2 ts=2 sts=2
-augroup END
 " }}}
 " Behavior {{{
 set formatoptions+=j            " delete comment char when joining lines

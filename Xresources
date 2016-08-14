@@ -24,7 +24,8 @@ rofi.color-active:		#3c3836,#ebdbb2,#504954,#1d2021,#fe8019
 rofi.color-window:		#282828,#002b36
 
 ! URXVT
-urxvt.font:					xft:bitmap:pixelsize=14:antialias=false
+urxvt.font:					xft:Tamzen:pixelsize=14:antialias=false
+!urxvt.font:					xft:bitmap:pixelsize=14:antialias=false
 urxvt.scrollBar:			false
 urxvt.scrollTtyOutput:		false
 urxvt.scrollTtyKeypress:	true

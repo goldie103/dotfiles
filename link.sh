@@ -11,7 +11,7 @@ while getopts "vif" opt; do
 done
 
 d () { mkdir -p $v "$1" }
-l () { d "$1" && ln -s $v $f "$DOT/$2" "$1/${3:-$2}" }
+l () { d "$1" && ln -s $v $f "$DOT/$2" "$1/$3" }
 
 source ./env && l $HOME env .zshenv
 
@@ -23,7 +23,7 @@ vimp_plugin () {
 }
 
 init_zsh () {
-  l $1 init.zsh .zshrc
+  l $1 zsh.zsh .zshrc
   l $1 profile .zprofile
   l $1 zsh custom
   local dir="$1/oh-my-zsh"
@@ -31,7 +31,7 @@ init_zsh () {
   [[ ! -d $dir ]] && git clone git://github.com/robbyrussell/oh-my-zsh.git "$dir"
 }
 init_vim () {
-  l $1 init.vim
+  l $1 init.vim vim.vim
   local vundlepath=$1/bundle/Vundle.vim
   if [[ ! -e $vundlepath ]]; then
     git clone https://github.com/VundleVim/Vundle.vim.git "$vundlepath"
@@ -39,20 +39,19 @@ init_vim () {
   fi
 }
 init_emacs () {
-  l $1 init.el
-  l $1 my-elisp
+  l $1 emacs.el init.el
+  l $1 my-elisp my-elisp
 }
 init_vimp () {
   l $1 vimperatorrc.vimp init.vimp
   vimp_plugin "_smooziee.js" "smooziee.js"
-  vimp_plugin "stylish.js"
 }
 
 
 l $HOME profile .bash_profile
 l $XDG_CONFIG_HOME/X11 Xresources
 l $HOME xinitrc .xinitrc
-init_emacs $HOME/.emacs.d
+init_emacs "$HOME/.emacs.d"
 init_vim $XDG_CONFIG_HOME/nvim nvim
 init_vimp $VIMPERATOR_RUNTIME
 init_zsh $ZDOTDIR

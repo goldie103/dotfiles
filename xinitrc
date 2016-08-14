@@ -27,7 +27,7 @@ fi
 	 --output DVI-I-0 --auto --left-of HDMI-1
 
 # daemons
-emacs --daemon
+#emacs --daemon
 
 # start window manager
 exec i3

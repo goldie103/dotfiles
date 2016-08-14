@@ -3,6 +3,8 @@ autoload -U zmv
 # completion
 zmodload zsh/complist
 autoload -U compinit && compinit
+# no auto complete
+unsetopt correct
 
 
 #ZSH_THEME="agnoster"
