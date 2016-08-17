@@ -6,7 +6,7 @@ general {
 	color_bad = "#fb4934"
 }
 
-order += "title"
+#order += "window_title"
 order += "group net"
 order += "sys"
 order += "clock"
@@ -14,10 +14,6 @@ order += "vol"
 order += "group batt"
 order += "static_string"
 
-title {
-	color = "#a89984"
-	format = "{title} "
-}
 
 group net {
 	button_next = 1

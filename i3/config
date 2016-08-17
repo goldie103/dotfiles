@@ -26,7 +26,7 @@ bindsym $m+Shift+Tab gaps inner all set $default_gap
 
 # wallpaper
 exec --no-startup-id feh --bg-fill $HOME/pic/wall/wall --no-fehbg
-# compositor 
+# compositor
 #exec --no-startup-id compton -b --config $XDG_CONFIG_HOME/compton/config.conf
 
 # screenshot
@@ -128,6 +128,7 @@ bindsym $m+r mode "resize"
 
 bar {
 	i3bar_command i3bar
+	#status_command i3status
 	status_command py3status -c $XDG_CONFIG_HOME/i3/i3status -i $XDG_CONFIG_HOME/i3/py3status
 	position top
     strip_workspace_numbers yes
@@ -138,7 +139,7 @@ bar {
 		background	#282828
 		statusline	#a89984
 		separator	#282828
-    
+
 		# Type					border	bg		font
 		focused_workspace		#665c54	#665c54	#a89984
 		active_workspace		#3c3836	#3c3836	#a89984
