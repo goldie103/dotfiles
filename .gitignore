@@ -9,3 +9,4 @@ __pycache__
 /.emacs.d/*
 !/.emacs.d/init.el
 !/.emacs.d/my-elisp
+*.el#

@@ -55,7 +55,7 @@ define it as ELEMENTS."
  use-package-verbose t             ; log message after loading a package
  use-package-always-ensure t       ; ensure all packages are installed
  use-package-always-defer t)       ; defer all packages
-(use-package bind-key)
+(use-package general)
 
 ;;; Basic settings
 (setq
@@ -76,7 +76,6 @@ define it as ELEMENTS."
  vc-handled-backends '(Git)							; remove unnecessary vc backends
  delete-by-moving-to-trash t
  large-file-warning-threshold 20000000	; larger warning threshold
- find-file-visit-truname t							; silently follow symlinks
  view-read-only t												; read-only in view-mode
  ;; backups and autosave
  auto-save-list-file-prefix (expand-file-name "autosaves/" my-dir)
@@ -173,16 +172,6 @@ narrowed."
        (line-beginning-position) (line-end-position))
     (comment-dwim arg)))
 
-;; (defun minibuffer-keyboard-quit ()
-;;   "Abort recursive edit.
-;; In Delete Selection mode, if the mark is active, just deactivate it;
-;; then it takes a second \\[keyboard-quit] to abort the minibuffer."
-;;   (interactive)
-;;   (if (and delete-selection-mode transient-mark-mode mark-active)
-;;       (setq deactivate-mark  t)
-;;     (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
-;;     (abort-recursive-edit)))
-
 ;;;; Modes and hooks
 (show-paren-mode t)											; highlight matching parens
 (electric-pair-mode t)									; auto add parens
@@ -207,147 +196,62 @@ narrowed."
 	(dolist (func (cdr hook)) (add-hook (car hook) func)))
 
 ;;;; Bindings
+(defvar my-window-map "C-w" "Keymap for my window related commands")
 
-;; oopsies
-;;(global-unset-key (kbd "C-x ESC ESC"))
+(general-define-key
+ "M-SPC" #'cycle-spacing
+ "RET" #'newline-and-indent
+ "C-x n" #'my-narrow-or-widen-dwim
+ "M-/" #'grep
+ "C-M-/" #'find-grep-dired
+ [remap comment-dwim] #'my-comment-dwim
+ [remap switch-to-buffer] #'ibuffer
+ "C-w" nil)
 
-(bind-keys
- ("M-SPC" . cycle-spacing)
- ("RET" . newline-and-indent)
- ("C-x n" . my-narrow-or-widen-dwim)
- ("M-/" . grep)
- ("C-M-/" . find-grep-dired)
- ([remap comment-dwim] . my-comment-dwim)
- ([remap switch-to-buffer] . ibuffer))
-
-;; (bind-keys
-;;  :prefix-map my-window-map
-;;  :prefix "C-w"
-;;  :prefix-docstring "My window related commands"
-;;  ("C-w" . other-window)
-;;  ("w" . other-window)
-;;  ("v" . split-window-vertically)
-;;  ("h" . split-window-horizontally)
-;;  ("=" . balance-windows)
-;;  ("f" . delete-frame)
-;;  ("d" . delete-window)
-;;  ("D" . delete-other-windows))
-
-;; (dolist (map '(minibuffer-local-map
-;; 							 minibuffer-local-ns-map
-;; 							 minibuffer-local-completion-map
-;; 							 minibuffer-local-must-match-map
-;; 							 minibuffer-local-isearch-map))
-;; 	(bind-key "<escape>" #'minibuffer-keyboard-quit (symbol-value map)))
+(general-define-key
+ :prefix my-window-map
+ "C-w" #'other-window
+ "w" #'other-window
+ "s" #'split-window-vertically
+ "C-s" #'split-window-horizontally
+ "=" #'balance-windows
+ "f" #'delete-frame
+ "d" #'delete-window
+ "C-d" #'delete-other-windows)
 
 ;;; Major packages
 ;;;; Evil
 (use-package evil
 	:demand t
+	:general
+	(:keymaps 'motion
+						"TAB" nil
+						"C-w" nil
+						"SPC" #'execute-extended-command
+						"q" #'kill-this-buffer
+						"SPC" #'execute-extended-command
+						"q" #'kill-this-buffer
+						"," #'my-evil-leader-map
+						"Q" #'evil-record-macro
+						"\"" #'evil-jump-item
+						[remap evil-next-line] #'evil-next-visual-line
+						[remap evil-previous-line] #'evil-previous-visual-line)
+	(:keymaps 'my-evil-leader-map
+					 "f" #'find-file
+					 "b" #'list-buffers
+					 "w" #'save-buffer
+					 "W" #'sudo-save
+					 "SPC" #'evil-ex)
+
 	:init (evil-mode t)
-	;;;;; evil functions
-  (defvar my-evil-leader-map (make-sparse-keymap)
-    "Map for personal evil leader bindings.")
-  (define-prefix-command 'my-evil-leader-map)
-
-  (defmacro evil-unbind (key &optional states)
-    "Unbind KEY, in STATES only if STATES is non-nil, otherwise unbind all."
-    (macroexp-progn
-     (mapcar
-      (lambda (state)
-        `(unbind-key
-          ,key ,(intern (concat "evil-" (symbol-name state) "-state-map"))))
-      (or states '(normal insert visual replace operator motion emacs)))))
-
-	(defmacro evil-bind-key (&rest args)
-    "Bind multiple keys to multiple evil states and maps.
-
-Accepted forms:
-KEY DEF
-KEY DEF ARG
-KEY DEF STATE MAP
-KEY DEF MAP STATE
-ARGS
-
-KEY is the key to be bound to in the form of a string or vector,
-DEF is the function to bind.
-ARG can be either MAP or STATE.
-MAP is the keymap to bind to. If nil, use `global-map'.
-STATE is a symbol state to be passed to `evil-define-key'. If nil, use `normal'
-
-If the last form is used, ARGS are of form (KEY . DEF) where DEF is
-the unquoted function to bind to. In this form, keyword arguments are accepted:
-:map - A MAP  or list of keymaps to bind to
-:state - A STATE or list of states to be passed to `evil-define-key'"
-    (declare (indent 1))
-    (if (stringp (car args))
-        (let ((key (pop args))
-              (def (pop args))
-              (state (or (cond ((symbolp (car args)) (pop args))
-                               ((symbolp (nth 1 args))
-                                (nth 1 args) (setq args (car args)))
-                               (t nil)) 'normal))
-              (map (if (keymapp args) args 'global-map)))
-          `(evil-define-key ,state ,map
-             ,(if (vectorp key) key (read-kbd-macro key)) ,def))
-
-      (let* ((map (or (plist-get args :map) 'global-map))
-             (maps (if (listp map) map (list map)))
-             (state (or (plist-get args :state) 'normal))
-             (states (if (listp state) state (list state)))
-             (binds
-              (apply
-               #'nconc
-               (mapcar
-                ;; alist of (key . func) passing to `read-kbd-macro' if needed
-                (lambda (k) (let ((key (car k)))
-                         `(,(if (vectorp key) key (read-kbd-macro key))
-                           ',(cdr k))))
-                ;; get bindings from ARGS
-                (progn (while (keywordp (car args)) (pop args) (pop args))
-                       args)))))
-
-        (macroexp-progn
-         (mapcar
-          (lambda (item)
-            `(evil-define-key ',(car item) ,(cdr item) ,@binds))
-          ;; build a list of (state . map) for each `evil-define-key' command
-          (apply
-           #'nconc
-           (mapcar
-            (lambda (s) (mapcar (lambda (m) (cons s m)) maps)) states)))))))
-
-  (evil-define-command my-evil-yank-to-eol ()
-    "Call `evil-yank' with point to end of line."
-    (evil-yank (point) (point-at-eol)))
-
-	;;;;; Bindings
-	(evil-unbind "TAB")
-
-	(evil-bind-key
-		:state (normal motion visual)
-		("SPC" . execute-extended-command)
-		("Y" . my-evil-yank-to-eol)
-		("q" . kill-this-buffer)
-		("," . my-evil-leader-map)
-		("Q" . evil-record-macro)
-		("\"" . evil-jump-item)
-		;; why is this default
-		("j" . evil-next-visual-line)
-		("k" . evil-previous-visual-line))
-
-	(bind-keys
-	 :map my-evil-leader-map
-	 ("f" . find-file)
-	 ("b" . list-buffers)
-	 ("w" . save-buffer)
-	 ("W" . sudo-save)
-	 ("SPC" . evil-ex))
+	(defvar my-evil-leader-map (make-sparse-keymap) "Evil leader bindings")
+	(define-prefix-command 'my-evil-leader-map)
 
 	;;;;; Settings
 	(setq evil-echo-state nil							; state is in modeline anyway
+				evil-cross-lines t
+				evil-symbol-word-search t
 				evil-ex-substitute-global t)		; global sed by default
-
 	;;;;; Modes
 	(my-add-list 'evil-emacs-state-modes
 							 '(shell-mode term-mode multi-term-mode))
@@ -362,8 +266,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 		:init (evil-commentary-mode t))
 
 	(use-package evil-matchit							; more tag jumping support
-		:bind (:map evil-matchit-mode-map
-								([remap evil-jump-item] . evilmi-jump-items))
+		:general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
 		:init (global-evil-matchit-mode t)
 		:config
 		(setq evilmi-may-jump-by-percentage nil)); allow count usage
@@ -373,32 +276,34 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 (use-package helm												; fuzzy minibuffer completion
 	:demand t
 	:init (helm-mode t)
-  :bind (([remap execute-extended-command] . helm-M-x)
-				 ([remap occur] . helm-occur)
-				 ([remap find-file] . helm-find-files)
-				 ([remap switch-to-buffer] . helm-mini)
-				 ([remap list-buffers] . helm-mini)
-				 ([remap ibuffer] . helm-mini)
-				 ([remap evil-paste-pop] . helm-show-kill-ring)
-				 ;; help
-				 ([remap describe-face] . helm-colors)
-				 ([remap ucs-insert] . helm-ucs)
-				 ([remap info-emacs-manual] . helm-info-emacs)
-				 ([remap info-lookup-symbol] . helm-info-at-point)
-				 ([remap locate-library] . helm-locate-library)
-				 ([remap woman] . helm-man-woman)
-				 ([remap manual-entry] . helm-man-woman)
-				 ([remap apropos] . helm-apropos)
-				 ([remap apropos-command] . helm-apropos)
-				 ([remap apropos-documentation] . helm-apropos)
-				 :map emacs-lisp-mode-map
-				 ("C-/". helm-semantic-or-imenu)
-				 :map helm-buffer-map
-				 ("C-d" . helm-buffer-run-kill-buffer)
-				 ("<C-return>" . helm-buffer-switch-other-window)
-				 :map helm-map
-				 ("M-d" . helm-scroll-other-window)
-				 ("M-u" . helm-scroll-other-window-down))
+  :general
+	([remap execute-extended-command] #'helm-M-x
+	[remap occur] #'helm-occur
+	[remap find-file] #'helm-find-files
+	[remap switch-to-buffer] #'helm-mini
+	[remap list-buffers] #'helm-mini
+	[remap ibuffer] #'helm-mini
+	[remap evil-paste-pop] #'helm-show-kill-ring
+	;; help
+	[remap describe-face] #'helm-colors
+	[remap ucs-insert] #'helm-ucs
+	[remap info-emacs-manual] #'helm-info-emacs
+	[remap info-lookup-symbol] #'helm-info-at-point
+	[remap locate-library] #'helm-locate-library
+	[remap woman] #'helm-man-woman
+	[remap manual-entry] #'helm-man-woman
+	[remap apropos] #'helm-apropos
+	[remap apropos-command] #'helm-apropos
+	[remap apropos-documentation] #'helm-apropos)
+
+	(:keymaps 'emacs-lisp-mode-map
+						"C-/"#'helm-semantic-or-imenu)
+	(:keymaps 'helm-buffer-map
+						"C-d" #'helm-buffer-run-kill-buffer
+						"<C-return>" #'helm-buffer-switch-other-window)
+	(:keymaps 'helm-map
+						"M-d" #'helm-scroll-other-window
+						"M-u" #'helm-scroll-other-window-down)
 	:config
 
 	;;;;; Fiddly bits
@@ -452,11 +357,11 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 		:config (setq helm-descbinds-window-style 'split-window))
 
 	(use-package helm-swoop								; fast search and navigation
-		:bind (([remap grep] . helm-swoop)
-					 :map isearch-mode-map
-					 ("M-/" . helm-swoop-all-from-isearch)
-					 :map helm-swoop-map
-					 ("M-/" . helm-multi-swoop-all-from-helm-swoop))
+		:general
+		([remap grep] #'helm-swoop)
+		(:keymaps 'isearch-mode-map "M-/" #'helm-swoop-all-from-isearch)
+		(:keymaps 'helm-swoop-map "M-/" #'helm-multi-swoop-all-from-helm-swoop)
+
 		:config
 		(setq helm-swoop-speed-or-color t
 					helm-swoop-use-fuzzy-match t)))
@@ -464,7 +369,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 ;;; Help
 
 (use-package discover-my-major					; list current major mode bindings
-	:bind ([remap describe-mode]. discover-my-major))
+	:general ([remap describe-mode] #'discover-my-major))
 
 (use-package guide-key									; delayed completion for prefix keys
 	:init (guide-key-mode t)
@@ -473,26 +378,28 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 (use-package help-mode
 	:ensure nil
-	:bind (:map help-mode-map
-              ("H" . help-go-back)
-              ("L" . help-go-forward)
-              :map help-map
-              ("<f1>" . apropos)
-              ("w" . woman)
-              ("k" . describe-key-briefly)
-              ("K" . describe-key)
-              ("C-k" . describe-bindings)
-              ("m" . describe-mode)
-              ("M-k" . where-is)
-              ("c" . describe-face)
-              ("l" . locate-library)
-              ("M-l" . view-lossage)
-              ("u" . ucs-insert)
-              ("i" . info-lookup-symbol)
-              ("C-i" . info-emacs-manual)))
+	:general
+	(:keymaps 'help-mode-map
+						"H" #'help-go-back
+						"L" #'help-go-forward)
+	(:keymaps 'help-map
+						"<f1>" #'apropos
+						"w" #'woman
+						"k" #'describe-key-briefly
+						"K" #'describe-key
+						"C-k" #'describe-bindings
+						"m" #'describe-mode
+						"M-k" #'where-is
+						"c" #'describe-face
+						"l" #'locate-library
+						"M-l" #'view-lossage
+						"u" #'ucs-insert
+						"i" #'info-lookup-symbol
+						"C-i" #'info-emacs-manual))
 
 (use-package info
-	:config (add-to-list 'Info-directory-list (expand-file-name "info" (getenv "XDG_CONFIG_HOME"))))
+	:config
+	(add-to-list 'Info-directory-list (expand-file-name "info" (getenv "XDG_CONFIG_HOME"))))
 
 ;;; Appearance
 ;;;; Font
@@ -541,7 +448,8 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 ;; TODO alllll of this
 (use-package delight :disabled t)
 (use-package powerline :disabled t)
-(use-package smart-mode-line :disabled t)
+;;(use-package smart-mode-line)
+;;(use-package rich-minority)
 
 (use-package nyan-mode									; essential package
 	:init (nyan-mode t)
@@ -582,6 +490,9 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 ;;; Interface
 
+(use-package simple :ensure nil
+	:config (setq find-file-visit-truname t))
+
 (use-package zone 											; Screensaver
 	:config
 	(use-package zone-nyan)
@@ -603,12 +514,13 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 								uniquify-trailing-separator-p t))
 
 (use-package winner	:disabled t					; Window configuration undo
-	:bind (("C-w u" . winner-undo)
-				 ("C-w U" . winner-redo))
+	:general (:prefix my-window-map
+						"u" #'winner-undo
+						"U" #'winner-redo)
 	:init (winner-mode t))
 
 (use-package writeroom-mode						; Distraction-free writing mode
-	:bind (:map text-mode-map ("<C-f11>" . writeroom-mode))
+	:general (:keymaps 'text-mode-map "<C-f11>" #'writeroom-mode)
 	:config
 	(setq writeroom-width 100)
 	(defun my-writeroom-effect (arg)
@@ -626,13 +538,13 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 ;;; Navigation
 (use-package avy												; Jump to specific points
-	:bind (("C-e" . avy-goto-word-1)
-				 ("C-S-e" . avy-goto-line))
-	:init (evil-unbind "C-e")
+	:general
+	(:state 'motion "C-e" nil)
+	("C-e" #'avy-goto-word-1 "C-S-e" #'avy-goto-line)
 	:config (setq avy-background t))
 
 (use-package ace-window :disabled t
-	:bind ([remap other-window] . ace-window)
+	:general ([remap other-window] #'ace-window)
 	:config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
 (use-package ag :disabled t							; Fast search and file nav
@@ -648,8 +560,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 							 '(magit-mode git-commit-mode)))
 
 (use-package expand-region :disabled t	; Expand selection by blocks at a time
-	:init (evil-bind-key :state (normal motion visual)
-											 ("zz" . er/expand-region))
+	:general (:keymaps 'motion "zz" #'er/expand-region)
 	:config (setq expand-region-contract-fast-key "x"))
 
 (use-package savehist										; Save command history
@@ -665,18 +576,18 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 	(setq save-place-file (expand-file-name "places" my-dir)))
 
 (use-package projectile									; Project-based navigation
-	:bind (:map my-evil-leader-map
-							("p" . projectile-find-file-dwim)
-							("P" . projectile-switch-project))
+	:general (:keymaps 'my-evil-leader-map
+										 "p" #'projectile-find-file-dwim
+										 "P" #'projectile-switch-project)
 	:init (projectile-global-mode t)
 	:config
 	(setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
 				projectile-known-projects-file (expand-file-name "projectile.eld" my-dir))
 
 	(use-package helm-projectile
-		:bind (:map my-evil-leader-map
-								([remap projectile-find-file-dwim] . helm-projectile)
-								([remap projectile-switch-project] . helm-projectile-switch-project))
+		:general (:keymaps 'my-evil-leader-map
+								[remap projectile-find-file-dwim] #'helm-projectile
+								[remap projectile-switch-project] #'helm-projectile-switch-project)
 		:init (helm-projectile-on)
 		:config (setq projectile-completion-system 'helm
 									projectile-switch-project-action #'helm-projectile
@@ -684,7 +595,10 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 ;;; Editing
 (use-package undo-tree
-	:config (unbind-key "C-/" undo-tree-map))
+	:general
+	(:keymaps 'undo-tree-map
+						"U" #'undo-tree-redo
+						"C-/" nil))
 
 (use-package multiple-cursors :disabled t
 	:init (multiple-cursors-mode t))
@@ -693,22 +607,23 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 	:init (drag-stuff-global-mode t))
 
 (use-package flycheck
-	:bind (:map my-evil-leader-map
-							("cj" . flycheck-next-error)
-							("ck" . flycheck-previous-error))
+	:general (:keymaps 'my-evil-leader-map
+										 "cj" #'flycheck-next-error
+										 "ck" #'flycheck-previous-error)
 	:init (add-hook 'prog-mode-hook #'flycheck-mode)
 	:config
-	(setq flycheck-keymap-prefix (kbd "C-c f"))
+	(setq flycheck-keymap-prefix (kbd "C-c f")
+				flycheck-indication-mode 'right-fringe)
 
 	(use-package helm-flycheck
-		:bind (:map flycheck-mode-map
-								("C-c f c" . helm-flycheck)
-								:map my-evil-leader-map
-								("cc" . helm-flycheck)))
+		:general
+		(:keymaps 'flycheck-mode-map "C-c f c" #'helm-flycheck)
+		(:keymaps 'my-evil-leader-map "cc" #'helm-flycheck))
 
 	(use-package flycheck-tip							; Display errors by popup
-		:bind (([remap flycheck-next-error] . flycheck-tip-cycle)
-					 ([remap flycheck-previous-error] . flycheck-tip-cycle-reverse))
+		:general
+		([remap flycheck-next-error] #'flycheck-tip-cycle
+		 [remap flycheck-previous-error] #'flycheck-tip-cycle-reverse)
 		:config (flycheck-tip-use-timer 'normal)))
 
 (use-package lorem-ipsum								; Insert filler text
@@ -740,10 +655,10 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 	:init (auto-insert-mode t))
 
 (use-package company										; Autocompletion
-	:bind (:map company-active-map
-							("M-j" . company-select-next)
-							("M-k" . company-select-previous)
-							("M-d" . company-show-doc-buffer))
+	:general (:keymaps 'company-active-map
+										 "M-j" #'company-select-next
+										 "M-k" #'company-select-previous
+										 "M-d" #'company-show-doc-buffer)
 	:init (add-hook 'prog-mode-hook #'company-mode)
 	:config
 	(setq company-idle-delay 0						; immediate completion attempt
@@ -751,14 +666,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 				company-tooltip-align-annonations t
 				company-selection-wrap-around t)
 
-	(use-package helm-company
-		:bind (:map (company-mode-map company-active-map)
-								("C-:" . helm-company)))
-
-	(use-package company-statistics				; Sort candidates by statistics
-		:init (company-statistics-mode t)
-		:config
-		(setq company-statistics-file (expand-file-name "company-stats.el" my-dir))))
+	(remove 'company-dabbrev 'company-backends))
 
 (use-package ispell											; Spell checking
 	:init (when my-win-p (add-to-list 'exec-path "C:\\Program Files\\Emacs\\Aspell\\bin"))
@@ -790,7 +698,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 		:config
 		(use-package flyspell-popup
-			:bind ([remap ispell-word] . flyspell-popup-correct))
+			:general ([remap ispell-word] #'flyspell-popup-correct))
 
 		(use-package flyspell-lazy
 			:init
@@ -802,22 +710,19 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 		(advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together)))
 
 (use-package outshine										; Outline-mode improvements
-	:bind (:map outline-minor-mode-map ("C-c o" . outline-insert-heading))
+	:general
+	(:keymaps 'outline-minor-mode-map "C-c o" #'outline-insert-heading)
+	(:keymaps 'outline-minor-mode-map :states 'motion
+						"TAB" #'outline-cycle
+						"gh" #'outline-up-heading
+						"gj" #'outline-next-heading
+						"gk" #'outline-previous-heading
+						"gl" #'outline-forward-same-level
+						"<" #'outline-promote
+						">" #'outline-demote)
 	:init
 	(add-hook 'outline-minor-mode-hook #'outshine-hook-function)
-	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
-	;; :config
-  ;; (evil-bind-key
-  ;;     :state (normal motion visual)
-  ;;     :map outline-minor-mode-map
-	;; 		("TAB" . outline-cycle)
-	;; 		("gh" . outline-up-heading)
-	;; 		("gj" . outline-next-heading)
-	;; 		("gk" . outline-previous-heading)
-	;; 		("gl" . outline-forward-same-level)
-	;; 		("<" . outline-promote)
-	;; 		(">" . outline-demote))
-	)
+	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode))
 
 (use-package smartparens-config :disabled t ; Balanced parenthesis management
 	:ensure smartparens)
@@ -827,9 +732,9 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 	:config (setq global-auto-revert-non-file-buffers t))
 
 (use-package pandoc-mode								; Markup conversion tool
-	:bind (("C-c C-p" . pandoc-mode)
-				 :map pandoc-mode-map
-				 ([remap pandoc-mode]. pandoc-run-pandoc))
+	:general
+	("C-c C-p" #'pandoc-mode)
+	(:keymaps 'pandoc-mode-map [remap pandoc-mode] #'pandoc-run-pandoc)
 	:config (setq pandoc-data-dir (expand-file-name "pandoc" my-dir)))
 
 (use-package real-auto-save							; Auto save buffers
@@ -856,28 +761,26 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 	(setq paradox-execute-asynchronously t))
 
 (use-package ediff											; Emacs diff utility
-	:bind (:map ediff-mode
-							("j" . ediff-next-difference)
-							("k" . ediff-previous-difference)))
+	:general (:keymaps 'ediff-mode
+										 "j" #'ediff-next-difference
+										 "k" #'ediff-previous-difference))
 
 (use-package maylon											; Z-machine text-based adventure reader
 	:ensure nil)
 
 (use-package magit
-	:bind (("<f10>" . magit-status)
-				 :map magit-status-mode-map
-				 ("j" . next-line)
-				 ("k" . previous-line)
-				 ("<down>" . magit-goto-next-sibling-section)
-				 ("<up>" . magit-goto-previous-sibling-section)
-				 ("C" . magit-commit)
-				 ("d" . magit-discard-item)
-				 ("C-=" . magit-diff-working-tree))
+	:general
+	("<f10>" #'magit-status)
+	(:keymaps 'magit-status-mode-map
+						"j" #'next-line
+						"k" #'previous-line
+						"C" #'magit-commit
+						"C-=" #'magit-diff-working-tree)
 	:config
 	(setq magit-diff-options '("-b")))	; ignore whitespace in diffs
 
 (use-package git-timemachine						; Travel through commit history
-	:bind ("<C-f10>" . git-timemachine-toggle))
+	:general ("<C-f10>" #'git-timemachine-toggle))
 
 ;;; Languages
 (use-package lua-mode)
@@ -889,7 +792,7 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 
 (use-package lisp
 	:ensure nil
-	:bind (:map emacs-lisp-mode-map ("C-c C-c" . eval-defun))
+	:general (:keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
 	:init
 	(use-package eldoc										; Documentation in echo area
 		:init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
@@ -898,12 +801,11 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
 	(use-package highlight-quoted					; Faces for lisp quotes and symbols
 		:init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
 	(use-package elisp-slime-nav					; Navigate elisp documentation
-		:init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)
-		:config
-		;;(evil-bind-key :map (elisp-slime-nav-mode-map help-mode-map)
-		;;							 ("K" . elisp-slime-nav-describe-elisp-thing-at-point)
-		;;							 ("gd" . elisp-slime-nav-find-elisp-thing-at-point))
-		))
+		:general (:keymaps '(elisp-slime-nav-mode-map help-mode-map)
+											 "K" #'elisp-slime-nav-describe-elisp-thing-at-point
+											 "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
+		:init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)))
+
 
 (use-package elpy
 	:init (elpy-enable))
@@ -959,7 +861,11 @@ the unquoted function to bind to. In this form, keyword arguments are accepted:
   :config
   (add-hook 'java-mode-hook #'my-java-formats))
 
+(use-package ess)
+
 ;; Local Variables:
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
 ;; End:
 
+
+;;  LocalWords:  SPC
