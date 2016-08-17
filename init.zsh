@@ -5,6 +5,7 @@ zmodload zsh/complist
 autoload -U compinit && compinit
 # no auto complete
 unsetopt correct
+DISABLE_CORRECTIONS=true
 
 
 #ZSH_THEME="agnoster"
