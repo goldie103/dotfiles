@@ -6,7 +6,7 @@ general {
 	color_bad = "#fb4934"
 }
 
-#order += "window_title"
+order += "window_title"
 order += "group net"
 order += "sys"
 order += "clock"
