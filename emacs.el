@@ -229,13 +229,12 @@ narrowed."
 						"C-w" nil
 						"SPC" #'execute-extended-command
 						"q" #'kill-this-buffer
-						"SPC" #'execute-extended-command
-						"q" #'kill-this-buffer
 						"," #'my-evil-leader-map
 						"Q" #'evil-record-macro
 						"\"" #'evil-jump-item
 						[remap evil-next-line] #'evil-next-visual-line
 						[remap evil-previous-line] #'evil-previous-visual-line)
+	(:keymaps 'normal "q" nil)
 	(:keymaps 'my-evil-leader-map
 					 "f" #'find-file
 					 "b" #'list-buffers
@@ -597,6 +596,7 @@ narrowed."
 (use-package undo-tree
 	:general
 	(:keymaps 'undo-tree-map
+						:states 'motion
 						"U" #'undo-tree-redo
 						"C-/" nil))
 
@@ -787,8 +787,14 @@ narrowed."
 (use-package gitignore-mode)
 (use-package markdown-mode)
 (use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
+(use-package ess)
 (use-package org :disabled t)
 (use-package generic-x :disabled t)
+(use-package arduino-mode
+	:config
+	(use-package cl))
+
+(use-package cl)
 
 (use-package lisp
 	:ensure nil
@@ -801,7 +807,7 @@ narrowed."
 	(use-package highlight-quoted					; Faces for lisp quotes and symbols
 		:init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
 	(use-package elisp-slime-nav					; Navigate elisp documentation
-		:general (:keymaps '(elisp-slime-nav-mode-map help-mode-map)
+		:general (:keymaps '(elisp-slime-nav-mode-map help-mode-map) :states 'motion
 											 "K" #'elisp-slime-nav-describe-elisp-thing-at-point
 											 "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
 		:init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)))
@@ -861,7 +867,6 @@ narrowed."
   :config
   (add-hook 'java-mode-hook #'my-java-formats))
 
-(use-package ess)
 
 ;; Local Variables:
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
