@@ -10,3 +10,4 @@ __pycache__
 !/.emacs.d/init.el
 !/.emacs.d/my-elisp
 *.el#
+/flycheck_emacs.el

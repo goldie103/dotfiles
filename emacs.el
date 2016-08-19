@@ -359,6 +359,10 @@ narrowed."
 
 ;;; Appearance
 ;;;; Faces n stuff
+(set-face-attribute 'default nil :family "Tamzen" :height 109)
+(set-face-attribute 'variable-pitch nil :family "Monoid")
+(add-hook 'text-mode-hook #'variable-pitch-mode)
+
 ;; TODO make this a separate package
 (defface font-lock-fic-face
   '((t (:slant italic :inherit error)))
@@ -372,10 +376,7 @@ narrowed."
                          "HACK") t)
           1 'font-lock-fic-face prepend))))
 
-(set-face-attribute 'default nil :family "Tamzen" :height 109)
-(set-face-attribute 'variable-pitch nil :family "Monoid")
 (add-hook 'prog-mode-hook #'my-highlight-fic)
-(add-hook 'text-mode-hook #'variable-pitch-mode)
 
 ;;;; Theme
 (use-package gruvbox-theme
@@ -680,9 +681,6 @@ narrowed."
 					flyspell-issue-message-flag nil)
 		(advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together)))
 
-(use-package outline-magic
-		:general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
-
 (use-package smartparens-config :disabled t ; Balanced parenthesis management
 	:ensure smartparens)
 
@@ -775,31 +773,51 @@ narrowed."
 					((org-at-block-p) (org-narrow-to-block))
 					(t (org-narrow-to-subtree)))))
 
+(use-package outline
+	:init
+	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
+
+	(defun my-outline-minor-mode ()
+		"Add some minor functionality to `outline-minor-mode'"
+		(font-lock-add-keywords
+		 nil
+		 '((";;[;]\\{1\\} \\(.*\\)" 1 'outline-1 t)
+			 (";;[;]\\{2\\} \\(.*\\)" 1 'outline-2 t)
+			 (";;[;]\\{3\\} \\(.*\\)" 1 'outline-3 t)
+			 (";;[;]\\{4\\} \\(.*\\)" 1 'outline-4 t)
+			 (";;[;]\\{5\\} \\(.*\\)" 1 'outline-5 t)
+			 (";;[;]\\{6\\} \\(.*\\)" 1 'outline-6 t)
+			 (";;[;]\\{7\\} \\(.*\\)" 1 'outline-7 t)
+			 (";;[;]\\{8\\} \\(.*\\)" 1 'outline-8 t)))
+		(add-to-list 'imenu-generic-expression '("Heading" ";;[;]\\{1,8\\} \\(.*$\\)" 1)))
+	(add-hook 'emacs-lisp-mode-hook #'my-outline-minor-mode)
+
+	:config
+
+	(use-package outline-magic
+		:general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
+
+	(defface my-headline-face
+		'((t (:family "Fantasque Sans Mono" :height 110)))
+		"Face for headlines"
+		:group 'faces)
+
+	(dolist (face '(outline-1 outline-2 outline-3 outline-4
+														outline-5 outline-6 outline-7 outline-8))
+		(set-face-attribute
+		 face nil
+		 :foreground (face-attribute (face-attribute face :inherit) :foreground)
+		 :inherit 'my-headline-face)))
+
 (use-package lisp :ensure nil
 	:general (:keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
 	:init
-
-	(defun my-outline-minor-mode ()
-			"Add some minor functionality to `outline-minor-mode'"
-			(font-lock-add-keywords
-			 nil
-			 '((";;[;]\\{1\\} \\(.*\\)" 1 'outline-1 t)
-				 (";;[;]\\{2\\} \\(.*\\)" 1 'outline-2 t)
-				 (";;[;]\\{3\\} \\(.*\\)" 1 'outline-3 t)
-				 (";;[;]\\{4\\} \\(.*\\)" 1 'outline-4 t)
-				 (";;[;]\\{5\\} \\(.*\\)" 1 'outline-5 t)
-				 (";;[;]\\{6\\} \\(.*\\)" 1 'outline-6 t)
-				 (";;[;]\\{7\\} \\(.*\\)" 1 'outline-7 t)
-				 (";;[;]\\{8\\} \\(.*\\)" 1 'outline-8 t)))
-			(add-to-list 'imenu-generic-expression '("Heading" ";;[;]\\{1,8\\} \\(.*$\\)" 1)))
 
 	(defun my-elisp-modeline-name ()
 		"Set `mode-name' to 'Elisp'"
 		(setq mode-name "Elisp"))
 
 	(add-hook 'emacs-lisp-mode-hook #'my-elisp-modeline-name)
-	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
-	(add-hook 'emacs-lisp-mode-hook #'my-outline-minor-mode)
 
 	(use-package eldoc										; Documentation in echo area
 		:init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
