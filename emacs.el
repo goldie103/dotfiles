@@ -19,8 +19,7 @@ define it as ELEMENTS."
   "Personal elisp settings files and generated files.")
 
 (defconst my-dir-elisp
-  (expand-file-name
-   "my-elisp/" (file-name-directory (file-truename user-init-file)))
+  (expand-file-name "my-elisp/" (file-name-directory (file-truename user-init-file)))
   "Personal elisp files.")
 (add-to-list 'load-path my-dir-elisp)
 
@@ -30,8 +29,7 @@ define it as ELEMENTS."
 (add-to-list 'load-path my-dir-packages)
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
-(defvar my-laptop-p (string= system-name "hraesvelgr")
-  "Non-nil if on desktop machine")
+(defvar my-laptop-p (string= system-name "hraesvelgr") "Non-nil if on desktop machine")
 
 (setq custom-file (expand-file-name "custom.el" my-dir))
 (load custom-file 'no-error 'no-message)
@@ -51,7 +49,6 @@ define it as ELEMENTS."
   (package-install 'use-package))
 (eval-when-compile (require 'use-package))
 (setq
- use-package-enable-imenu-support t			; view packages in imenu
  use-package-verbose t             ; log message after loading a package
  use-package-always-ensure t       ; ensure all packages are installed
  use-package-always-defer t)       ; defer all packages
@@ -90,17 +87,8 @@ define it as ELEMENTS."
  user-full-name "Kelly Stewart"
  user-mail-address "stewart.g.kelly@gmail.com")
 
-(setq-default
- tab-width 2
- fill-column 90)
-
-;; UTF-8 everywhere
-;;(set-language-environment 'utf-8)
-;;(setq locale-coding-system 'utf-8)
-;;(set-default-coding-systems 'utf-8)
-;;(set-terminal-coding-system 'utf-8)
-;;(unless my-win-p (set-selection-coding-system 'utf-8))
-;;(prefer-coding-system 'utf-8)
+(setq-default tab-width 2
+							fill-column 90)
 
 (fset #'yes-or-no-p #'y-or-n-p)
 (fset #'display-startup-echo-area-message #'ignore)
@@ -139,13 +127,8 @@ define it as ELEMENTS."
 					((fboundp 'helm-read-file-name) (helm-read-file-name "File: "))
 					((fboundp 'ido-read-file-name) (ido-read-file-name "File: "))))))
 
-;; http://www.writequit.org/org/settings.html#sec-1-38
 (defun my-narrow-or-widen-dwim (p)
   "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
-
-Narrow to region, org-src-block (actually calls
-`org-edit-src-code'), org-subtree, or defun, whichever applies
-first.
 
 With prefix P, don't widen, just narrow even if buffer is already
 narrowed."
@@ -153,24 +136,15 @@ narrowed."
   (declare (interactive-only))
   (cond ((and (buffer-narrowed-p) (not p)) (widen))
         ((region-active-p) (narrow-to-region (region-beginning) (region-end)))
-        ((derived-mode-p 'org-mode)
-         (cond ((org-in-src-block-p)
-                (org-edit-src-code) (delete-other-windows))
-               ((org-at-block-p) (org-narrow-to-block))
-               (t (org-narrow-to-subtree))))
         (t (narrow-to-defun))))
 
-(defun my-comment-dwim (arg)
-  "Like `comment-dwim' but first toggle line comment if no active region and point is not at end of line."
+(defun my-comment-dwim (orig-fun &rest args)
+  "First toggle line comment if no active region and point is not at end of line."
   (interactive "*P")
-  (if (and (not (region-active-p))
-           (not (or (eq (point) (line-end-position))
-                    ;; compensate for evil-mode cursor being one point ahead
-                    (and (eq (point) (- (line-end-position) 1))
-                         (bound-and-true-p evil-normal-state-p)))))
-      (comment-or-uncomment-region
-       (line-beginning-position) (line-end-position))
-    (comment-dwim arg)))
+  (if (and (not (region-active-p)) (not (eq (point) (line-end-position))))
+      (comment-or-uncomment-region (line-beginning-position) (line-end-position))
+    (apply orig-fun args)))
+(advice-add #'comment-dwim :around #'my-comment-dwim)
 
 ;;;; Modes and hooks
 (show-paren-mode t)											; highlight matching parens
@@ -204,7 +178,6 @@ narrowed."
  "C-x n" #'my-narrow-or-widen-dwim
  "M-/" #'grep
  "C-M-/" #'find-grep-dired
- [remap comment-dwim] #'my-comment-dwim
  [remap switch-to-buffer] #'ibuffer
  "C-w" nil)
 
@@ -230,11 +203,13 @@ narrowed."
 						"SPC" #'execute-extended-command
 						"q" #'kill-this-buffer
 						"," #'my-evil-leader-map
-						"Q" #'evil-record-macro
 						"\"" #'evil-jump-item
+						"Q" #'evil-record-macro
 						[remap evil-next-line] #'evil-next-visual-line
 						[remap evil-previous-line] #'evil-previous-visual-line)
-	(:keymaps 'normal "q" nil)
+	(:keymaps 'normal
+						"q" nil
+						"\"" #'evil-jump-item)
 	(:keymaps 'my-evil-leader-map
 					 "f" #'find-file
 					 "b" #'list-buffers
@@ -272,8 +247,9 @@ narrowed."
 	)
 
 ;;;;; Helm
-(use-package helm												; fuzzy minibuffer completion
+(use-package helm-config												; fuzzy minibuffer completion
 	:demand t
+	:ensure helm
 	:init (helm-mode t)
   :general
 	([remap execute-extended-command] #'helm-M-x
@@ -285,7 +261,7 @@ narrowed."
 	[remap evil-paste-pop] #'helm-show-kill-ring
 	;; help
 	[remap describe-face] #'helm-colors
-	[remap ucs-insert] #'helm-ucs
+	[remap insert-char] #'helm-ucs
 	[remap info-emacs-manual] #'helm-info-emacs
 	[remap info-lookup-symbol] #'helm-info-at-point
 	[remap locate-library] #'helm-locate-library
@@ -295,8 +271,7 @@ narrowed."
 	[remap apropos-command] #'helm-apropos
 	[remap apropos-documentation] #'helm-apropos)
 
-	(:keymaps 'emacs-lisp-mode-map
-						"C-/"#'helm-semantic-or-imenu)
+	(:keymaps 'emacs-lisp-mode-map "C-/"#'helm-semantic-or-imenu)
 	(:keymaps 'helm-buffer-map
 						"C-d" #'helm-buffer-run-kill-buffer
 						"<C-return>" #'helm-buffer-switch-other-window)
@@ -305,26 +280,6 @@ narrowed."
 						"M-u" #'helm-scroll-other-window-down)
 	:config
 
-	;;;;; Fiddly bits
-	;; Add use-package declarations to colors
-  (defun my-helm-imenu-transformer (candidates)
-    "Custom imenu transformer to add colouring for headings."
-    (cl-loop
-     for (k . v) in candidates
-     for types = (or (helm-imenu--get-prop k) (list "Function" k))
-     collect (cons (mapconcat
-                    (lambda (x)
-                      (propertize
-                       x 'face
-                       (cond
-                        ((string= x "Variables") 'font-lock-variable-name-face)
-                        ((string= x "Function") 'font-lock-function-name-face)
-                        ((string= x "Types") 'font-lock-type-face)
-                        ((string= x "Packages") 'font-lock-doc-face)
-                        ((string= x "Headings") 'font-lock-keyword-face))))
-                    types helm-imenu-delimiter)
-                   (cons k v))))
-	(advice-add #'helm-imenu-transformer :override #'my-helm-imenu-transformer)
 	;;;;; Faces
 	(set-face-attribute 'helm-buffer-directory nil :inherit 'dired-directory
 											:foreground nil :background nil)
@@ -337,16 +292,19 @@ narrowed."
 	 helm-move-to-line-cycle-in-source t	; cycle on end
 	 helm-scroll-amount 5									; other window scroll
 	 helm-split-window-in-side-p t				; split in current window
-	 helm-ff-auto-update-initial-value t	; auto update when only one match
-	 helm-ff-file-name-history-use-recentf t ; use recentf
-	 ;;helm-ff-search-library-in-sexp t			; get library from functions
-	 helm-ff-skip-boring-files t					; skip irrelevant files
 	 ;;helm-findutils-search-full-path t		; search in full path with shell
-	 helm-findutils-skip-boring-files t		; skip irrelevant files in shell
-	 helm-mode-fuzzy-match t							; fuzzy matching
-	 helm-completion-in-region-fuzzy-match t ; more fuzzy
-	 )
+	 helm-findutils-skip-boring-files t)
 	(helm-autoresize-mode t)
+
+	(use-package helm-mode :ensure nil
+		:config
+		(setq helm-completion-in-region-fuzzy-match t
+					helm-mode-fuzzy-match t))
+	(use-package helm-files :ensure nil
+		:config
+		(setq helm-ff-auto-update-initial-value t
+					helm-ff-file-name-history-use-recentf t
+					helm-ff-skip-boring-files t))
 
 	;;;;; Packages
 	(use-package helm-dash :disabled t)		; TODO language documentation
@@ -392,7 +350,7 @@ narrowed."
 						"c" #'describe-face
 						"l" #'locate-library
 						"M-l" #'view-lossage
-						"u" #'ucs-insert
+						"u" #'insert-char
 						"i" #'info-lookup-symbol
 						"C-i" #'info-emacs-manual))
 
@@ -401,31 +359,8 @@ narrowed."
 	(add-to-list 'Info-directory-list (expand-file-name "info" (getenv "XDG_CONFIG_HOME"))))
 
 ;;; Appearance
-;;;; Font
-(defconst my-font-text '(:family "Monoid"))
-(defconst my-font-prog '(:family "Tamzen"))
-
-(defun my-font-use-text ()
-	"Use `my-font-text' for current buffer."
-	(interactive)
-	(setq buffer-face-mode-face my-font-text))
-
-(defun my-font-use-prog ()
-	"Use `my-font-prog' for current buffer."
-	(interactive)
-	(setq buffer-face-mode-face my-font-prog))
-
-(defun my-font-frame-prog ()
-	"Set frame font to `my-font-prog'."
-	(interactive)
-	(set-face-attribute 'default nil :font (car (cdr my-font-prog)) :height 109))
-
-(add-hook 'after-init-hook #'my-font-frame-prog)
-(add-hook 'text-mode-hook #'my-font-use-text)
-
-;;;; Highlight fic
+;;;; Faces n stuff
 ;; TODO make this a separate package
-
 (defface font-lock-fic-face
   '((t (:slant italic :inherit error)))
   "Face to fontify FIXME/TODO words"
@@ -438,7 +373,10 @@ narrowed."
                          "HACK") t)
           1 'font-lock-fic-face prepend))))
 
+(set-face-attribute 'default nil :family "Tamzen" :height 109)
+(set-face-attribute 'variable-pitch nil :family "Monoid")
 (add-hook 'prog-mode-hook #'my-highlight-fic)
+(add-hook 'text-mode-hook #'variable-pitch-mode)
 
 ;;;; Theme
 (use-package gruvbox-theme :demand t :config (load-theme 'gruvbox))
@@ -447,8 +385,23 @@ narrowed."
 ;; TODO alllll of this
 (use-package delight :disabled t)
 (use-package powerline :disabled t)
-;;(use-package smart-mode-line)
-;;(use-package rich-minority)
+(use-package smart-mode-line
+	:commands sml/faces-from-theme
+	:init
+	(sml/setup)
+	:config
+	(setq rm-blacklist '(" Fly"
+											 " Eldoc"
+											 " RAS"
+											 " Outl"
+											 " SliNav"
+											 " ws"
+											 " PgLn"
+											 " Guide"
+											 " Helm"
+											 " Undo-Tree"
+											 " Fill"
+											 " fd")))
 
 (use-package nyan-mode									; essential package
 	:init (nyan-mode t)
@@ -468,7 +421,7 @@ narrowed."
 
 (use-package hl-sentence
 	:init (add-hook 'text-mode-hook #'hl-sentence-mode)
-	:config (setq hl-sentence-face 'highlight))
+	:config (set-face-attribute 'hl-sentence-face nil :inherit 'highlight))
 
 (use-package highlight-numbers
 	:init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
@@ -490,7 +443,7 @@ narrowed."
 ;;; Interface
 
 (use-package simple :ensure nil
-	:config (setq find-file-visit-truname t))
+	:config (setq find-file-visit-truename t))
 
 (use-package zone 											; Screensaver
 	:config
@@ -520,15 +473,16 @@ narrowed."
 
 (use-package writeroom-mode						; Distraction-free writing mode
 	:general (:keymaps 'text-mode-map "<C-f11>" #'writeroom-mode)
+	:functions my-writeroom-effect
 	:config
 	(setq writeroom-width 100)
 	(defun my-writeroom-effect (arg)
 		(let ((off (if arg -1 t))
 					(on (if arg t -1)))
-			(display-time-mode on)
-			(display-battery-mode on)
-			(which-function-mode off)
-			(nyan-mode off)))
+			(when (fboundp #'display-time-mode) (display-time-mode on))
+			(when (fboundp #'display-battery-mode) (display-battery-mode on))
+			(when (fboundp #'which-function-mode) (which-function-mode off))
+			(when (fboundp #'nyan-mode) (nyan-mode off))))
 	(add-to-list 'writeroom-global-effects #'my-writeroom-effect))
 
 (use-package visual-fill-column					; Wrap text at fill col
@@ -581,7 +535,11 @@ narrowed."
 	:init (projectile-global-mode t)
 	:config
 	(setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
-				projectile-known-projects-file (expand-file-name "projectile.eld" my-dir))
+				projectile-known-projects-file (expand-file-name "projectile.eld" my-dir)
+				projectile-mode-line
+				'(:eval (if (file-remote-p default-directory)
+										" Projectile"
+									(format " Projectile[%s]" (projectile-project-name)))))
 
 	(use-package helm-projectile
 		:general (:keymaps 'my-evil-leader-map
@@ -595,10 +553,8 @@ narrowed."
 ;;; Editing
 (use-package undo-tree
 	:general
-	(:keymaps 'undo-tree-map
-						:states 'motion
-						"U" #'undo-tree-redo
-						"C-/" nil))
+	(:keymaps 'undo-tree-map "C-/" nil)
+	(:keymaps 'undo-tree-map :states 'motion "U" #'undo-tree-redo))
 
 (use-package multiple-cursors :disabled t
 	:init (multiple-cursors-mode t))
@@ -627,6 +583,7 @@ narrowed."
 		:config (flycheck-tip-use-timer 'normal)))
 
 (use-package lorem-ipsum								; Insert filler text
+	:functions my-lorem-sgml-settings
 	:config
 	(defun my-lorem-sgml-settings ()
 		(setq lorem-ipsum-paragraph-separator "\n<p>"
@@ -663,12 +620,13 @@ narrowed."
 	:config
 	(setq company-idle-delay 0						; immediate completion attempt
 				company-show-numbers t					; allow M-num selection
-				company-tooltip-align-annonations t
+				company-tooltip-align-annotations t
 				company-selection-wrap-around t)
 
 	(remove 'company-dabbrev 'company-backends))
 
 (use-package ispell											; Spell checking
+	:functions my-ispell-run-together
 	:init (when my-win-p (add-to-list 'exec-path "C:\\Program Files\\Emacs\\Aspell\\bin"))
 	:config
 	(setq ispell-program-name "aspell"
@@ -709,20 +667,8 @@ narrowed."
 					flyspell-issue-message-flag nil)
 		(advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together)))
 
-(use-package outshine										; Outline-mode improvements
-	:general
-	(:keymaps 'outline-minor-mode-map "C-c o" #'outline-insert-heading)
-	(:keymaps 'outline-minor-mode-map :states 'motion
-						"TAB" #'outline-cycle
-						"gh" #'outline-up-heading
-						"gj" #'outline-next-heading
-						"gk" #'outline-previous-heading
-						"gl" #'outline-forward-same-level
-						"<" #'outline-promote
-						">" #'outline-demote)
-	:init
-	(add-hook 'outline-minor-mode-hook #'outshine-hook-function)
-	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode))
+(use-package outline-magic
+		:general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
 
 (use-package smartparens-config :disabled t ; Balanced parenthesis management
 	:ensure smartparens)
@@ -749,7 +695,7 @@ narrowed."
 
 (use-package compile
 	:config (setq compilation-always-kill t ; kill old before starting new
-								comilation-skip-threshold 2 ; skip warning and info messages
+								compilation-skip-threshold 2 ; skip warning and info messages
 								compilation-context-lines 3
 								compilation-scroll-output 'first-error
 								compilation-auto-jump-to-first-error t
@@ -775,9 +721,7 @@ narrowed."
 						"j" #'next-line
 						"k" #'previous-line
 						"C" #'magit-commit
-						"C-=" #'magit-diff-working-tree)
-	:config
-	(setq magit-diff-options '("-b")))	; ignore whitespace in diffs
+						"C-=" #'magit-diff-working-tree))
 
 (use-package git-timemachine						; Travel through commit history
 	:general ("<C-f10>" #'git-timemachine-toggle))
@@ -788,18 +732,50 @@ narrowed."
 (use-package markdown-mode)
 (use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
 (use-package ess)
-(use-package org :disabled t)
 (use-package generic-x :disabled t)
-(use-package arduino-mode
+(use-package arduino-mode)
+
+(use-package org
+	:general
+	(:keymaps 'org-mode-map [remap my-narrow-or-widen-dwim] #'my-org-narrow-or-widen-dwim)
 	:config
-	(use-package cl))
+	(defun my-org-narrow-or-widen-dwim (p)
+		"If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
 
-(use-package cl)
+Narrow to region, org-src-block (actually calls
+`org-edit-src-code'), org-subtree, or defun, whichever applies
+first.
 
-(use-package lisp
-	:ensure nil
+With prefix P, don't widen, just narrow even if buffer is already
+narrowed."
+		(interactive "P")
+		(declare (interactive-only))
+		(cond ((and (buffer-narrowed-p) (not p)) (widen))
+					((region-active-p) (narrow-to-region (region-beginning) (region-end)))
+					((org-in-src-block-p) (org-edit-src-code))
+					((org-at-block-p) (org-narrow-to-block))
+					(t (org-narrow-to-subtree)))))
+
+(use-package lisp :ensure nil
 	:general (:keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
 	:init
+
+	(defun my-outline-minor-mode ()
+			"Add some minor functionality to `outline-minor-mode'"
+			(font-lock-add-keywords
+			 nil
+			 '((";;[;]\\{1\\} \\(.*\\)" 1 'outline-1 t)
+				 (";;[;]\\{2\\} \\(.*\\)" 1 'outline-2 t)
+				 (";;[;]\\{3\\} \\(.*\\)" 1 'outline-3 t)
+				 (";;[;]\\{4\\} \\(.*\\)" 1 'outline-4 t)
+				 (";;[;]\\{5\\} \\(.*\\)" 1 'outline-5 t)
+				 (";;[;]\\{6\\} \\(.*\\)" 1 'outline-6 t)
+				 (";;[;]\\{7\\} \\(.*\\)" 1 'outline-7 t)
+				 (";;[;]\\{8\\} \\(.*\\)" 1 'outline-8 t)))
+			(add-to-list 'imenu-generic-expression '("Heading" ";;[;]\\{1,8\\} \\(.*$\\)" 1)))
+	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
+	(add-hook 'emacs-lisp-mode-hook #'my-outline-minor-mode)
+
 	(use-package eldoc										; Documentation in echo area
 		:init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
 		:config (setq eldoc-idle-delay 0.3))
@@ -811,7 +787,6 @@ narrowed."
 											 "K" #'elisp-slime-nav-describe-elisp-thing-at-point
 											 "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
 		:init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)))
-
 
 (use-package elpy
 	:init (elpy-enable))
@@ -848,7 +823,6 @@ narrowed."
   :config
   (setq web-mode-enable-block-face t
         web-mode-enable-part-face t
-        web-mode-enable-comment-keywords t
         web-mode-enable-current-element-highlight t
         web-mode-enable-current-column-highlight t
         web-mode-css-indent-offset 2
@@ -857,19 +831,22 @@ narrowed."
 
 (use-package java-mode
 	:ensure nil
+	:functions my-java-formats
   :init
   (defun my-java-formats ()
     (interactive)
     (setq c-basic-offset 4
-	  tab-width 4
-	  indent-tabs-mode t
-	  fill-column 100))
+					tab-width 4
+					indent-tabs-mode t
+					fill-column 100))
   :config
   (add-hook 'java-mode-hook #'my-java-formats))
 
 
+;;; Local Variables
 ;; Local Variables:
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
+;; byte-compile-warnings: (not noruntime unresolved)
 ;; End:
 
 
