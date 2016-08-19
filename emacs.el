@@ -149,24 +149,23 @@ narrowed."
 ;;;; Modes and hooks
 (show-paren-mode t)											; highlight matching parens
 (electric-pair-mode t)									; auto add parens
+(menu-bar-mode -1)											; no menu bar
 (tool-bar-mode -1)											; no toolbar
 (scroll-bar-mode -1)										; no scrollbar
 (blink-cursor-mode -1)									; no blinking cursor
 (unless (display-graphic-p) (menu-bar-mode -1)) ; no menu bar in terminal
 
 ;; Mode hooks
-(defvar my-hooks
-	'((prog-mode-hook
-		 prettify-symbols-mode							; replace words with symbols
-		 auto-fill-mode											; auto fill text past fill-col
-		 goto-address-prog-mode							; buttonize URLs in comments and strings
-		 line-number-mode										; line number in modeline
-		 )
-		(text-mode-hook
-		 goto-address-mode									; buttonize URLs
-		 visual-line-mode										; wrap by word
-		 )))
-(dolist (hook my-hooks)
+(dolist (hook '((prog-mode-hook
+								 prettify-symbols-mode							; replace words with symbols
+								 auto-fill-mode											; auto fill text past fill-col
+								 goto-address-prog-mode							; buttonize URLs in comments and strings
+								 line-number-mode										; line number in modeline
+								 )
+								(text-mode-hook
+								 goto-address-mode									; buttonize URLs
+								 visual-line-mode										; wrap by word
+								 )))
 	(dolist (func (cdr hook)) (add-hook (car hook) func)))
 
 ;;;; Bindings
@@ -379,29 +378,27 @@ narrowed."
 (add-hook 'text-mode-hook #'variable-pitch-mode)
 
 ;;;; Theme
-(use-package gruvbox-theme :demand t :config (load-theme 'gruvbox))
+(use-package gruvbox-theme
+	:demand t
+	:config (load-theme 'gruvbox)
+	(set-face-attribute 'highlight nil :background "#3c3836")
+	(set-face-attribute 'shadow nil :background "#1d2021"))
 
 ;;;; Modeline
-;; TODO alllll of this
-(use-package delight :disabled t)
-(use-package powerline :disabled t)
 (use-package smart-mode-line
 	:commands sml/faces-from-theme
 	:init
 	(sml/setup)
 	:config
-	(setq rm-blacklist '(" Fly"
-											 " Eldoc"
-											 " RAS"
-											 " Outl"
-											 " SliNav"
-											 " ws"
-											 " PgLn"
-											 " Guide"
-											 " Helm"
-											 " Undo-Tree"
-											 " Fill"
-											 " fd")))
+	(setq
+	 rm-blacklist
+	 '(" Fly" " ARev" " Wrap" " BufFace" " Eldoc" " RAS" " Outl" " SliNav" " ws"
+		 " PgLn" " Guide" " Helm" " Undo-Tree" " Fill" " fd")
+	 sml/replacer-regexp-list
+	 '(("^~/\\.emacs\\.d/elpa/" ":ELPA:")
+		 ("^~/dotfiles/" ":.:")
+		 ("^~/doc/" ":Doc:")
+		 ("^~/\\([^/]+\\)/" ":\\1:"))))
 
 (use-package nyan-mode									; essential package
 	:init (nyan-mode t)
@@ -410,14 +407,17 @@ narrowed."
 	(setq nyan-wavy-trail t))
 
 (use-package which-func									; Modeline definition name
-	:init (which-function-mode t))
+	:init (which-function-mode t)
+	:config
+	(set-face-attribute 'which-func nil :foreground nil :inherit 'font-lock-function-name-face))
 
 (use-package wc-goal-mode								; Modeline word count
 	:init (add-hook 'text-mode-hook #'wc-goal-mode))
 
 ;;;; Faces
 (use-package hl-line
-	:init (add-hook 'prog-mode-hook #'hl-line-mode))
+	:init (add-hook 'prog-mode-hook #'hl-line-mode)
+	:config (setq hl-line-face 'highlight))
 
 (use-package hl-sentence
 	:init (add-hook 'text-mode-hook #'hl-sentence-mode)
@@ -432,13 +432,10 @@ narrowed."
 (use-package rainbow-delimiters
 	:init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 
-(use-package whitespace
-	:init (add-hook 'prog-mode-hook #'whitespace-mode)
-	:config
-	(setq
-	 whitespace-line-column nil
-	 whitespace-style '(face trailing lines-tail)
-	 whitespace-action '(auto-cleanup warn-if-read-only)))
+(use-package fill-column-indicator
+	:init (add-hook 'prog-mode-hook #'fci-mode)
+	:config (setq fci-rule-color "#3c3836"
+								fci-always-use-textual-rule t))
 
 ;;; Interface
 
@@ -618,6 +615,22 @@ narrowed."
 										 "M-d" #'company-show-doc-buffer)
 	:init (add-hook 'prog-mode-hook #'company-mode)
 	:config
+
+	;; Make it work with `fci-mode'
+	(defvar company-fci-mode-on-p nil "Whether `fci-mode' is on.")
+
+	(defun company-turn-off-fci (&rest ignore)
+		(when (boundp 'fci-mode)
+			(setq company-fci-mode-on-p fci-mode)
+			(when fci-mode (fci-mode -1))))
+
+	(defun company-maybe-turn-on-fci (&rest ignore)
+		(when company-fci-mode-on-p (fci-mode 1)))
+
+	(add-hook 'company-completion-started-hook 'company-turn-off-fci)
+	(add-hook 'company-completion-finished-hook 'company-maybe-turn-on-fci)
+	(add-hook 'company-completion-cancelled-hook 'company-maybe-turn-on-fci)
+
 	(setq company-idle-delay 0						; immediate completion attempt
 				company-show-numbers t					; allow M-num selection
 				company-tooltip-align-annotations t
@@ -718,10 +731,16 @@ narrowed."
 	:general
 	("<f10>" #'magit-status)
 	(:keymaps 'magit-status-mode-map
+						"SPC" #'execute-extended-command
 						"j" #'next-line
 						"k" #'previous-line
 						"C" #'magit-commit
-						"C-=" #'magit-diff-working-tree))
+						"C-=" #'magit-diff-working-tree)
+	:config
+	(defun my-git-commit-setup-fun ()
+		(when (fboundp #'visual-line-mode) (visual-line-mode -1))
+		(when (fboundp #'auto-fill-mode) (auto-fill-mode t)))
+	(add-hook 'git-commit-setup-hook #'my-git-commit-setup-fun))
 
 (use-package git-timemachine						; Travel through commit history
 	:general ("<C-f10>" #'git-timemachine-toggle))
@@ -773,6 +792,12 @@ narrowed."
 				 (";;[;]\\{7\\} \\(.*\\)" 1 'outline-7 t)
 				 (";;[;]\\{8\\} \\(.*\\)" 1 'outline-8 t)))
 			(add-to-list 'imenu-generic-expression '("Heading" ";;[;]\\{1,8\\} \\(.*$\\)" 1)))
+
+	(defun my-elisp-modeline-name ()
+		"Set `mode-name' to 'Elisp'"
+		(setq mode-name "Elisp"))
+
+	(add-hook 'emacs-lisp-mode-hook #'my-elisp-modeline-name)
 	(add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 	(add-hook 'emacs-lisp-mode-hook #'my-outline-minor-mode)
 
