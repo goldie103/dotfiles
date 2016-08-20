@@ -194,8 +194,9 @@ narrowed."
  "M-/" #'grep
  "C-M-/" #'find-grep-dired
  [remap switch-to-buffer] #'ibuffer
- "C-w" nil
+ "C-w" nil)
 
+(general-define-key
  :prefix my-window-map
  "C-w" #'other-window
  "w" #'other-window
@@ -204,11 +205,13 @@ narrowed."
  "=" #'balance-windows
  "f" #'delete-frame
  "d" #'delete-window
- "C-d" #'delete-other-windows
+ "C-d" #'delete-other-windows)
 
+(general-define-key
  :keymaps 'help-mode-map
  "H" #'help-go-back
- "L" #'help-go-forward
+ "L" #'help-go-forward)
+(general-define-key
  :keymaps 'help-map
  "<f1>" #'apropos
  "w" #'woman
@@ -223,12 +226,6 @@ narrowed."
  "u" #'insert-char
  "i" #'info-lookup-symbol
  "C-i" #'info-emacs-manual)
-
-
-(when my-win-p
-  (general-define-key
-   "<lwindow>" nil
-   "<lwindow> d" #'save-buffers-kill-terminal))
 
 ;;; Major packages
 ;;;; Evil
@@ -380,6 +377,7 @@ narrowed."
 (use-package gruvbox-theme
   :demand t
   :config (load-theme 'gruvbox)
+  (set-face-attribute 'default nil :foreground "#ebdbb2")
   (set-face-attribute 'highlight nil :background "#3c3836")
   (set-face-attribute 'shadow nil :background "#1d2021"))
 
@@ -392,7 +390,7 @@ narrowed."
   (setq
    rm-blacklist
    '(" Fly" " ARev" " Wrap" " BufFace" " Eldoc" " RAS" " Outl" " SliNav" " ws"
-     " PgLn" " Guide" " Helm" " Undo-Tree" " Fill" " fd")
+     " PgLn" " Guide" " Helm" " Undo-Tree" " Fill" " fd" " Abbrev")
    sml/replacer-regexp-list
    '(("^~/\\.emacs\\.d/elpa/" ":ELPA:")
      ("^~/dotfiles/" ":.:")
@@ -893,7 +891,7 @@ narrowed."
 	web-mode-code-indent-offset 2
 	web-mode-markup-indent-offset 2))
 
-(use-package malabar-mode)
+(use-package jdee)
 
 
 ;;; Local Variables
