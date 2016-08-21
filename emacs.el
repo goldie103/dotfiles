@@ -8,7 +8,7 @@ Return new value of LIST-VAR. If LIST-VAR is not defined, then
 define it as ELEMENTS."
   (let ((l (if (listp elements) elements (list elements))))
     (if (and (boundp list-var) (symbol-value list-var))
-	(dolist (item l) (add-to-list list-var item))
+        (dolist (item l) (add-to-list list-var item))
       (set list-var l)))
   (symbol-value list-var))
 
@@ -39,15 +39,18 @@ define it as ELEMENTS."
 (setq package-enable-at-startup nil     ; we will manually initialize
       load-prefer-newer t)              ; don't load outdated byte code
 (my-add-list 'package-archives
-	     '(("melpa" . "http://melpa.milkbox.net/packages/")
-	       ("org" . "http://orgmode.org/elpa/")
-	       ("elpy" . "http://jorgenschaefer.github.io/packages/")))
+             '(("melpa" . "http://melpa.milkbox.net/packages/")
+               ("org" . "http://orgmode.org/elpa/")
+               ("elpy" . "http://jorgenschaefer.github.io/packages/")))
 (package-initialize)                    ; manually initialize
 
 (unless (package-installed-p 'use-package)
   (package-refresh-contents)
   (package-install 'use-package))
 (eval-when-compile
+  ;; required before use-package is loaded
+  (defvar use-package-enable-imenu-support)
+  (setq use-package-enable-imenu-support t)
   (require 'use-package))
 (setq
  use-package-verbose t             ; log message after loading a package
@@ -58,31 +61,31 @@ define it as ELEMENTS."
 
 ;;; Basic settings
 (setq
- inhibit-startup-screen t		; no startup screen
- initial-scratch-message nil		; no scratch message
- disabled-command-function nil		; no disabled commands
- ring-bell-function 'ignore		; no bell
- initial-major-mode 'fundamental-mode	; scratch in fundamental mode
- scroll-conservatively 101		; don't recenter when scrlling
- scroll-margin 3		    ; lines of context to keep in view
+ inhibit-startup-screen t               ; no startup screen
+ initial-scratch-message nil            ; no scratch message
+ disabled-command-function nil          ; no disabled commands
+ ring-bell-function 'ignore             ; no bell
+ initial-major-mode 'fundamental-mode   ; scratch in fundamental mode
+ scroll-conservatively 101              ; don't recenter when scrlling
+ scroll-margin 3                    ; lines of context to keep in view
  comment-auto-fill-only-comments t  ; only auto fill in comments
- frame-title-format "%b "	    ; buffer name as frame title
- echo-keystrokes 0.1		    ; faster command echo
+ frame-title-format "%b "           ; buffer name as frame title
+ echo-keystrokes 0.1                ; faster command echo
  save-interprogram-paste-before-kill t ; don't overwrite clipboard contents
- kill-do-not-save-duplicates t	   ; don't put duplicates in kill ring
+ kill-do-not-save-duplicates t     ; don't put duplicates in kill ring
  sentence-end-double-space nil
  read-file-name-completion-ignore-case t
- vc-handled-backends '(Git)	      ; remove unnecessary vc backends
+ vc-handled-backends '(Git)           ; remove unnecessary vc backends
  delete-by-moving-to-trash t
- large-file-warning-threshold 20000000	; larger warning threshold
- view-read-only t			; read-only in view-mode
+ large-file-warning-threshold 20000000  ; larger warning threshold
+ view-read-only t                       ; read-only in view-mode
  ;; backups and autosave
  auto-save-list-file-prefix (expand-file-name "autosaves/" my-dir)
  auto-save-file-name-transforms `((".*" ,auto-save-list-file-prefix t))
  backup-directory-alist `(("." . ,(expand-file-name "backups" my-dir)))
- backup-by-copying t			; always backup by copy
- version-control t			; add version numbers
- delete-old-versions t			; delete old backups silently
+ backup-by-copying t                    ; always backup by copy
+ version-control t                      ; add version numbers
+ delete-old-versions t                  ; delete old backups silently
  kept-old-versions 5
  kept-new-versions 8
  ;; user info
@@ -112,18 +115,18 @@ define it as ELEMENTS."
   (other-window 1 nil)
   (switch-to-next-buffer))
 (dolist (func '(split-window-horizontally
-		split-window-vertically))
+                split-window-vertically))
   (advice-add func :after-while #'my-last-buf))
 
 ;;;; Useful Functions
 (defun new-emacs ()
   "Launch a new GUI emacs under X or Windows as necessary."
   (let* ((win-p (memq system-type '(windows-nt ms-dos)))
-	 (path (expand-file-name
-		(if win-p "runemacs.exe" invocation-name)
-		invocation-directory)))
+         (path (expand-file-name
+                (if win-p "runemacs.exe" invocation-name)
+                invocation-directory)))
     (if win-p
-	(w32-shell-execute "open" path)
+        (w32-shell-execute "open" path)
       (call-process "sh" nil 0 nil "-c" path))))
 
 (defun restart-emacs ()
@@ -139,8 +142,8 @@ define it as ELEMENTS."
    (concat
     "/sudo::"
     (cond (buffer-file-name)
-	  ((fboundp 'helm-read-file-name) (helm-read-file-name "File: "))
-	  ((fboundp 'ido-read-file-name) (ido-read-file-name "File: "))))))
+          ((fboundp 'helm-read-file-name) (helm-read-file-name "File: "))
+          ((fboundp 'ido-read-file-name) (ido-read-file-name "File: "))))))
 
 (defun my-narrow-or-widen-dwim (p)
   "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
@@ -150,8 +153,8 @@ narrowed."
   (interactive "P")
   (declare (interactive-only))
   (cond ((and (buffer-narrowed-p) (not p)) (widen))
-	((region-active-p) (narrow-to-region (region-beginning) (region-end)))
-	(t (narrow-to-defun))))
+        ((region-active-p) (narrow-to-region (region-beginning) (region-end)))
+        (t (narrow-to-defun))))
 
 (defun my-comment-dwim (orig-fun &rest args)
   "First toggle line comment if no active region and point is not at end of line."
@@ -162,26 +165,26 @@ narrowed."
 (advice-add #'comment-dwim :around #'my-comment-dwim)
 
 ;;;; Modes and hooks
-(show-paren-mode t)			; highlight matching parens
-(electric-pair-mode t)			; auto add parens
-(menu-bar-mode -1)			; no menu bar
-(tool-bar-mode -1)			; no toolbar
-(scroll-bar-mode -1)			; no scrollbar
-(blink-cursor-mode -1)			; no blinking cursor
+(show-paren-mode t)                     ; highlight matching parens
+(electric-pair-mode t)                  ; auto add parens
+(menu-bar-mode -1)                      ; no menu bar
+(tool-bar-mode -1)                      ; no toolbar
+(scroll-bar-mode -1)                    ; no scrollbar
+(blink-cursor-mode -1)                  ; no blinking cursor
 (unless (display-graphic-p) (menu-bar-mode -1)) ; no menu bar in terminal
 
 ;; Mode hooks
 (dolist (hook '((prog-mode-hook
-		 prettify-symbols-mode	; replace words with symbols
-		 auto-fill-mode		; auto fill text past fill-col
-		 goto-address-prog-mode	; buttonize URLs in comments and strings
-		 line-number-mode	; line number in modeline
-		 )
-		(text-mode-hook
-		 goto-address-mode	; buttonize URLs
-		 visual-line-mode	; wrap by word
-		 variable-pitch-mode
-		 )))
+                 prettify-symbols-mode  ; replace words with symbols
+                 auto-fill-mode         ; auto fill text past fill-col
+                 goto-address-prog-mode ; buttonize URLs in comments and strings
+                 line-number-mode       ; line number in modeline
+                 )
+                (text-mode-hook
+                 goto-address-mode      ; buttonize URLs
+                 visual-line-mode       ; wrap by word
+                 variable-pitch-mode
+                 )))
   (dolist (func (cdr hook)) (add-hook (car hook) func)))
 
 ;;;; Bindings
@@ -190,6 +193,7 @@ narrowed."
 (general-define-key
  "M-SPC" #'cycle-spacing
  "RET" #'newline-and-indent
+ "C-x C-S-c" #'restart-emacs
  "C-x n" #'my-narrow-or-widen-dwim
  "M-/" #'grep
  "C-M-/" #'find-grep-dired
@@ -227,65 +231,70 @@ narrowed."
  "i" #'info-lookup-symbol
  "C-i" #'info-emacs-manual)
 
+(general-define-key
+ :keymaps 'undo-tree-map :states 'motion
+ "C-/" nil
+ "U" #'undo-tree-redo)
+
+
 ;;; Major packages
 ;;;; Evil
 (use-package evil
-  :demand t
-  :general
-  (:keymaps 'motion
-	    "TAB" nil
-	    "C-w" nil
-	    "SPC" #'execute-extended-command
-	    "q" #'kill-this-buffer
-	    "," #'my-evil-leader-map
-	    "\"" #'evil-jump-item
-	    "Q" #'evil-record-macro
-	    [remap evil-next-line] #'evil-next-visual-line
-	    [remap evil-previous-line] #'evil-previous-visual-line)
-  (:keymaps 'normal
-	    "q" nil
-	    "\"" #'evil-jump-item)
-  (:keymaps 'my-evil-leader-map
-	    "f" #'find-file
-	    "b" #'list-buffers
-	    "w" #'save-buffer
-	    "W" #'sudo-save
-	    "SPC" #'evil-ex)
-
-  :init (evil-mode t)
+  :init
+  (evil-mode t)
   (defvar my-evil-leader-map (make-sparse-keymap) "Evil leader bindings")
   (define-prefix-command 'my-evil-leader-map)
+  
+;;;;; Evil Bindings
+  :general
+  (:keymaps 'motion
+            "TAB" nil
+            "C-w" nil
+            "SPC" #'execute-extended-command
+            "q" #'kill-this-buffer
+            "," #'my-evil-leader-map
+            "\"" #'evil-jump-item
+            "Q" #'evil-record-macro
+            [remap evil-next-line] #'evil-next-visual-line
+            [remap evil-previous-line] #'evil-previous-visual-line)
+  (:keymaps 'normal
+            "q" nil
+            "\"" #'evil-jump-item)
+  (:keymaps 'my-evil-leader-map
+            "f" #'find-file
+            "b" #'list-buffers
+            "w" #'save-buffer
+            "W" #'sudo-save
+            "SPC" #'evil-ex)
 
-;;;;; Settings
-  (setq evil-echo-state nil		; state is in modeline anyway
-	evil-cross-lines t
-	evil-symbol-word-search t
-	evil-ex-substitute-global t)	; global sed by default
-;;;;; Modes
-  (my-add-list 'evil-emacs-state-modes
-	       '(shell-mode term-mode multi-term-mode))
-;;;;; Packages
-  (use-package evil-escape	; escape from everything with two keys
+;;;;; Evil Config
+  :config
+  (use-package evil-escape      ; escape from everything with two keys
     :init (evil-escape-mode t))
 
-  (use-package evil-surround		; surround operator
+  (use-package evil-surround            ; surround operator
     :init (add-hook 'prog-mode-hook #'evil-surround-mode))
 
-  (use-package evil-commentary :disabled t ; comment operator
-    :init (evil-commentary-mode t))
-
-  (use-package evil-matchit		; more tag jumping support
+  (use-package evil-matchit             ; more tag jumping support
     :general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
     :init (global-evil-matchit-mode t)
     :config
     (setq evilmi-may-jump-by-percentage nil)) ; allow count usage
-  )
 
-;;;;; Helm
-(use-package helm-config		; fuzzy minibuffer completion
-  :demand t
-  :ensure helm
+  (setq evil-echo-state nil             ; state is in modeline anyway
+        evil-cross-lines t
+        evil-symbol-word-search t
+        evil-ex-substitute-global t)    ; global sed by default
+
+  (my-add-list 'evil-emacs-state-modes
+               '(shell-mode term-mode multi-term-mode package-menu-mode))
+  ;; yank to EOL
+  (evil-add-command-properties #'evil-yank-line :motion 'evil-end-of-line))
+
+;;;; Helm
+(use-package helm-config :ensure helm
   :init (helm-mode t)
+;;;;; Helm Bindings
   :general
   ([remap execute-extended-command] #'helm-M-x
    [remap occur] #'helm-occur
@@ -308,47 +317,26 @@ narrowed."
 
   (:keymaps 'emacs-lisp-mode-map "C-/"#'helm-semantic-or-imenu)
   (:keymaps 'helm-buffer-map
-	    "C-d" #'helm-buffer-run-kill-buffer
-	    "<C-return>" #'helm-buffer-switch-other-window)
+            "C-d" #'helm-buffer-run-kill-buffer
+            "<C-return>" #'helm-buffer-switch-other-window)
   (:keymaps 'helm-map
-	    "M-d" #'helm-scroll-other-window
-	    "M-u" #'helm-scroll-other-window-down)
+            "M-d" #'helm-scroll-other-window
+            "M-u" #'helm-scroll-other-window-down)
+;;;;; Helm Config
   :config
-
-;;;;; Faces
   (set-face-attribute 'helm-buffer-directory nil :inherit 'dired-directory
-		      :foreground nil :background nil)
+                      :foreground nil :background nil)
   (set-face-attribute 'helm-buffer-saved-out nil
-		      :inherit 'font-lock-warning-face
-		      :foreground nil :background nil :inverse-video nil)
+                      :inherit 'font-lock-warning-face
+                      :foreground nil :background nil :inverse-video nil)
 
-;;;;; Settings
-  (setq
-   helm-move-to-line-cycle-in-source t	; cycle on end
-   helm-scroll-amount 5			; other window scroll
-   helm-split-window-in-side-p t	; split in current window
-   ;;helm-findutils-search-full-path t		; search in full path with shell
-   helm-findutils-skip-boring-files t)
-  (helm-autoresize-mode t)
+  (use-package helm-dash :disabled t)   ; TODO language documentation
 
-  (use-package helm-mode :ensure nil
-    :config
-    (setq helm-completion-in-region-fuzzy-match t
-	  helm-mode-fuzzy-match t))
-  (use-package helm-files :ensure nil
-    :config
-    (setq helm-ff-auto-update-initial-value t
-	  helm-ff-file-name-history-use-recentf t
-	  helm-ff-skip-boring-files t))
-
-;;;;; Packages
-  (use-package helm-dash :disabled t)	; TODO language documentation
-
-  (use-package helm-descbinds	     ; `describe-bindings' replacement
+  (use-package helm-descbinds        ; `describe-bindings' replacement
     :init (helm-descbinds-mode t)
     :config (setq helm-descbinds-window-style 'split-window))
 
-  (use-package helm-swoop		; fast search and navigation
+  (use-package helm-swoop               ; fast search and navigation
     :general
     ([remap grep] #'helm-swoop)
     (:keymaps 'isearch-mode-map "M-/" #'helm-swoop-all-from-isearch)
@@ -356,17 +344,32 @@ narrowed."
 
     :config
     (setq helm-swoop-speed-or-color t
-	  helm-swoop-use-fuzzy-match t)))
+          helm-swoop-use-fuzzy-match t))
+  (use-package helm-mode :ensure nil
+    :config
+    (setq helm-completion-in-region-fuzzy-match t
+          helm-mode-fuzzy-match t))
+  (use-package helm-files :ensure nil
+    :config
+    (setq helm-ff-auto-update-initial-value t
+          helm-ff-file-name-history-use-recentf t
+          helm-ff-skip-boring-files t)) 
+
+  (setq helm-move-to-line-cycle-in-source t     ; cycle on end
+        helm-scroll-amount 5                    ; other window scroll
+        helm-split-window-in-side-p t           ; split in current window
+        helm-findutils-skip-boring-files t)
+  (helm-autoresize-mode t))
 
 ;;; Help
 
-(use-package discover-my-major	    ; list current major mode bindings
+(use-package discover-my-major      ; list current major mode bindings
   :general ([remap describe-mode] #'discover-my-major))
 
-(use-package guide-key		  ; delayed completion for prefix keys
+(use-package guide-key            ; delayed completion for prefix keys
   :init (guide-key-mode t)
   :config (setq guide-key/recursive-key-sequence-flag t
-		guide-key/guide-key-sequence '("C-x" "C-c" "C-w" ",")))
+                guide-key/guide-key-sequence '("C-x" "C-c" "C-w" ",")))
 
 (use-package info
   :config
@@ -397,18 +400,18 @@ narrowed."
      ("^~/doc/" ":Doc:")
      ("^~/\\([^/]+\\)/" ":\\1:"))))
 
-(use-package nyan-mode			; essential package
+(use-package nyan-mode                  ; essential package
   :init (nyan-mode t)
   :config
   ;; FIXME this doesn't work
   (setq nyan-wavy-trail t))
 
-(use-package which-func			; Modeline definition name
+(use-package which-func                 ; Modeline definition name
   :init (which-function-mode t)
   :config
   (set-face-attribute 'which-func nil :foreground nil :inherit 'font-lock-function-name-face))
 
-(use-package wc-goal-mode		; Modeline word count
+(use-package wc-goal-mode               ; Modeline word count
   :init (add-hook 'text-mode-hook #'wc-goal-mode))
 
 ;;;; Faces
@@ -423,7 +426,7 @@ narrowed."
 (use-package highlight-numbers
   :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
 
-(use-package page-break-lines	      ; Horizontal lines instead of ^L
+(use-package page-break-lines         ; Horizontal lines instead of ^L
   :init (global-page-break-lines-mode t))
 
 (use-package rainbow-delimiters
@@ -432,17 +435,18 @@ narrowed."
 (use-package fill-column-indicator
   :init (add-hook 'prog-mode-hook #'fci-mode)
   :config (setq fci-rule-color "#3c3836"
-		fci-always-use-textual-rule t))
+                fci-always-use-textual-rule t))
 
 ;;;; My faces
-(let ((laptop '((default nil :family "Tamzen" :height 109)
-		(variable-pitch nil :family "Monoid")))
-      (desktop '((default nil :family "Iosevka" :height 100)
-		 (variable-pitch nil :family "InputSerifCompressed" :height 90))))
-  (dolist (face (if my-desktop-p desktop laptop)) (apply #'set-face-attribute face)))
+(set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
 
-(set-face-attribute 'font-lock-comment-face nil :slant 'italic)
-(set-face-attribute 'font-lock-string-face nil :inherit 'variable-pitch)
+(let ((laptop '((default nil :family "TamzenForPowerline" :height 109)
+                (variable-pitch nil :family "Cabin" :height 110)))
+      (desktop '((default nil :family "Iosevka" :height 100)
+                 (variable-pitch nil :family "InputSerifCompressed" :height 90)
+                 (font-lock-comment-face nil :slant italic)
+                 (font-lock-string-face nil :inherit variable-pitch))))
+  (dolist (face (if my-desktop-p desktop laptop)) (apply #'set-face-attribute face)))
 
 ;; TODO make this a separate package
 (defface font-lock-fic-face
@@ -454,8 +458,8 @@ narrowed."
   "Highlight FIXME and TODO keywords."
   (font-lock-add-keywords
    nil `((,(regexp-opt '("TODO" "TODO?" "FIXME" "FIXME?" "DOING" "REVIEW"
-			 "HACK") t)
-	  1 'font-lock-fic-face prepend))))
+                         "HACK") t)
+          1 'font-lock-fic-face prepend))))
 
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
@@ -464,113 +468,109 @@ narrowed."
 (use-package simple :ensure nil
   :config (setq find-file-visit-truename t))
 
-(use-package zone			; Screensaver
+(use-package zone                       ; Screensaver
   :config
   (use-package zone-nyan)
   (setq zone-programs [zone-nyan]
-	zone-timer (run-with-idle-timer 120 t 'zone)))
+        zone-timer (run-with-idle-timer 120 t 'zone)))
 
-(use-package golden-ratio :disabled t	; Window resizing
+(use-package golden-ratio :disabled t   ; Window resizing
   :init (golden-ratio-mode t))
 
-(use-package hideshow :disabled t	; Code folding
+(use-package hideshow :disabled t       ; Code folding
   (use-package hideshowvis))
 
-(use-package popwin :disabled t	      ; Popup window for minor buffers
+(use-package popwin :disabled t       ; Popup window for minor buffers
   :init (popwin-mode t))
 
-(use-package uniquify		      ; Distinguish same-named buffers
+(use-package uniquify                 ; Distinguish same-named buffers
   :ensure nil
   :config (setq uniquify-buffer-name-style 'forward
-		uniquify-trailing-separator-p t))
+                uniquify-trailing-separator-p t))
 
-(use-package winner	:disabled t	; Window configuration undo
+(use-package winner     :disabled t     ; Window configuration undo
   :general (:prefix my-window-map
-		    "u" #'winner-undo
-		    "U" #'winner-redo)
+                    "u" #'winner-undo
+                    "U" #'winner-redo)
   :init (winner-mode t))
 
-(use-package writeroom-mode	       ; Distraction-free writing mode
+(use-package writeroom-mode            ; Distraction-free writing mode
   :general (:keymaps 'text-mode-map "<C-f11>" #'writeroom-mode)
   :functions my-writeroom-effect
   :config
   (setq writeroom-width 100)
   (defun my-writeroom-effect (arg)
     (let ((off (if arg -1 t))
-	  (on (if arg t -1)))
+          (on (if arg t -1)))
       (when (fboundp #'display-time-mode) (display-time-mode on))
       (when (fboundp #'display-battery-mode) (display-battery-mode on))
       (when (fboundp #'which-function-mode) (which-function-mode off))
       (when (fboundp #'nyan-mode) (nyan-mode off))))
   (add-to-list 'writeroom-global-effects #'my-writeroom-effect))
 
-(use-package visual-fill-column					; Wrap text at fill col
+(use-package visual-fill-column                                 ; Wrap text at fill col
   :init (add-hook 'text-mode-hook #'visual-fill-column-mode)
   :config (setq-default visual-fill-column-width 100))
 
 ;;; Navigation
-(use-package avy			; Jump to specific points
+(use-package avy                        ; Jump to specific points
   :general
-  (:state 'motion "C-e" nil)
   ("C-e" #'avy-goto-word-1 "C-S-e" #'avy-goto-line)
+  :init (unbind-key "C-e" evil-motion-state-map)
   :config (setq avy-background t))
 
 (use-package ace-window :disabled t
   :general ([remap other-window] #'ace-window)
   :config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
-(use-package desktop		; Save opened buffers, windows, frames
+(use-package desktop            ; Save opened buffers, windows, frames
   :init (desktop-save-mode t)
   :config
   (setq desktop-auto-save-timeout 60
-	desktop-dirname my-dir)
+        desktop-dirname my-dir)
   (add-to-list 'desktop-path desktop-dirname)
   (my-add-list 'desktop-modes-not-to-save
-	       '(magit-mode git-commit-mode)))
+               '(magit-mode git-commit-mode)))
 
-(use-package expand-region :disabled t	; Expand selection by blocks at a time
+(use-package expand-region :disabled t  ; Expand selection by blocks at a time
   :general (:keymaps 'motion "zz" #'er/expand-region)
   :config (setq expand-region-contract-fast-key "x"))
 
-(use-package savehist			; Save command history
+(use-package savehist                   ; Save command history
   :init (savehist-mode t)
   :config (setq savehist-file (expand-file-name "savehist" my-dir)
-		history-delete-duplicates t
-		savehist-save-minibuffer-history t))
+                history-delete-duplicates t
+                savehist-save-minibuffer-history t))
 
-(use-package saveplace		    ; Save and return to place in file
+(use-package saveplace              ; Save and return to place in file
   :demand t
   :config
   (setq-default save-place t)
   (setq save-place-file (expand-file-name "places" my-dir)))
 
-(use-package projectile			; Project-based navigation
+(use-package projectile                 ; Project-based navigation
   :general (:keymaps 'my-evil-leader-map
-		     "p" #'projectile-find-file-dwim
-		     "P" #'projectile-switch-project)
+                     "p" #'projectile-find-file-dwim
+                     "P" #'projectile-switch-project)
   :init (projectile-global-mode t)
   :config
   (setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
-	projectile-known-projects-file (expand-file-name "projectile.eld" my-dir)
-	projectile-mode-line
-	'(:eval (if (file-remote-p default-directory)
-		    " Projectile"
-		  (format " Projectile[%s]" (projectile-project-name)))))
+        projectile-known-projects-file (expand-file-name "projectile.eld" my-dir)
+        projectile-mode-line
+        '(:eval (if (file-remote-p default-directory)
+                    " Projectile"
+                  (format " Projectile[%s]" (projectile-project-name)))))
 
   (use-package helm-projectile
     :general (:keymaps 'my-evil-leader-map
-		       [remap projectile-find-file-dwim] #'helm-projectile
-		       [remap projectile-switch-project] #'helm-projectile-switch-project)
+                       [remap projectile-find-file-dwim] #'helm-projectile
+                       [remap projectile-switch-project] #'helm-projectile-switch-project)
     :init (helm-projectile-on)
     :config (setq projectile-completion-system 'helm
-		  projectile-switch-project-action #'helm-projectile
-		  helm-projectile-fuzzy-match t)))
+                  projectile-switch-project-action #'helm-projectile
+                  helm-projectile-fuzzy-match t)))
 
 ;;; Editing
-(use-package undo-tree
-  :general
-  (:keymaps 'undo-tree-map "C-/" nil)
-  (:keymaps 'undo-tree-map :states 'motion "U" #'undo-tree-redo))
 
 (use-package multiple-cursors :disabled t
   :init (multiple-cursors-mode t))
@@ -580,58 +580,58 @@ narrowed."
 
 (use-package flycheck
   :general (:keymaps 'my-evil-leader-map
-		     "cj" #'flycheck-next-error
-		     "ck" #'flycheck-previous-error)
+                     "cj" #'flycheck-next-error
+                     "ck" #'flycheck-previous-error)
   :init (add-hook 'prog-mode-hook #'flycheck-mode)
   :config
   (setq flycheck-keymap-prefix (kbd "C-c f")
-	flycheck-indication-mode 'right-fringe)
+        flycheck-indication-mode 'right-fringe)
 
   (use-package helm-flycheck
     :general
     (:keymaps 'flycheck-mode-map "C-c f c" #'helm-flycheck)
     (:keymaps 'my-evil-leader-map "cc" #'helm-flycheck))
 
-  (use-package flycheck-tip		; Display errors by popup
+  (use-package flycheck-tip             ; Display errors by popup
     :general
     ([remap flycheck-next-error] #'flycheck-tip-cycle
      [remap flycheck-previous-error] #'flycheck-tip-cycle-reverse)
     :config (flycheck-tip-use-timer 'normal)))
 
-(use-package lorem-ipsum		; Insert filler text
+(use-package lorem-ipsum                ; Insert filler text
   :functions my-lorem-sgml-settings
   :config
   (defun my-lorem-sgml-settings ()
     (setq lorem-ipsum-paragraph-separator "\n<p>"
-	  lorem-ipsum-sentence-separator " "))
+          lorem-ipsum-sentence-separator " "))
   (add-hook 'sgml-mode-hook #'my-lorem-sgml-settings)
   (unless sentence-end-double-space (setq lorem-ipsum-sentence-separator " ")))
 
-(use-package writegood-mode	     ; Highlight poor forms in writing
+(use-package writegood-mode          ; Highlight poor forms in writing
   :init (add-hook 'text-mode-hook #'writegood-mode)
   :config
   (add-hook 'writegood-mode-hook #'writegood-passive-voice-turn-off)
   (my-add-list 'writegood-weasel-words
-	       '("thing" "different" "probably" "really")))
+               '("thing" "different" "probably" "really")))
 
-(use-package abbrev			; Auto-correct
+(use-package abbrev                     ; Auto-correct
   :ensure nil
   :init (abbrev-mode t)
   :config (setq save-abbrevs 'silently
-		abbrev-all-caps t
-		abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
+                abbrev-all-caps t
+                abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
 
 (use-package auto-indent-mode :disabled t
   :init (auto-indent-global-mode t))
 
-(use-package autoinsert :disabled t	; Auto insert buffer text
+(use-package autoinsert :disabled t     ; Auto insert buffer text
   :init (auto-insert-mode t))
 
-(use-package company			; Autocompletion
+(use-package company                    ; Autocompletion
   :general (:keymaps 'company-active-map
-		     "M-j" #'company-select-next
-		     "M-k" #'company-select-previous
-		     "M-d" #'company-show-doc-buffer)
+                     "M-j" #'company-select-next
+                     "M-k" #'company-select-previous
+                     "M-d" #'company-show-doc-buffer)
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
 
@@ -650,30 +650,30 @@ narrowed."
   (add-hook 'company-completion-finished-hook 'company-maybe-turn-on-fci)
   (add-hook 'company-completion-cancelled-hook 'company-maybe-turn-on-fci)
 
-  (setq company-idle-delay 0		; immediate completion attempt
-	company-show-numbers t		; allow M-num selection
-	company-tooltip-align-annotations t
-	company-selection-wrap-around t)
+  (setq company-idle-delay 0            ; immediate completion attempt
+        company-show-numbers t          ; allow M-num selection
+        company-tooltip-align-annotations t
+        company-selection-wrap-around t)
 
   (remove 'company-dabbrev 'company-backends))
 
-(use-package ispell			; Spell checking
+(use-package ispell                     ; Spell checking
   :functions my-ispell-run-together
   :init (when my-win-p (add-to-list 'exec-path "C:\\Program Files\\Emacs\\Aspell\\bin"))
   :config
   (setq ispell-program-name "aspell"
-	ispell-dictionary "british-ize"
-	ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB")
-	ispell-silently-savep t
-	ispell-quietly t)
+        ispell-dictionary "british-ize"
+        ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB")
+        ispell-silently-savep t
+        ispell-quietly t)
 
   ;; http://blog.binchen.org/posts/what-s-the-best-spell-check-set-up-in-emacs.html
   (defun my-ispell-run-together (orig-func &rest args)
     "Use ispell --run-together options while ORIG-FUNC is being called."
     (let ((old-ispell-extra-args ispell-extra-args)
-	  (run-together-args '("--run-together"
-			       "--run-together-limit=5"
-			       "--run-together-min=2")))
+          (run-together-args '("--run-together"
+                               "--run-together-limit=5"
+                               "--run-together-min=2")))
       (ispell-kill-ispell t)
       (setq ispell-extra-args (append ispell-extra-args run-together-args))
       (apply orig-func args)
@@ -681,7 +681,7 @@ narrowed."
       (ispell-kill-ispell t)))
   (advice-add #'ispell-word :around #'my-ispell-run-together)
 
-  (use-package flyspell			; On-the-fly spell check
+  (use-package flyspell                 ; On-the-fly spell check
     :init
     (add-hook 'text-mode-hook #'flyspell-mode)
     (add-hook 'prog-mode-hook #'flyspell-prog-mode)
@@ -696,66 +696,66 @@ narrowed."
       (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
 
     (setq flyspell-issue-welcome-flag nil
-	  flyspell-issue-message-flag nil)
+          flyspell-issue-message-flag nil)
     (advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together)))
 
-(use-package smartparens-config	:disabled t     ; Balanced parenthesis management
+(use-package smartparens-config :disabled t     ; Balanced parenthesis management
   :ensure smartparens)
 
-(use-package autorevert		  ; Auto revert external modifications
+(use-package autorevert           ; Auto revert external modifications
   :init (global-auto-revert-mode t)
   :config (setq global-auto-revert-non-file-buffers t))
 
-(use-package pandoc-mode		; Markup conversion tool
+(use-package pandoc-mode                ; Markup conversion tool
   :general
   ("C-c C-p" #'pandoc-mode)
   (:keymaps 'pandoc-mode-map [remap pandoc-mode] #'pandoc-run-pandoc)
   :config (setq pandoc-data-dir (expand-file-name "pandoc" my-dir)))
 
-(use-package real-auto-save		; Auto save buffers
+(use-package real-auto-save             ; Auto save buffers
   :commands real-auto-save-mode
   :init (add-hook 'after-save-hook #'real-auto-save-mode)
   :config (setq real-auto-save-interval 60))
 
-(use-package recentf			; List recent files
+(use-package recentf                    ; List recent files
   :config
   (setq recentf-exclude '("COMMIT_EDITMSG") ; exclude commit messages
-	recentf-save-file (expand-file-name "recentf" my-dir)))
+        recentf-save-file (expand-file-name "recentf" my-dir)))
 
 (use-package compile
   :config (setq compilation-always-kill t ; kill old before starting new
-		compilation-skip-threshold 2 ; skip warning and info messages
-		compilation-context-lines 3
-		compilation-scroll-output 'first-error
-		compilation-auto-jump-to-first-error t
-		compilation-ask-about-save nil))
+                compilation-skip-threshold 2 ; skip warning and info messages
+                compilation-context-lines 3
+                compilation-scroll-output 'first-error
+                compilation-auto-jump-to-first-error t
+                compilation-ask-about-save nil))
 
-(use-package paradox			; Better package management
+(use-package paradox                    ; Better package management
   :config
   (use-package async)
   (setq paradox-execute-asynchronously t))
 
-(use-package ediff			; Emacs diff utility
+(use-package ediff                      ; Emacs diff utility
   :general (:keymaps 'ediff-mode
-		     "j" #'ediff-next-difference
-		     "k" #'ediff-previous-difference))
+                     "j" #'ediff-next-difference
+                     "k" #'ediff-previous-difference))
 
 (use-package magit
   :general
   ("<f10>" #'magit-status)
   (:keymaps 'magit-status-mode-map
-	    "SPC" #'execute-extended-command
-	    "j" #'next-line
-	    "k" #'previous-line
-	    "C" #'magit-commit
-	    "C-=" #'magit-diff-working-tree)
+            "SPC" #'execute-extended-command
+            "j" #'next-line
+            "k" #'previous-line
+            "C" #'magit-commit
+            "C-=" #'magit-diff-working-tree)
   :config
   (defun my-git-commit-setup-fun ()
     (when (fboundp #'visual-line-mode) (visual-line-mode -1))
     (when (fboundp #'auto-fill-mode) (auto-fill-mode t)))
   (add-hook 'git-commit-setup-hook #'my-git-commit-setup-fun))
 
-(use-package git-timemachine	       ; Travel through commit history
+(use-package git-timemachine           ; Travel through commit history
   :general ("<C-f10>" #'git-timemachine-toggle))
 
 ;;; Languages
@@ -783,10 +783,10 @@ narrowed."
     (interactive "P")
     (declare (interactive-only))
     (cond ((and (buffer-narrowed-p) (not p)) (widen))
-	  ((region-active-p) (narrow-to-region (region-beginning) (region-end)))
-	  ((org-in-src-block-p) (org-edit-src-code))
-	  ((org-at-block-p) (org-narrow-to-block))
-	  (t (org-narrow-to-subtree)))))
+          ((region-active-p) (narrow-to-region (region-beginning) (region-end)))
+          ((org-in-src-block-p) (org-edit-src-code))
+          ((org-at-block-p) (org-narrow-to-block))
+          (t (org-narrow-to-subtree)))))
 
 (use-package outline
   :init
@@ -813,18 +813,27 @@ narrowed."
     :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
 
   (defface my-headline-face
-    '((t (:family "FabfeltScript Bold" :height 150)))
+    `((t ,@(if my-desktop-p '(:family "FabfeltScript Bold" :height 150)
+             '(:family "Superscript" :height 150))))
     "Face for headlines"
     :group 'faces)
 
-  (dolist (face '(outline-1 outline-2 outline-3 outline-4
-			    outline-5 outline-6 outline-7 outline-8))
+  (dolist (spec '((outline-1 . 200)
+                  (outline-2 . 150)
+                  (outline-3 . 150)
+                  (outline-4 . 90)
+                  (outline-5 . 90)
+                  (outline-6 . 90)
+                  (outline-7 . 90)
+                  (outline-8 . 90)))
     (set-face-attribute
-     face nil
-     :foreground (let ((fg (face-attribute face :foreground)))
-		   (when (eq fg 'unspecified)
-		     (setq fg (face-attribute (face-attribute face :inherit) :foreground)))
-		   fg)
+     (car spec) nil
+     :foreground (let* ((face (car spec))
+                        (fg (face-attribute face :foreground)))
+                   (when (eq fg 'unspecified)
+                     (setq fg (face-attribute (face-attribute face :inherit) :foreground)))
+                   fg)
+     :height (cdr spec)
      :inherit 'my-headline-face)))
 
 (use-package lisp :ensure nil
@@ -834,20 +843,20 @@ narrowed."
   (defun my-elisp-hook-fun ()
     "Set `mode-name' to 'Elisp' and turn off `indent-tabs-mode''`"
     (setq mode-name "Elisp"
-	  indent-tabs-mode nil))
+          indent-tabs-mode nil))
 
   (add-hook 'emacs-lisp-mode-hook #'my-elisp-hook-fun)
 
-  (use-package eldoc			; Documentation in echo area
+  (use-package eldoc                    ; Documentation in echo area
     :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
     :config (setq eldoc-idle-delay 0.3))
 
-  (use-package highlight-quoted	   ; Faces for lisp quotes and symbols
+  (use-package highlight-quoted    ; Faces for lisp quotes and symbols
     :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
-  (use-package elisp-slime-nav		; Navigate elisp documentation
+  (use-package elisp-slime-nav          ; Navigate elisp documentation
     :general (:keymaps '(elisp-slime-nav-mode-map help-mode-map) :states 'motion
-		       "K" #'elisp-slime-nav-describe-elisp-thing-at-point
-		       "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
+                       "K" #'elisp-slime-nav-describe-elisp-thing-at-point
+                       "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
     :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)))
 
 (use-package elpy
@@ -867,12 +876,12 @@ narrowed."
     (let ((sass-command "sass"))
       (shell-command
        (format
-	"%s --watch '%s':'%s%s.css'&"
-	sass-command
-	buffer-file-name
-	(or my-sass-output-dir "")
-	(file-name-nondirectory
-	 (file-name-sans-extension buffer-file-name))))))
+        "%s --watch '%s':'%s%s.css'&"
+        sass-command
+        buffer-file-name
+        (or my-sass-output-dir "")
+        (file-name-nondirectory
+         (file-name-sans-extension buffer-file-name))))))
 
   ;; Run `prog-mode-hook' manually since `css-mode' doesn't derive from it
   (add-hook 'css-mode-hook (lambda () (run-hooks 'prog-mode-hook)))
@@ -884,12 +893,12 @@ narrowed."
   :mode "\\.html?$"
   :config
   (setq web-mode-enable-block-face t
-	web-mode-enable-part-face t
-	web-mode-enable-current-element-highlight t
-	web-mode-enable-current-column-highlight t
-	web-mode-css-indent-offset 2
-	web-mode-code-indent-offset 2
-	web-mode-markup-indent-offset 2))
+        web-mode-enable-part-face t
+        web-mode-enable-current-element-highlight t
+        web-mode-enable-current-column-highlight t
+        web-mode-css-indent-offset 2
+        web-mode-code-indent-offset 2
+        web-mode-markup-indent-offset 2))
 
 (use-package jdee)
 
