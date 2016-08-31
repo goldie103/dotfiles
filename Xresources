@@ -1,69 +1,43 @@
-! Rofi
-rofi.modi:				combi
-rofi.combi-modi:		window,drun,run
-rofi.width:				25
-rofi.lines:				10
-rofi.columns:			1
-rofi.padding:			2
-rofi.yoffset:			-260
-rofi.line-margin:		0
+rofi.modi:						combi
+rofi.combi-modi:			window,drun,run
+rofi.width:						25
+rofi.lines:						10
+rofi.columns:					1
+rofi.padding:					2
+rofi.yoffset:					-260
+rofi.line-margin:			0
 rofi.separator-style:	none
 rofi.hide-scrollbar:	true
-rofi.font:				bitmap 10
+rofi.font:						monospace 10
 ! Border width
-rofi.bw:				0
+rofi.bw:							0
 ! Run titles
-rofi.display-run:		>_
+rofi.display-run:			>_
 rofi.display-drun:		>
 rofi.display-window:	
-! Color schemes			bg		fg		bgalt	hlbg	hlfg
+! Color schemes				bg			fg			bgalt		hlbg		hlfg
 rofi.color-normal:		#3c3836,#a89984,#282828,#282828,#fe8019
 rofi.color-urgent:		#3c3836,#fb4934,#3c3836,#282828,#fe8019
-rofi.color-active:		#3c3836,#ebdbb2,#504954,#1d2021,#fe8019
-! Window color			bg		border
-rofi.color-window:		#282828,#002b36
+rofi.color-active:		#3c3836,#ebdbb2,#504945,#1d2021,#fe8019
+! Window color				bg	border
+rofi.color-window:		#282828,#282828
 
-! URXVT
-urxvt.font:					xft:Tamzen:pixelsize=14:antialias=false
-!urxvt.font:					xft:bitmap:pixelsize=14:antialias=false
-urxvt.scrollBar:			false
-urxvt.scrollTtyOutput:		false
-urxvt.scrollTtyKeypress:	true
-! default, url matching
-urxvt.perl-ext-common:		default,matcher
-! clickable URLs
-urxvt.url-launcher:			/usr/bin/xdg-open
-urxvt.matcher.button:		1
-!urxvt.transparent: true
-!urxvt.shading: 30
-
-! Colors
-! hard contrast: *background: #1d2021
-! soft contrast: *background: #32302f
 *background: #282828
 *foreground: #ebdbb2
-! Black + DarkGrey
 *color0:  #282828
 *color8:  #928374
-! DarkRed + Red
 *color1:  #cc241d
 *color9:  #fb4934
-! DarkGreen + Green
 *color2:  #98971a
 *color10: #b8bb26
-! DarkYellow + Yellow
 *color3:  #d79921
 *color11: #fabd2f
-! DarkBlue + Blue
 *color4:  #458588
 *color12: #83a598
-! DarkMagenta + Magenta
 *color5:  #b16286
 *color13: #d3869b
-! DarkCyan + Cyan
 *color6:  #689d6a
 *color14: #8ec07c
-! LightGrey + White
 *color7:  #a89984
 *color15: #ebdbb2
 

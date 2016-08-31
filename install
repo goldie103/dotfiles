@@ -1,0 +1,101 @@
+#!/bin/bash
+
+f="i"
+v="v"
+skip_upgrade=false
+while getopts "qsf" opt; do
+  case $opt in
+    q) v="";;
+		s) skip_upgrade=true;;
+    f) f="f";;
+    \?) echo "Invalid option: -$OPTARG" >&2 && exit 1;;
+  esac
+done
+
+source ./sh/env
+
+exists () { return $(pacman -Qi "$@" > /dev/null); }
+exists_group () { return $(pacman -Qg "$@" > /dev/null); }
+install () { pacaur -S --needed --noconfirm "$@"; }
+i () { exists "$@" || install "$@"; }
+
+l () {
+	from=$2
+	to=$DOT/$1
+  mkdir -p$v "$(dirname $from)"
+	[[ $f == "f" || ($(readlink $from) != $to && -e $to) ]] &&
+		ln -sn$v$f "$to" "$from"
+}
+
+vimp_plugin () {
+  [[ ! -e $VIMPERATOR_RUNTIME/plugin/${2:-$1} ]] &&
+    curl --create-dirs -o "$VIMPERATOR_RUNTIME/plugin/${2:-$1}" "https://raw.githubusercontent.com/vimpr/vimperator-plugins/master/$1"
+}
+
+sudo -v
+$skip_upgrade || sudo pacman -Syu
+
+# Pacaur
+if ! exists pacaur; then
+  echo "Installing pacaur"
+	d="$(mktemp -d)"
+  exists_group base-devel || sudo pacman -S --needed --noconfirm base-devel
+  exists git || sudo pacman -S --needed --noconfirm git
+  if ! exists cower; then
+    mkdir -p "$d" && cd "$d"
+    gpg --recv-keys --keyserver hkp://pgp.mit.edu.au 1EB2638FF56C0C53
+    git clone "https://aur.archlinux.org/cower.git"
+    cd "$d/cower"
+    makepkg --syncdeps --install --noconfirm
+  fi
+
+  git clone "https://aur.archlinux.org/pacaur.git"
+  cd "$d/pacaur"
+  makepkg --syncdeps --install --noconfirm
+  cd $DOT
+  rm -rf "$d"
+fi
+
+# Git
+i git
+l git.config $XDG_CONFIG_HOME/git/config
+
+# ZSH
+if ! exists zsh; then i zsh && chsh -s /bin/zsh $(whoami); fi
+# Link the appropriate files
+l sh/env $HOME/.zshenv
+l sh/init.zsh $ZDOTDIR/.zshrc
+l sh/profile $ZDOTDIR/.zprofile
+# Antigen
+[[ ! -e $ADOTDIR/antigen.zsh ]] &&
+  git clone https://github.com/zsh-users/antigen.git "$ADOTDIR"
+
+# Xorg
+i xorg-xinit
+exists_group xorg || install xorg
+l xinitrc $XDG_CONFIG_HOME/X11/xinitrc
+l Xresources $XDG_CONFIG_HOME/X11/Xresources
+# i3
+i rofi
+i i3-gaps
+i py3status py3status-modules alsa-utils acpi
+l i3 $XDG_CONFIG_HOME/i3
+
+# Fontconfig
+l fonts.conf $XDG_CONFIG_HOME/fontconfig/fonts.conf
+
+# Emacs
+l emacs/init.el $HOME/.emacs.d/init.el
+l emacs/elisp $HOME/.emacs.d/my-elisp 
+# Neovim
+i neovim
+l nvimrc.vim $XDG_CONFIG_HOME/nvim/init.vim
+
+# Firefox
+i firefox
+l vimperatorrc.vimp $VIMPERATOR_RUNTIME/vimperratorrc.vimp
+vimp_plugin "_smooziee.js" "smooziee.js"
+vimp_plugin "stylish.js"
+
+# Termite
+l termite.ini $XDG_CONFIG_HOME/termite/config

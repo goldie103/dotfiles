@@ -1,11 +1,12 @@
+# files generated from templates
+/Xresources
+/termite.ini
+/i3/init.conf
+/i3/status.conf
 # pycache
 __pycache__
-# existing files
-\.old
-# sources
-\src
 # autosave files
-\.#.*
+/.#.*
 /.emacs.d/*
 !/.emacs.d/init.el
 !/.emacs.d/my-elisp
