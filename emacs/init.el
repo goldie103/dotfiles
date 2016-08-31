@@ -92,8 +92,13 @@ define it as ELEMENTS."
  user-full-name "Kelly Stewart"
  user-mail-address "stewart.g.kelly@gmail.com")
 
+(setq-default fill-column 100
+              indent-tabs-mode nil
+              tab-width 4)
+
 (fset #'yes-or-no-p #'y-or-n-p)
 (fset #'display-startup-echo-area-message #'ignore)
+
 
 ;; never kill scratch
 (defun no-kill-scratch ()
@@ -195,6 +200,8 @@ narrowed."
  "RET" #'newline-and-indent
  "C-x C-S-c" #'restart-emacs
  "C-x n" #'my-narrow-or-widen-dwim
+ "<up>" #'scroll-down
+ "<down>" #'scroll-up
  "M-/" #'grep
  "C-M-/" #'find-grep-dired
  [remap switch-to-buffer] #'ibuffer
@@ -231,11 +238,8 @@ narrowed."
  "i" #'info-lookup-symbol
  "C-i" #'info-emacs-manual)
 
-(general-define-key
- :keymaps 'undo-tree-map :states 'motion
- "C-/" nil
- "U" #'undo-tree-redo)
-
+(general-define-key :keymaps 'undo-tree-map "C-/" nil)
+(general-define-key :keymaps 'undo-tree-map :states 'normal "U" #'undo-tree-redo)
 
 ;;; Major packages
 ;;;; Evil
@@ -244,12 +248,14 @@ narrowed."
   (evil-mode t)
   (defvar my-evil-leader-map (make-sparse-keymap) "Evil leader bindings")
   (define-prefix-command 'my-evil-leader-map)
-  
+
 ;;;;; Evil Bindings
   :general
   (:keymaps 'motion
             "TAB" nil
             "C-w" nil
+            "<up>" nil
+            "<down>" nil
             "SPC" #'execute-extended-command
             "q" #'kill-this-buffer
             "," #'my-evil-leader-map
@@ -270,17 +276,17 @@ narrowed."
 ;;;;; Evil Config
   :config
   (use-package evil-escape      ; escape from everything with two keys
-    :init (evil-escape-mode t))
+    :init (add-hook 'evil-mode-hook #'evil-escape-mode))
 
   (use-package evil-surround            ; surround operator
     :init (add-hook 'prog-mode-hook #'evil-surround-mode))
 
   (use-package evil-matchit             ; more tag jumping support
     :general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
-    :init (global-evil-matchit-mode t)
+    :init (add-hook 'evil-mode-hook #'global-evil-matchit-mode)
     :config
     (setq evilmi-may-jump-by-percentage nil)) ; allow count usage
-
+  
   (setq evil-echo-state nil             ; state is in modeline anyway
         evil-cross-lines t
         evil-symbol-word-search t
@@ -441,7 +447,7 @@ narrowed."
 (set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
 
 (let ((laptop '((default nil :family "TamzenForPowerline" :height 109)
-                (variable-pitch nil :family "Cabin" :height 110)))
+                (variable-pitch nil :family "Noto Sans" :height 110)))
       (desktop '((default nil :family "Iosevka" :height 100)
                  (variable-pitch nil :family "InputSerifCompressed" :height 90)
                  (font-lock-comment-face nil :slant italic)
@@ -470,9 +476,8 @@ narrowed."
 
 (use-package zone                       ; Screensaver
   :config
-  (use-package zone-nyan)
-  (setq zone-programs [zone-nyan]
-        zone-timer (run-with-idle-timer 120 t 'zone)))
+  (use-package zone-nyan
+    :config (setq zone-programs [zone-nyan])))
 
 (use-package golden-ratio :disabled t   ; Window resizing
   :init (golden-ratio-mode t))
@@ -516,14 +521,15 @@ narrowed."
 (use-package avy                        ; Jump to specific points
   :general
   ("C-e" #'avy-goto-word-1 "C-S-e" #'avy-goto-line)
-  :init (unbind-key "C-e" evil-motion-state-map)
+  (:states 'motion "C-e" nil)
+  (:keymaps 'org-mode-map "C-e" nil)
   :config (setq avy-background t))
 
 (use-package ace-window :disabled t
   :general ([remap other-window] #'ace-window)
   :config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
-(use-package desktop            ; Save opened buffers, windows, frames
+(use-package desktop :disabled t        ; Save opened buffers, windows, frames
   :init (desktop-save-mode t)
   :config
   (setq desktop-auto-save-timeout 60
@@ -765,8 +771,10 @@ narrowed."
 (use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
 (use-package ess)
 (use-package generic-x :disabled t)
+(use-package elpy :init (elpy-enable))
 (use-package arduino-mode)
 
+;;;; Org
 (use-package org
   :general
   (:keymaps 'org-mode-map [remap my-narrow-or-widen-dwim] #'my-org-narrow-or-widen-dwim)
@@ -788,6 +796,9 @@ narrowed."
           ((org-at-block-p) (org-narrow-to-block))
           (t (org-narrow-to-subtree)))))
 
+;;;; Elisp
+(general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
+
 (use-package outline
   :init
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
@@ -808,7 +819,6 @@ narrowed."
   (add-hook 'emacs-lisp-mode-hook #'my-outline-minor-mode)
 
   :config
-
   (use-package outline-magic
     :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
 
@@ -818,7 +828,7 @@ narrowed."
     "Face for headlines"
     :group 'faces)
 
-  (dolist (spec '((outline-1 . 200)
+  (dolist (spec '((outline-1 . 150)
                   (outline-2 . 150)
                   (outline-3 . 150)
                   (outline-4 . 90)
@@ -836,32 +846,19 @@ narrowed."
      :height (cdr spec)
      :inherit 'my-headline-face)))
 
-(use-package lisp :ensure nil
-  :general (:keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
-  :init
+(use-package eldoc                    ; Documentation in echo area
+  :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
+  :config (setq eldoc-idle-delay 0.3))
 
-  (defun my-elisp-hook-fun ()
-    "Set `mode-name' to 'Elisp' and turn off `indent-tabs-mode''`"
-    (setq mode-name "Elisp"
-          indent-tabs-mode nil))
+(use-package highlight-quoted    ; Faces for lisp quotes and symbols
+  :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
+(use-package elisp-slime-nav          ; Navigate elisp documentation
+  :general (:keymaps '(elisp-slime-nav-mode-map help-mode-map) :states 'motion
+                     "K" #'elisp-slime-nav-describe-elisp-thing-at-point
+                     "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
+  :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode))
 
-  (add-hook 'emacs-lisp-mode-hook #'my-elisp-hook-fun)
-
-  (use-package eldoc                    ; Documentation in echo area
-    :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
-    :config (setq eldoc-idle-delay 0.3))
-
-  (use-package highlight-quoted    ; Faces for lisp quotes and symbols
-    :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
-  (use-package elisp-slime-nav          ; Navigate elisp documentation
-    :general (:keymaps '(elisp-slime-nav-mode-map help-mode-map) :states 'motion
-                       "K" #'elisp-slime-nav-describe-elisp-thing-at-point
-                       "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
-    :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode)))
-
-(use-package elpy
-  :init (elpy-enable))
-
+;;;; Web
 (use-package css-mode
   :defines my-sass-output-dir
   :mode "\\.s[ac]ss$"
@@ -899,9 +896,6 @@ narrowed."
         web-mode-css-indent-offset 2
         web-mode-code-indent-offset 2
         web-mode-markup-indent-offset 2))
-
-(use-package jdee)
-
 
 ;;; Local Variables
 ;; Local Variables:
