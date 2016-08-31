@@ -6,7 +6,7 @@
 # pycache
 __pycache__
 # autosave files
-/.#.*
+.#*
 /.emacs.d/*
 !/.emacs.d/init.el
 !/.emacs.d/my-elisp
