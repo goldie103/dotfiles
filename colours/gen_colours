@@ -7,8 +7,10 @@ from sys import exit
 from os import environ
 from os.path import join, realpath, dirname
 
-SOURCE = join(dirname(realpath(__file__)), "colours.txt")
-FILES = ["termite.ini", "Xresources", "i3/init.conf", "i3/status.conf"]
+SCRIPT_PATH = dirname(realpath(__file__))
+SOURCE = join(SCRIPT_PATH, "colours.txt")
+FILES = [join(SCRIPT_PATH, i) for i in
+         ["termite.ini", "Xresources", "i3/init.conf", "i3/status.conf"]]
 OUTDIR = environ["DOT"]
 
 
@@ -51,7 +53,9 @@ def write_colours(path, colours, headerend, outdir):
 
   vprint("Filling '{}' template...".format(path))
 
-  outpath = join(outdir, path)
+  outpath = join(outdir, path
+                         if not path.startswith(SCRIPT_PATH) else
+                         path[len(SCRIPT_PATH)+1:])
 
   # Check we're not overwriting a template file
   try:

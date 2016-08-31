@@ -16,12 +16,12 @@ rofi.bw:							0
 rofi.display-run:			>_
 rofi.display-drun:		>
 rofi.display-window:	
-! Color schemes				bg			fg			bgalt		hlbg		hlfg
-rofi.color-normal:		$bg1,$gray0,$bg,$bg,$orange1
-rofi.color-urgent:		$bg1,$red1,$bg1,$bg,$orange1
-rofi.color-active:		$bg1,$fg,$bg2,$bg00,$orange1
+! Color schemes				bg  ,fg    ,bgalt,hlbg ,hlfg
+rofi.color-normal:		$bg ,$gray0,$bg  ,$bg  ,$orange1
+rofi.color-urgent:		$bg1,$red1 ,$bg1 ,$bg  ,$orange1
+rofi.color-active:		$bg2,$fg   ,$bg2 ,$bg00,$orange1
 ! Window color				bg	border
-rofi.color-window:		$bg,$bg
+rofi.color-window:		$bg ,$bg
 
 *background: $bg
 *foreground: $fg
