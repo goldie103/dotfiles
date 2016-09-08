@@ -1,44 +1,45 @@
 ! --- Rofi ---    --- (TEMPLATE) ---
 rofi.modi:						combi
 rofi.combi-modi:			window,drun,run
+rofi.fullscreen:      true
 rofi.width:						25
-rofi.lines:						10
+rofi.padding:					200
 rofi.columns:					1
-rofi.padding:					2
-rofi.yoffset:					-260
-rofi.line-margin:			0
+rofi.line-margin:			5
 rofi.separator-style:	none
 rofi.hide-scrollbar:	true
-rofi.font:						monospace 10
+rofi.opacity:         75
+rofi.font:						TamzenForPowerline 16
 ! Border width
 rofi.bw:							0
 ! Run titles
 rofi.display-run:			>_
 rofi.display-drun:		>
-rofi.display-window:	
+rofi.display-window:	|
+rofi.display-combi:   >
 ! Color schemes				bg  ,fg    ,bgalt,hlbg ,hlfg
-rofi.color-normal:		$bg ,$gray0,$bg  ,$bg  ,$orange1
-rofi.color-urgent:		$bg1,$red1 ,$bg1 ,$bg  ,$orange1
-rofi.color-active:		$bg2,$fg   ,$bg2 ,$bg00,$orange1
+rofi.color-normal:		$bg ,$orange1 ,$bg ,$bg  ,$fg2
+rofi.color-urgent:		$bg ,$red1    ,$bg ,$bg  ,$fg2
+rofi.color-active:		$bg ,$fg      ,$bg ,$bg00,$fg2
 ! Window color				bg	border
 rofi.color-window:		$bg ,$bg
 
 *background: $bg
 *foreground: $fg
 *color0:  $color0
-*color8:  $color8
 *color1:  $color1
-*color9:  $color9
 *color2:  $color2
-*color10: $color10
 *color3:  $color3
-*color11: $color11
 *color4:  $color4
-*color12: $color12
 *color5:  $color5
-*color13: $color13
 *color6:  $color6
-*color14: $color14
 *color7:  $color7
+*color8:  $color8
+*color9:  $color9
+*color10: $color10
+*color11: $color11
+*color12: $color12
+*color13: $color13
+*color14: $color14
 *color15: $color15
 
