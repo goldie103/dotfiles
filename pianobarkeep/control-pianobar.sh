@@ -27,24 +27,28 @@
 # according to your needs.
 #
 # # # Start pianobar by running 'control-pianobar.sh p'
-#
+
+# Retrieve input from user.
+# This function can be modified, but needs to read options from standard in
+# and output the choice to standard out. Can take one argument for a title or prompt.
+ask(){ rofi -dmenu -p $1" ";};
+
 # These variables should match YOUR configs
-  # Your config folder
-  fold="${XDG_CONFIG_HOME:-$HOME/.config}/pianobar"
-  # The pianobar executable
-  pianobar="pianobar"
-  # A blank icon to show when no albumart is found. I prefer to use
-  # the actual pandora icon for this, which you can easily find and
-  # download yourself. I don't include it here for copyright concerns.
-  blankicon="$fold/pandora.jpg"
-  
+# Your config folder
+fold="${XDG_CONFIG_HOME:-$HOME/.config}/pianobar"
+# The pianobar executable
+pianobar="pianobar"
+# A blank icon to show when no albumart is found. I prefer to use
+# the actual pandora icon for this, which you can easily find and
+# download yourself. I don't include it here for copyright concerns.
+blankicon="$fold/pandora.jpg"
+
 # You probably shouldn't mess with these (or anything else)
 if [[ "$fold" == "/pianobar" ]]; then
 	fold="$HOME/.config/pianobar"
   blankicon="$fold""$blankicon"
 fi
 notify="notify-send --hint=int:transient:1"
-zenity="zenity"
 logf="$fold/log"
 ctlf="$fold/ctl"
 an="$fold/artname"
@@ -173,8 +177,7 @@ prevstation|ps)
     
 switchstation|ss)
 	if [[ -n `pidof pianobar` ]]; then
-		text="$(grep --text "[0-9]\+)" "$logf" | sed 's/.*\t\(.*)\) *\(Q \+\)\?\([^ ].*\)/\1 \3/')""\n \n Type a number."
-		newnum="$($zenity --entry --title="Switch Station" --text="$(cat "$stl")\n Pick a number.")"
+		newnum="$(cat $stl | ask Station | grep -o '^[0-9]\+')"
 		if [[ -n "$newnum" ]]; then
 			newstt="$(sed "s/^$newnum) \(.*\)/-->\1/" "$stl" | sed 's/^[0-9]\+) \(.*\)/* \1/')"
 			echo "s$newnum" > "$ctlf"
@@ -197,12 +200,11 @@ upcoming|queue|u)
 "history"|h)
 	if [[ -n `pidof pianobar` ]]; then
 		echo -n "h" > "$ctlf"
-		text="$(grep --text "[0-9]\+)" "$logf" | sed 's/.*\t\(.*) *[^ ].*\)/\1/')""\n \n Type a number."
-		snum="$($zenity --entry --title="History" --text="$text")"
+		snum="$(grep --text '[0-9]\+' $logf | sed 's/.*\t \(.*) *[^ ].*\)/\1/' | ask 'Song:' | grep -o '^[0-9]\+')"
 		if [[ -n "$snum" ]]; then
 			echo "1" > "$ine"
 			echo "$snum" > "$ctlf"
-			echo -n "$($zenity --entry --title="Do what?" --text="Love[+], Ban[-], or Tired[t].")" > "$ctlf"
+			echo "Love:+\nBan:-\nTired:t" | ask "Do what?" | grep -o '.$' > "$ctrlf"
 		else
 			echo "" > "$ctlf"
 		fi

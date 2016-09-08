@@ -32,11 +32,11 @@ fold="${XDG_CONFIG_HOME:-$HOME/.config}/pianobar"
 
 # You should also place the control-pianobar.sh script in the
 # config folder (or modify the following variable accordingly).
-controlpianobar="$fold/control-pianobar.sh"
+controlpianobar="$DOT/pianobarkeep/control-pianobar.sh"
 
 # Also place the pandora.jpg file in the same folder, or modify de
 # following variable.
-blankicon="$fold/pandora.jpg"
+blankicon="$fold/blank.jpg"
 
 # Edit this to customize the format songs are displayed in
 # (e.g. "$title - $artist" instead of "$artist - $title")
@@ -46,6 +46,11 @@ songname(){ echo "$artist - $title";};
 # Edit to change the naming format of downloaded songs
 # Possible variables are $title, $artist, and $album
 filename(){ echo "$title - $artist";};
+
+# Retrieve input from user.
+# This function can be modified, but needs to read options from standard in
+# and output the choice to standard out. Can take one argument for a title or prompt.
+ask(){ rofi -dmenu -p $1;};
 
 # Change this to "TRUE" to download every song automatically
 downall="FALSE"
@@ -59,7 +64,6 @@ if [[ "$fold" == "/pianobar" ]]; then
     blankicon="$fold""$blankicon"
 fi
 notify="notify-send --hint=int:transient:1"
-zenity="zenity"
 logf="$fold/log"
 ctlf="$fold/ctl"
 an="$fold/artname"
@@ -133,12 +137,13 @@ fi
 case "$1" in
     songstart)
 	   echo "1" > "$ip"
+		 mkdir -p "$fold/albumart"
 	   cd "$fold/albumart"
 
 	   if [[ ! -e "$icon" ]]; then
 
 		  if [[ -n "$coverArt" ]]; then
-			 wget -q -O "$icon" "$coverArt"
+			 curl -so "$icon" "$coverArt"
 			 echo "$fold/albumart/$icon" > $an
 		  else
 			 echo "$blankicon" > $an
@@ -201,7 +206,7 @@ case "$1" in
 		  done
 	   fi
      if [[ ! `cat "$st" | grep "auto" | cut -d "=" -f 2 | wc -m` -gt 2 ]]; then
-	    echo "$($zenity --entry --title="Switch Station" --text="$(cat "$stl")")" > "$ctlf"
+			cat "$stl" | ask "Station" | grep -o '^[0-9]\+' > "$ctlf"
      fi;;
     
     userlogin)
