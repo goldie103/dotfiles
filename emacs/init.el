@@ -1,3 +1,21 @@
+(dolist (spec '((outline-1 . 270)
+                  (outline-2 . 180)
+                  (outline-3 . 120)
+                  (outline-4 . 120)
+                  (outline-5 . 120)
+                  (outline-6 . 75)
+                  (outline-7 . 75)
+                  (outline-8 . 75)))
+    (set-face-attribute
+     (car spec) nil
+     :foreground (let* ((face (car spec))
+                        (fg (face-attribute face :foreground)))
+                   (when (eq fg 'unspecified)
+                     (setq fg (face-attribute (face-attribute face :inherit) :foreground)))
+                   fg)
+     :height (cdr spec)
+     :inherit 'my-headline-face))
+
 ;;; Setup
 
 ;;;; Helper functions
@@ -241,14 +259,29 @@ narrowed."
 (general-define-key :keymaps 'undo-tree-map "C-/" nil)
 (general-define-key :keymaps 'undo-tree-map :states 'normal "U" #'undo-tree-redo)
 
+(general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
+
 ;;; Major packages
 ;;;; Evil
 (use-package evil
   :init
-  (evil-mode t)
+;;;;; Evil Packages
+  (use-package evil-escape      ; escape from everything with two keys
+    :init (add-hook 'evil-mode-hook #'evil-escape-mode))
+
+  (use-package evil-surround            ; surround operator
+    :init (add-hook 'prog-mode-hook #'evil-surround-mode))
+
+  (use-package evil-matchit             ; more tag jumping support
+    :general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
+    :init (add-hook 'evil-mode-hook #'global-evil-matchit-mode)
+    :config
+    (setq evilmi-may-jump-by-percentage nil)) ; allow count usage
+
+;;;;; Evil Init
   (defvar my-evil-leader-map (make-sparse-keymap) "Evil leader bindings")
   (define-prefix-command 'my-evil-leader-map)
-
+  (evil-mode t)
 ;;;;; Evil Bindings
   :general
   (:keymaps 'motion
@@ -275,18 +308,6 @@ narrowed."
 
 ;;;;; Evil Config
   :config
-  (use-package evil-escape      ; escape from everything with two keys
-    :init (add-hook 'evil-mode-hook #'evil-escape-mode))
-
-  (use-package evil-surround            ; surround operator
-    :init (add-hook 'prog-mode-hook #'evil-surround-mode))
-
-  (use-package evil-matchit             ; more tag jumping support
-    :general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
-    :init (add-hook 'evil-mode-hook #'global-evil-matchit-mode)
-    :config
-    (setq evilmi-may-jump-by-percentage nil)) ; allow count usage
-  
   (setq evil-echo-state nil             ; state is in modeline anyway
         evil-cross-lines t
         evil-symbol-word-search t
@@ -299,7 +320,27 @@ narrowed."
 
 ;;;; Helm
 (use-package helm-config :ensure helm
-  :init (helm-mode t)
+  :init
+;;;;; Helm Packages
+  (use-package helm-dash :disabled t)   ; TODO language documentation
+
+  (use-package helm-descbinds        ; `describe-bindings' replacement
+    :init (add-hook 'helm-mode-hook #'helm-descbinds-mode)
+    :config (setq helm-descbinds-window-style 'split-window))
+
+  (use-package helm-swoop               ; fast search and navigation
+    :general
+    ([remap grep] #'helm-swoop)
+    (:keymaps 'isearch-mode-map "M-/" #'helm-swoop-all-from-isearch)
+    (:keymaps 'helm-swoop-map "M-/" #'helm-multi-swoop-all-from-helm-swoop)
+
+    :config
+    (setq helm-swoop-speed-or-color t
+          helm-swoop-use-fuzzy-match t))
+
+;;;;; Helm Init
+  (helm-mode t)
+  
 ;;;;; Helm Bindings
   :general
   ([remap execute-extended-command] #'helm-M-x
@@ -336,21 +377,6 @@ narrowed."
                       :inherit 'font-lock-warning-face
                       :foreground nil :background nil :inverse-video nil)
 
-  (use-package helm-dash :disabled t)   ; TODO language documentation
-
-  (use-package helm-descbinds        ; `describe-bindings' replacement
-    :init (helm-descbinds-mode t)
-    :config (setq helm-descbinds-window-style 'split-window))
-
-  (use-package helm-swoop               ; fast search and navigation
-    :general
-    ([remap grep] #'helm-swoop)
-    (:keymaps 'isearch-mode-map "M-/" #'helm-swoop-all-from-isearch)
-    (:keymaps 'helm-swoop-map "M-/" #'helm-multi-swoop-all-from-helm-swoop)
-
-    :config
-    (setq helm-swoop-speed-or-color t
-          helm-swoop-use-fuzzy-match t))
   (use-package helm-mode :ensure nil
     :config
     (setq helm-completion-in-region-fuzzy-match t
@@ -438,6 +464,8 @@ narrowed."
 (use-package rainbow-delimiters
   :init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 
+(use-package rainbow-mode)
+
 (use-package fill-column-indicator
   :init (add-hook 'prog-mode-hook #'fci-mode)
   :config (setq fci-rule-color "#3c3836"
@@ -446,13 +474,17 @@ narrowed."
 ;;;; My faces
 (set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
 
-(let ((laptop '((default nil :family "TamzenForPowerline" :height 109)
-                (variable-pitch nil :family "Noto Sans" :height 110)))
-      (desktop '((default nil :family "Iosevka" :height 100)
-                 (variable-pitch nil :family "InputSerifCompressed" :height 90)
-                 (font-lock-comment-face nil :slant italic)
-                 (font-lock-string-face nil :inherit variable-pitch))))
-  (dolist (face (if my-desktop-p desktop laptop)) (apply #'set-face-attribute face)))
+(defvar my-font-faces
+  (if my-desktop-p
+      '((default nil :family "Iosevka" :height 100)
+        (variable-pitch nil :family "InputSerifCompressed" :height 90)
+        (font-lock-comment-face nil :slant italic)
+        (font-lock-string-face nil :inherit variable-pitch))
+    '((default nil :family "TamzenForPowerline" :height 109)
+      (variable-pitch nil :family "Noto Sans" :height 110)))
+  "Font faces dependant on the current machine")
+
+(dolist (face my-font-faces) (apply #'set-face-attribute face))
 
 ;; TODO make this a separate package
 (defface font-lock-fic-face
@@ -715,7 +747,9 @@ narrowed."
 (use-package pandoc-mode                ; Markup conversion tool
   :general
   ("C-c C-p" #'pandoc-mode)
-  (:keymaps 'pandoc-mode-map [remap pandoc-mode] #'pandoc-run-pandoc)
+  (:keymaps 'pandoc-mode-map
+            [remap pandoc-mode] #'pandoc-main-hydra/body
+            "C-c C-S-p" #'pandoc-run-pandoc)
   :config (setq pandoc-data-dir (expand-file-name "pandoc" my-dir)))
 
 (use-package real-auto-save             ; Auto save buffers
@@ -778,6 +812,7 @@ narrowed."
 (use-package org
   :general
   (:keymaps 'org-mode-map [remap my-narrow-or-widen-dwim] #'my-org-narrow-or-widen-dwim)
+
   :config
   (defun my-org-narrow-or-widen-dwim (p)
     "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
@@ -794,11 +829,15 @@ narrowed."
           ((region-active-p) (narrow-to-region (region-beginning) (region-end)))
           ((org-in-src-block-p) (org-edit-src-code))
           ((org-at-block-p) (org-narrow-to-block))
-          (t (org-narrow-to-subtree)))))
+          (t (org-narrow-to-subtree))))
+
+  (dolist (face '(org-table org-block org-code))
+    (set-face-attribute face nil :family (face-attribute 'default :family)))
+  (set-face-attribute 'org-table nil :foreground nil :inherit 'font-lock-string-face)
+
+  (setq org-pretty-entities t))
 
 ;;;; Elisp
-(general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
-
 (use-package outline
   :init
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
