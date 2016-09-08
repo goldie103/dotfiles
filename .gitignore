@@ -3,6 +3,7 @@
 /termite.ini
 /i3/init.conf
 /i3/status.conf
+/qutebrowser/qutebrowser.ini
 # pycache
 __pycache__
 # autosave files

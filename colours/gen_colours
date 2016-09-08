@@ -10,13 +10,15 @@ from os.path import join, realpath, dirname
 SCRIPT_PATH = dirname(realpath(__file__))
 SOURCE = join(SCRIPT_PATH, "colours.txt")
 FILES = [join(SCRIPT_PATH, i) for i in
-         ["termite.ini", "Xresources", "i3/init.conf", "i3/status.conf"]]
+         ["termite.ini", "Xresources",
+         "i3/init.conf", "i3/status.conf",
+         "qutebrowser/qutebrowser.ini"]]
 OUTDIR = environ["DOT"]
 
 
 parser = ArgumentParser(description="Fill configuration files with specified colour values")
 parser.add_argument("-v", "--verbose", action="store_true", help="Show more text")
-parser.add_argument("-e", "--headerend", default=" --- (TEMPLATE) ---",
+parser.add_argument("-e", "--headerend", default="--- (TEMPLATE) ---",
                     help="String that line must end with to indicate template files")
 parser.add_argument("-c", "--comment", default="#",
                     help="Lines to disregard within the source file")
