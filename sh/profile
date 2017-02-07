@@ -1,2 +1,4 @@
-# start X server
+# Set PATH as it can't be set in env
+export PATH="$PATH:$XDG_DATA_HOME/bin"
+# Start X server
 [[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx $XDG_CONFIG_HOME/X11/xinitrc

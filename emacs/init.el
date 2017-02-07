@@ -1,21 +1,3 @@
-(dolist (spec '((outline-1 . 270)
-                  (outline-2 . 180)
-                  (outline-3 . 120)
-                  (outline-4 . 120)
-                  (outline-5 . 120)
-                  (outline-6 . 75)
-                  (outline-7 . 75)
-                  (outline-8 . 75)))
-    (set-face-attribute
-     (car spec) nil
-     :foreground (let* ((face (car spec))
-                        (fg (face-attribute face :foreground)))
-                   (when (eq fg 'unspecified)
-                     (setq fg (face-attribute (face-attribute face :inherit) :foreground)))
-                   fg)
-     :height (cdr spec)
-     :inherit 'my-headline-face))
-
 ;;; Setup
 
 ;;;; Helper functions
@@ -486,6 +468,13 @@ narrowed."
 
 (dolist (face my-font-faces) (apply #'set-face-attribute face))
 
+(defface my-headline-face
+  `((t ,@(if my-desktop-p '(:family "FabfeltScript Bold" :height 150)
+           '(:family "Superscript" :height 150))))
+  "Face for headlines"
+  :group 'faces)
+
+
 ;; TODO make this a separate package
 (defface font-lock-fic-face
   '((t (:underline t :bold nil :inherit error)))
@@ -514,8 +503,15 @@ narrowed."
 (use-package golden-ratio :disabled t   ; Window resizing
   :init (golden-ratio-mode t))
 
-(use-package hideshow :disabled t       ; Code folding
-  (use-package hideshowvis))
+(use-package hideshow                   ; Code folding
+  :general
+  (:keymaps 'hs-minor-mode-map
+            "TAB" #'hs-toggle-hiding
+            "<C-tab>" #'hs-hide-level)
+  :init
+  (use-package hideshowvis)
+  (add-hook 'java-mode-hook #'hs-minor-mode)
+  :config)
 
 (use-package popwin :disabled t       ; Popup window for minor buffers
   :init (popwin-mode t))
@@ -553,7 +549,7 @@ narrowed."
 (use-package avy                        ; Jump to specific points
   :general
   ("C-e" #'avy-goto-word-1 "C-S-e" #'avy-goto-line)
-  (:states 'motion "C-e" nil)
+  (:keymaps 'evil-motion-state-map "C-e" nil)
   (:keymaps 'org-mode-map "C-e" nil)
   :config (setq avy-background t))
 
@@ -799,14 +795,17 @@ narrowed."
   :general ("<C-f10>" #'git-timemachine-toggle))
 
 ;;; Languages
-(use-package lua-mode)
 (use-package gitignore-mode)
-(use-package markdown-mode)
-(use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
+(use-package arduino-mode)
 (use-package ess)
+(use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
 (use-package generic-x :disabled t)
 (use-package elpy :init (elpy-enable))
-(use-package arduino-mode)
+(use-package lua-mode :config (setq lua-indent-level 2))
+
+(use-package markdown-mode
+  :config
+  (setq markdown-header-face 'my-headline-face))
 
 ;;;; Org
 (use-package org
@@ -861,12 +860,6 @@ narrowed."
   (use-package outline-magic
     :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
 
-  (defface my-headline-face
-    `((t ,@(if my-desktop-p '(:family "FabfeltScript Bold" :height 150)
-             '(:family "Superscript" :height 150))))
-    "Face for headlines"
-    :group 'faces)
-
   (dolist (spec '((outline-1 . 150)
                   (outline-2 . 150)
                   (outline-3 . 150)
@@ -902,7 +895,8 @@ narrowed."
   :defines my-sass-output-dir
   :mode "\\.s[ac]ss$"
   :config
-  (defcustom my-sass-output-dir "../"
+  (setq css-indent-offset 2)
+  (defcustom my-sass-output-dir nil
     "Directory to store compiled sass files."
     :group 'css)
 
@@ -911,13 +905,17 @@ narrowed."
     (interactive)
     (let ((sass-command "sass"))
       (shell-command
-       (format
-        "%s --watch '%s':'%s%s.css'&"
-        sass-command
-        buffer-file-name
-        (or my-sass-output-dir "")
-        (file-name-nondirectory
-         (file-name-sans-extension buffer-file-name))))))
+       (if my-sass-output-dir
+           (format
+            "%s --watch '%s':'%s%s.css'&"
+            sass-command
+            buffer-file-name
+            (or my-sass-output-dir "")
+            (file-name-nondirectory
+             (file-name-sans-extension buffer-file-name)))
+         (format
+          ("%s --watch' %s' &" buffer-file-name)))
+       )))
 
   ;; Run `prog-mode-hook' manually since `css-mode' doesn't derive from it
   (add-hook 'css-mode-hook (lambda () (run-hooks 'prog-mode-hook)))

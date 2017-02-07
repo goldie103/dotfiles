@@ -99,3 +99,6 @@ vimp_plugin "stylish.js"
 
 # Termite
 l termite.ini $XDG_CONFIG_HOME/termite/config
+
+# bin
+l bin $XDG_DATA_HOME/bin

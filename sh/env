@@ -1,15 +1,23 @@
 # vim: set ft=sh
+
+# XDG directories
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-export PATH="$PATH:$XDG_DATA_HOME/bin"
+# Java classpath
 export CLASSPATH=".:/usr/share/java/junit.jar:/usr/share/java/hamcrest/core.jar"
 
+# Python virtualenvwrapper
+export WORKON_HOME="$XDG_DATA_HOME/py-env"
+export PROJECT_HOME="$HOME/dev"
+
+# ZSH cleanliness
 export ZDOTDIR="$XDG_CONFIG_HOME"/zsh
 export ADOTDIR="$ZDOTDIR"/antigen
 export HISTFILE="$ZDOTDIR"/history
-export XINITRC="$XDG_CONFIG_HOME"/X11/xinitrc
+
+# Editor
 export VIMPERATOR_RUNTIME="$XDG_CONFIG_HOME"/vimperator
 export VIMPERATOR_INIT=":source $VIMPERATOR_RUNTIME/init.vimp"
 export ALTERNATE_EDITOR=""
