@@ -448,10 +448,13 @@ narrowed."
 
 (use-package rainbow-mode)
 
-(use-package fill-column-indicator
-  :init (add-hook 'prog-mode-hook #'fci-mode)
-  :config (setq fci-rule-color "#3c3836"
-                fci-always-use-textual-rule t))
+(use-package whitespace
+	:init (add-hook 'prog-mode-hook #'whitespace-mode)
+	:config
+	(setq
+	 whitespace-line-column nil
+	 whitespace-style '(face trailing lines-tail)
+	 whitespace-action '(auto-cleanup warn-if-read-only)))
 
 ;;;; My faces
 (set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
@@ -668,21 +671,6 @@ narrowed."
                      "M-d" #'company-show-doc-buffer)
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
-
-  ;; Make it work with `fci-mode'
-  (defvar company-fci-mode-on-p nil "Whether `fci-mode' is on.")
-
-  (defun company-turn-off-fci (&rest ignore)
-    (when (boundp 'fci-mode)
-      (setq company-fci-mode-on-p fci-mode)
-      (when fci-mode (fci-mode -1))))
-
-  (defun company-maybe-turn-on-fci (&rest ignore)
-    (when company-fci-mode-on-p (fci-mode 1)))
-
-  (add-hook 'company-completion-started-hook 'company-turn-off-fci)
-  (add-hook 'company-completion-finished-hook 'company-maybe-turn-on-fci)
-  (add-hook 'company-completion-cancelled-hook 'company-maybe-turn-on-fci)
 
   (setq company-idle-delay 0            ; immediate completion attempt
         company-show-numbers t          ; allow M-num selection
