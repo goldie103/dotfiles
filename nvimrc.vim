@@ -1,4 +1,6 @@
 " Kelly Stewart
+
+" Install plugin manager if it doesn't exit
 if empty(glob('$XDG_CONFIG_HOME/nvim/autoload/plug.vim'))
   silent !curl -fLo $XDG_CONFIG_HOME/nvim/autoload/plug.vim --create-dirs
    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
@@ -9,9 +11,7 @@ call plug#begin('$XDG_CONFIG_HOME/nvim/plugged')
 Plug 'tpope/vim-sensible'             " sane defaults
 Plug 'tpope/vim-surround'             " deal with surrounding elements
 Plug 'bling/vim-airline'              " status bar additions
-Plug 'bling/vim-bufferline'           " buffer list in command or status bar
-Plug 'justinmk/vim-sneak'             " extended f
-Plug 'vimperator/vimperator.vim'      " vimperatorrc syntax highlighting
+Plug 'kien/ctrlp'                     " fuzzy file finding
 Plug 'morhetz/gruvbox'                " theeeemee
 call plug#end()
 
@@ -37,20 +37,6 @@ let g:airline_symbols.linenr = ''
 let g:airline_symbols.paste = 'ρ'
 let g:airline_symbols.whitespace = 'Ξ'
 
-" Sneak
-nmap f <Plug>Sneak_f
-nmap F <Plug>Sneak_F
-xmap f <Plug>Sneak_f
-xmap F <Plug>Sneak_F
-omap f <Plug>Sneak_f
-omap F <Plug>Sneak_F
-nmap t <Plug>Sneak_t
-nmap T <Plug>Sneak_T
-xmap t <Plug>Sneak_t
-xmap T <Plug>Sneak_T
-omap t <Plug>Sneak_t
-omap T <Plug>Sneak_T
-
 color gruvbox
 set background=dark
 set showmatch                  " highlight matching brackets
@@ -58,7 +44,7 @@ set matchpairs=(:),{:},[:],<:> " include angle brackets in matching
 set cursorline                 " highlight current line
 set lazyredraw	       	       " don't redraw when executing macros
 set scrolloff=3                " lines to keep visible above and below cursor
-set showcmd	            	   " display incomplete commands
+set showcmd	            	     " display incomplete commands
 set noeb novb 	               " don't beep or flash
 set cmdheight=2                " prevent frequent need to scroll long commands
 set number relativenumber      " show both relative and absolute line numbers
@@ -72,14 +58,17 @@ set wrap textwidth=80          " wrap lines at 100 cols
 set ignorecase smartcase incsearch " search settings
 set fic wic                     " ignore case in file names
 set hidden                      " allow hidden buffers to show
-set nobackup nowb noswapfile	" turn off all backup/temp files
-set autoread			" autoread a file when changed from outside
-set mouse=a	                " enable mouse if possible
+set nobackup nowb noswapfile	  " turn off all backup/temp files
+set autoread			              " autoread a file when changed from outside
+set mouse=a	                    " enable mouse if possible
 set encoding=utf-8              " unicode forever
 set gdefault                    " global substitutions as default
 set autochdir                   " change to dir of file in buffer
 set clipboard=unnamedplus       " use system clipboards
-set paste                       " paste from system
+
+" For some reason, enabling this makes
+" fd <Esc> mapping cease working
+"set paste                       " paste from system
 
 let mapleader = ','             " easier to reach
 
@@ -89,24 +78,19 @@ autocmd BufReadPost *
     \   exe "normal! g`\"" |
     \ endif
 
-" insert a single char
-nnoremap \ a_<Esc>r
 " file operations
-nnoremap <leader>w :w<CR>
-nnoremap <leader>e <C-p>
-" backspace in Visual mode deletes selection
-vnoremap <BS> d
-" stops C-U in insert mode deleting so much
-inoremap <C-U> <C-G>u<C-U>
-" more consistent behavior with change and delete
-noremap Y y$
-" easier to reach commands for common movements
-noremap " %
-noremap <TAB> za
-noremap <f1> :h 
-noremap <SPACE> :
+noremap <leader>w :w<CR>
+noremap <leader>e <C-p>
 noremap <leader>b :bn<CR>
-noremap fd <ESC>
+" stop C-U in insert mode deleting so much
+inoremap <C-U> <C-G>u<C-U>
+" easier to reach commands for common movements
+nnoremap Y y$
+noremap " %
+noremap <SPACE> :
+inoremap fd <Esc>
+vnoremap fd <Esc>
+cnoremap fd <Esc>
 " move through wrapped lines visually
 noremap j gj
 noremap k gk
