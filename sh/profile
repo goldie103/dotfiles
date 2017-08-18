@@ -21,7 +21,7 @@ export HISTFILE="$ZDOTDIR"/history
 export VIMPERATOR_RUNTIME="$XDG_CONFIG_HOME"/vimperator
 export VIMPERATOR_INIT=":source $VIMPERATOR_RUNTIME/init.vimp"
 export ALTERNATE_EDITOR=""
-export EDITOR='nvim'
+export EDITOR='vi'
 export VISUAL='emacsclient -ca emacs'
 
 export UDIR=/media/User && [[ ! -d $UDIR ]] && export UDIR=$HOME
