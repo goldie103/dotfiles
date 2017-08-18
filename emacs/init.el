@@ -29,7 +29,7 @@ define it as ELEMENTS."
 (add-to-list 'load-path my-dir-packages)
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
-(defvar my-desktop-p (not (string= system-name "hraesvelgr")) "Non-nil if on desktop machine")
+(defvar my-desktop-p (string= (system-name) "lyngbakr") "Non-nil if on desktop machine")
 
 (setq custom-file (expand-file-name "custom.el" my-dir))
 (load custom-file 'no-error 'no-message)
@@ -198,7 +198,6 @@ narrowed."
 (general-define-key
  "M-SPC" #'cycle-spacing
  "RET" #'newline-and-indent
- "C-x C-S-c" #'restart-emacs
  "C-x n" #'my-narrow-or-widen-dwim
  "<up>" #'scroll-down
  "<down>" #'scroll-up
@@ -322,7 +321,7 @@ narrowed."
 
 ;;;;; Helm Init
   (helm-mode t)
-  
+
 ;;;;; Helm Bindings
   :general
   ([remap execute-extended-command] #'helm-M-x
@@ -346,7 +345,7 @@ narrowed."
 
   (:keymaps 'emacs-lisp-mode-map "C-/"#'helm-semantic-or-imenu)
   (:keymaps 'helm-buffer-map
-            "C-d" #'helm-buffer-run-kill-buffer
+            "C-d" #'helm-buffer-run-kill-persistent
             "<C-return>" #'helm-buffer-switch-other-window)
   (:keymaps 'helm-map
             "M-d" #'helm-scroll-other-window
@@ -367,7 +366,7 @@ narrowed."
     :config
     (setq helm-ff-auto-update-initial-value t
           helm-ff-file-name-history-use-recentf t
-          helm-ff-skip-boring-files t)) 
+          helm-ff-skip-boring-files t))
 
   (setq helm-move-to-line-cycle-in-source t     ; cycle on end
         helm-scroll-amount 5                    ; other window scroll
@@ -395,7 +394,7 @@ narrowed."
   :demand t
   :config (load-theme 'gruvbox)
   (set-face-attribute 'default nil :foreground "#ebdbb2")
-  (set-face-attribute 'highlight nil :background "#3c3836")
+  (set-face-attribute 'highlight nil :foreground nil :background "#3c3836")
   (set-face-attribute 'shadow nil :background "#1d2021"))
 
 ;;;; Modeline
@@ -415,10 +414,7 @@ narrowed."
      ("^~/\\([^/]+\\)/" ":\\1:"))))
 
 (use-package nyan-mode                  ; essential package
-  :init (nyan-mode t)
-  :config
-  ;; FIXME this doesn't work
-  (setq nyan-wavy-trail t))
+  :init (nyan-mode t))
 
 (use-package which-func                 ; Modeline definition name
   :init (which-function-mode t)
@@ -429,24 +425,12 @@ narrowed."
   :init (add-hook 'text-mode-hook #'wc-goal-mode))
 
 ;;;; Faces
-(use-package hl-line
-  :init (add-hook 'prog-mode-hook #'hl-line-mode)
-  :config (setq hl-line-face 'highlight))
-
-(use-package hl-sentence
-  :init (add-hook 'text-mode-hook #'hl-sentence-mode)
-  :config (set-face-attribute 'hl-sentence-face nil :inherit 'highlight))
-
-(use-package highlight-numbers
-  :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
-
-(use-package page-break-lines         ; Horizontal lines instead of ^L
-  :init (global-page-break-lines-mode t))
-
-(use-package rainbow-delimiters
-  :init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
-
-(use-package rainbow-mode)
+(use-package hl-line :init (add-hook 'prog-mode-hook #'hl-line-mode))
+(use-package hl-sentence :init (add-hook 'text-mode-hook #'hl-sentence-mode))
+(use-package highlight-numbers :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
+(use-package page-break-lines :init (global-page-break-lines-mode t))
+(use-package rainbow-delimiters :init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
+(use-package rainbow-mode :init (add-hook 'css-mode-hook #'rainbow-mode))
 
 (use-package whitespace
 	:init (add-hook 'prog-mode-hook #'whitespace-mode)
@@ -465,15 +449,15 @@ narrowed."
         (variable-pitch nil :family "InputSerifCompressed" :height 90)
         (font-lock-comment-face nil :slant italic)
         (font-lock-string-face nil :inherit variable-pitch))
-    '((default nil :family "TamzenForPowerline" :height 109)
-      (variable-pitch nil :family "Noto Sans" :height 110)))
+    '((default nil :family "ypn envypn" :height 80)
+      (variable-pitch nil :family "Sans" :height 110)))
   "Font faces dependant on the current machine")
 
 (dolist (face my-font-faces) (apply #'set-face-attribute face))
 
 (defface my-headline-face
   `((t ,@(if my-desktop-p '(:family "FabfeltScript Bold" :height 150)
-           '(:family "Superscript" :height 150))))
+           '(:family "artwiz fkp"))))
   "Face for headlines"
   :group 'faces)
 
@@ -589,7 +573,7 @@ narrowed."
   :general (:keymaps 'my-evil-leader-map
                      "p" #'projectile-find-file-dwim
                      "P" #'projectile-switch-project)
-  :init (projectile-global-mode t)
+  :init (projectile-mode t)
   :config
   (setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
         projectile-known-projects-file (expand-file-name "projectile.eld" my-dir)
@@ -632,8 +616,10 @@ narrowed."
   (use-package flycheck-tip             ; Display errors by popup
     :general
     ([remap flycheck-next-error] #'flycheck-tip-cycle
-     [remap flycheck-previous-error] #'flycheck-tip-cycle-reverse)
-    :config (flycheck-tip-use-timer 'normal)))
+     [remap flycheck-previous-error] #'flycheck-tip-cycle-reverse))
+
+  (use-package flycheck-pos-tip
+    :init (add-hook 'flycheck-mode-hook #'flycheck-pos-tip-mode)))
 
 (use-package lorem-ipsum                ; Insert filler text
   :functions my-lorem-sgml-settings
@@ -677,7 +663,7 @@ narrowed."
         company-tooltip-align-annotations t
         company-selection-wrap-around t)
 
-  (remove 'company-dabbrev 'company-backends))
+  (delete 'company-dabbrev company-backends))
 
 (use-package ispell                     ; Spell checking
   :functions my-ispell-run-together
@@ -788,12 +774,26 @@ narrowed."
 (use-package ess)
 (use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
 (use-package generic-x :disabled t)
-(use-package elpy :init (elpy-enable))
+(use-package elpy :after python :config (elpy-enable))
 (use-package lua-mode :config (setq lua-indent-level 2))
 
 (use-package markdown-mode
   :config
   (setq markdown-header-face 'my-headline-face))
+
+(use-package tex
+  :ensure nil
+  :config
+  (use-package auctex
+    :config
+    (use-package company-auctex
+      :after company
+      :init
+      (add-hook 'TeX-mode-hook #'company-auctex-init)))
+  (setq TeX-auto-save t
+        TeX-parse-self t)
+  (add-hook 'LaTeX-mode-hook #'auto-fill-mode)
+  (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode))
 
 ;;;; Org
 (use-package org
@@ -848,23 +848,24 @@ narrowed."
   (use-package outline-magic
     :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
 
-  (dolist (spec '((outline-1 . 150)
-                  (outline-2 . 150)
-                  (outline-3 . 150)
-                  (outline-4 . 90)
-                  (outline-5 . 90)
-                  (outline-6 . 90)
-                  (outline-7 . 90)
-                  (outline-8 . 90)))
-    (set-face-attribute
-     (car spec) nil
-     :foreground (let* ((face (car spec))
-                        (fg (face-attribute face :foreground)))
-                   (when (eq fg 'unspecified)
-                     (setq fg (face-attribute (face-attribute face :inherit) :foreground)))
-                   fg)
-     :height (cdr spec)
-     :inherit 'my-headline-face)))
+  (when my-desktop-p
+    (dolist (spec '((outline-1 . 150)
+                    (outline-2 . 150)
+                    (outline-3 . 150)
+                    (outline-4 . 90)
+                    (outline-5 . 90)
+                    (outline-6 . 90)
+                    (outline-7 . 90)
+                    (outline-8 . 90)))
+      (set-face-attribute
+       (car spec) nil
+       :foreground (let* ((face (car spec))
+                          (fg (face-attribute face :foreground)))
+                     (when (eq fg 'unspecified)
+                       (setq fg (face-attribute (face-attribute face :inherit) :foreground)))
+                     fg)
+       :height (cdr spec)
+       :inherit 'my-headline-face))))
 
 (use-package eldoc                    ; Documentation in echo area
   :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
@@ -886,6 +887,7 @@ narrowed."
   (setq css-indent-offset 2)
   (defcustom my-sass-output-dir nil
     "Directory to store compiled sass files."
+    :type 'variable
     :group 'css)
 
   (defun my-sass-watch ()
@@ -894,16 +896,12 @@ narrowed."
     (let ((sass-command "sass"))
       (shell-command
        (if my-sass-output-dir
-           (format
-            "%s --watch '%s':'%s%s.css'&"
-            sass-command
-            buffer-file-name
-            (or my-sass-output-dir "")
-            (file-name-nondirectory
-             (file-name-sans-extension buffer-file-name)))
-         (format
-          ("%s --watch' %s' &" buffer-file-name)))
-       )))
+           (format "%s --watch '%s':'%s%s.css'&"
+                   sass-command buffer-file-name
+                   (or my-sass-output-dir "")
+                   (file-name-nondirectory
+                    (file-name-sans-extension buffer-file-name)))
+         (format "%s --watch' %s' &" sass-command buffer-file-name)))))
 
   ;; Run `prog-mode-hook' manually since `css-mode' doesn't derive from it
   (add-hook 'css-mode-hook (lambda () (run-hooks 'prog-mode-hook)))
@@ -921,6 +919,9 @@ narrowed."
         web-mode-css-indent-offset 2
         web-mode-code-indent-offset 2
         web-mode-markup-indent-offset 2))
+
+
+(server-start)
 
 ;;; Local Variables
 ;; Local Variables:
