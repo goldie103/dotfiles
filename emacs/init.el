@@ -12,7 +12,6 @@ define it as ELEMENTS."
       (set list-var l)))
   (symbol-value list-var))
 
-
 ;;;; Constants
 (defconst my-dir
   (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
@@ -52,12 +51,22 @@ define it as ELEMENTS."
   (defvar use-package-enable-imenu-support)
   (setq use-package-enable-imenu-support t)
   (require 'use-package))
+
 (setq
  use-package-verbose t             ; log message after loading a package
  use-package-always-ensure t       ; ensure all packages are installed
  use-package-always-defer t)       ; defer all packages
+
 (use-package general)
 
+(use-package delight
+    :init
+    (delight '((undo-tree-mode nil undo-tree)
+               (helm-mode nil)
+               (auto-fill-function nil auto-fill-mode)))
+    ;; This has to be done manually for some reason
+    (eval-after-load 'auto-fill-mode
+      (setcar (cdr (assq 'auto-fill-function minor-mode-alist)) nil)))
 
 ;;; Basic settings
 (setq
@@ -180,7 +189,6 @@ narrowed."
 
 ;; Mode hooks
 (dolist (hook '((prog-mode-hook
-                 prettify-symbols-mode  ; replace words with symbols
                  auto-fill-mode         ; auto fill text past fill-col
                  goto-address-prog-mode ; buttonize URLs in comments and strings
                  line-number-mode       ; line number in modeline
@@ -242,12 +250,15 @@ narrowed."
 
 (general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
 
+
+
 ;;; Major packages
 ;;;; Evil
 (use-package evil
   :init
 ;;;;; Evil Packages
   (use-package evil-escape      ; escape from everything with two keys
+    :delight
     :init (add-hook 'evil-mode-hook #'evil-escape-mode))
 
   (use-package evil-surround            ; surround operator
@@ -301,9 +312,17 @@ narrowed."
 
 ;;;; Helm
 (use-package helm-config :ensure helm
+  :delight helm-mode
   :init
 ;;;;; Helm Packages
-  (use-package helm-dash :disabled t)   ; TODO language documentation
+
+  (use-package helm-eshell :ensure nil
+    :general ([remap eshell-list-history] #'helm-eshell-history))
+
+  (use-package helm-dash                ; Language documentation
+    :config
+    (setq helm-dash-docsets-path
+          (expand-file-name "dash" (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
 
   (use-package helm-descbinds        ; `describe-bindings' replacement
     :init (add-hook 'helm-mode-hook #'helm-descbinds-mode)
@@ -319,7 +338,12 @@ narrowed."
     (setq helm-swoop-speed-or-color t
           helm-swoop-use-fuzzy-match t))
 
+  (use-package helm-flx
+    :init (helm-flx-mode t)
+    :config (setq helm-flx-for-helm-locate t))
+
 ;;;;; Helm Init
+  (setq helm-split-window-inside-p t)          ; split in current window
   (helm-mode t)
 
 ;;;;; Helm Bindings
@@ -341,15 +365,18 @@ narrowed."
    [remap manual-entry] #'helm-man-woman
    [remap apropos] #'helm-apropos
    [remap apropos-command] #'helm-apropos
-   [remap apropos-documentation] #'helm-apropos)
+   [remap apropos-documentation] #'helm-apropos
+   "C-SPC" #'helm-resume)
 
-  (:keymaps 'emacs-lisp-mode-map "C-/"#'helm-semantic-or-imenu)
+  (:keymaps 'emacs-lisp-mode-map
+            "C-/"#'helm-semantic-or-imenu)
   (:keymaps 'helm-buffer-map
             "C-d" #'helm-buffer-run-kill-persistent
             "<C-return>" #'helm-buffer-switch-other-window)
   (:keymaps 'helm-map
             "M-d" #'helm-scroll-other-window
             "M-u" #'helm-scroll-other-window-down)
+  (:keymaps 'helm-find-files-map "C-d" #'helm-ff-persistent-delete)
 ;;;;; Helm Config
   :config
   (set-face-attribute 'helm-buffer-directory nil :inherit 'dired-directory
@@ -358,21 +385,46 @@ narrowed."
                       :inherit 'font-lock-warning-face
                       :foreground nil :background nil :inverse-video nil)
 
+  (use-package helm-adaptive-done :ensure nil
+    :config (helm-adaptive-mode t))
+
+  (use-package helm-utils
+    :config (helm-popup-tip-mode t))
+
   (use-package helm-mode :ensure nil
     :config
     (setq helm-completion-in-region-fuzzy-match t
           helm-mode-fuzzy-match t))
+
+  (use-package helm-for-files :ensure nil
+    :config (setq helm-recentf-fuzzy-match t))
+
+
   (use-package helm-files :ensure nil
     :config
     (setq helm-ff-auto-update-initial-value t
           helm-ff-file-name-history-use-recentf t
           helm-ff-skip-boring-files t))
 
+  (use-package helm-command :ensure nil
+    :config
+    (setq helm-M-x-fuzzy-match t))
+
+  (use-package helm-imenu :ensure nil
+    :config (setq helm-imenu-fuzzy-match t))
+
+  (use-package helm-semantic :ensure nil
+    :config (setq helm-semantic-fuzzy-match t))
+
   (setq helm-move-to-line-cycle-in-source t     ; cycle on end
+        helm-buffers-fuzzy-matching t
+        helm-apropos-fuzzy-match t
         helm-scroll-amount 5                    ; other window scroll
-        helm-split-window-in-side-p t           ; split in current window
-        helm-findutils-skip-boring-files t)
+        helm-allow-mouse t)
   (helm-autoresize-mode t))
+
+;;;; Async
+(use-package async :demand t)
 
 ;;; Help
 
@@ -380,9 +432,10 @@ narrowed."
   :general ([remap describe-mode] #'discover-my-major))
 
 (use-package guide-key            ; delayed completion for prefix keys
+  :delight
   :init (guide-key-mode t)
   :config (setq guide-key/recursive-key-sequence-flag t
-                guide-key/guide-key-sequence '("C-x" "C-c" "C-w" ",")))
+                guide-key/guide-key-sequence '("C-x" "C-c" "C-w" "," "<f1>")))
 
 (use-package info
   :config
@@ -390,58 +443,107 @@ narrowed."
 
 ;;; Appearance
 ;;;; Theme
-(use-package gruvbox-theme
-  :demand t
+(use-package gruvbox-theme :disabled t
+  ;;:demand t
   :config (load-theme 'gruvbox)
   (set-face-attribute 'default nil :foreground "#ebdbb2")
   (set-face-attribute 'highlight nil :foreground nil :background "#3c3836")
   (set-face-attribute 'shadow nil :background "#1d2021"))
 
+(use-package doom-themes :demand t
+  :defines (doom-themes-enable-bold
+            doom-themes-enable-italic
+            doom-neotree-file-icons)
+  :init
+  (use-package all-the-icons)
+  (use-package solaire-mode
+    :init
+    (add-hook 'after-change-major-mode-hook #'solaire-mode)
+    (add-hook 'after-revert-hook #'solaire-mode)
+    (add-hook 'minibuffer-setup-hook #'solaire-mode-in-minibuffer)
+    (solaire-mode-swap-bg))
+  :config
+  (setq doom-themes-enable-bold t
+        doom-themes-enable-italic t
+        doom-neotree-file-icons t)
+  (load-theme 'doom-vibrant t)
+  (doom-themes-visual-bell-config)
+  (doom-themes-neotree-config)
+  (doom-themes-org-config))
+
 ;;;; Modeline
-(use-package smart-mode-line
+(use-package smart-mode-line :disabled t
   :commands sml/faces-from-theme
   :init
   (sml/setup)
   :config
   (setq
-   rm-blacklist
-   '(" Fly" " ARev" " Wrap" " BufFace" " Eldoc" " RAS" " Outl" " SliNav" " ws"
-     " PgLn" " Guide" " Helm" " Undo-Tree" " Fill" " fd" " Abbrev")
    sml/replacer-regexp-list
    '(("^~/\\.emacs\\.d/elpa/" ":ELPA:")
      ("^~/dotfiles/" ":.:")
      ("^~/doc/" ":Doc:")
      ("^~/\\([^/]+\\)/" ":\\1:"))))
 
-(use-package nyan-mode                  ; essential package
+(use-package spaceline-config
+  :demand t
+  :ensure spaceline
+  :config
+  (spaceline-spacemacs-theme)
+  (spaceline-helm-mode t))
+
+(use-package spaceline-all-the-icons
+  :demand t
+  :after spaceline
+  :config
+  (spaceline-all-the-icons-theme)
+  (spaceline-all-the-icons--setup-anzu)
+  (spaceline-all-the-icons--setup-package-updates)
+  (spaceline-all-the-icons--setup-git-ahead)
+  (spaceline-all-the-icons--setup-paradox)
+  (spaceline-all-the-icons--setup-neotree)
+  (spaceline-toggle-all-the-icons-battery-status-off)
+  (spaceline-toggle-all-the-icons-time-off)
+  (spaceline-toggle-all-the-icons-git-status-on)
+  (setq spaceline-all-the-icons-separator-type 'wave)
+  ;; Required for doom-theme
+  (dolist (face '(spaceline-highlight-face powerline-active2 mode-line))
+    (set-face-attribute face nil :background "#1e2128")))
+
+(use-package nyan-mode :disabled t      ; essential package
   :init (nyan-mode t))
 
 (use-package which-func                 ; Modeline definition name
-  :init (which-function-mode t)
-  :config
-  (set-face-attribute 'which-func nil :foreground nil :inherit 'font-lock-function-name-face))
+  :init (which-function-mode t))
 
 (use-package wc-goal-mode               ; Modeline word count
   :init (add-hook 'text-mode-hook #'wc-goal-mode))
+
+(use-package anzu
+  :init (global-anzu-mode t))
+
+(spaceline-ml-all-the-icons)
+
 
 ;;;; Faces
 (use-package hl-line :init (add-hook 'prog-mode-hook #'hl-line-mode))
 (use-package hl-sentence :init (add-hook 'text-mode-hook #'hl-sentence-mode))
 (use-package highlight-numbers :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
-(use-package page-break-lines :init (global-page-break-lines-mode t))
-(use-package rainbow-delimiters :init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
+(use-package page-break-lines :init (global-page-break-lines-mode t) :delight)
 (use-package rainbow-mode :init (add-hook 'css-mode-hook #'rainbow-mode))
+(use-package rainbow-delimiters :init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
+(use-package rainbow-blocks)
 
 (use-package whitespace
-	:init (add-hook 'prog-mode-hook #'whitespace-mode)
-	:config
-	(setq
-	 whitespace-line-column nil
-	 whitespace-style '(face trailing lines-tail)
-	 whitespace-action '(auto-cleanup warn-if-read-only)))
+  :delight
+  :init (add-hook 'prog-mode-hook #'whitespace-mode)
+  :config
+  (setq
+   whitespace-line-column nil
+   whitespace-style '(face trailing lines-tail)
+   whitespace-action '(auto-cleanup warn-if-read-only)))
 
 ;;;; My faces
-(set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
+;;(set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
 
 (defvar my-font-faces
   (if my-desktop-p
@@ -449,7 +551,7 @@ narrowed."
         (variable-pitch nil :family "InputSerifCompressed" :height 90)
         (font-lock-comment-face nil :slant italic)
         (font-lock-string-face nil :inherit variable-pitch))
-    '((default nil :family "ypn envypn" :height 80)
+    '((default nil :family "TamzenForPowerline" :height 105)
       (variable-pitch nil :family "Sans" :height 110)))
   "Font faces dependant on the current machine")
 
@@ -479,6 +581,12 @@ narrowed."
 
 ;;; Interface
 
+(use-package nlinum
+  :demand t
+  :init (add-hook 'prog-mode-hook #'nlinum-mode)
+  :config
+  (setq nlinum-highlight-current-line t))
+
 (use-package simple :ensure nil
   :config (setq find-file-visit-truename t))
 
@@ -487,8 +595,16 @@ narrowed."
   (use-package zone-nyan
     :config (setq zone-programs [zone-nyan])))
 
-(use-package golden-ratio :disabled t   ; Window resizing
-  :init (golden-ratio-mode t))
+(use-package golden-ratio               ; Window resizing
+  :delight
+  :init (golden-ratio-mode t)
+  :config
+  (setq golden-ratio-auto-scale t)
+
+  ;; https://tuhdo.github.io/helm-intro.html
+  (defun my-helm-alive-p ()
+    (if (boundp 'helm-alive-p) (symbol-value 'helm-alive-p)))
+  (add-to-list 'golden-ratio-inhibit-functions #'my-helm-alive-p))
 
 (use-package hideshow                   ; Code folding
   :general
@@ -499,9 +615,6 @@ narrowed."
   (use-package hideshowvis)
   (add-hook 'java-mode-hook #'hs-minor-mode)
   :config)
-
-(use-package popwin :disabled t       ; Popup window for minor buffers
-  :init (popwin-mode t))
 
 (use-package uniquify                 ; Distinguish same-named buffers
   :ensure nil
@@ -544,7 +657,7 @@ narrowed."
   :general ([remap other-window] #'ace-window)
   :config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
-(use-package desktop :disabled t        ; Save opened buffers, windows, frames
+(use-package desktop                    ; Save opened buffers, windows, frames
   :init (desktop-save-mode t)
   :config
   (setq desktop-auto-save-timeout 60
@@ -556,6 +669,49 @@ narrowed."
 (use-package expand-region :disabled t  ; Expand selection by blocks at a time
   :general (:keymaps 'motion "zz" #'er/expand-region)
   :config (setq expand-region-contract-fast-key "x"))
+
+(use-package dired
+  :ensure nil
+  :defines ls-lisp-dirs-first
+  :config
+  (use-package wdired)
+  (use-package dired-x :ensure nil :init (setq-default dired-omit-files-p t))
+  (use-package dired-aux :ensure nil)
+  (use-package dired-async :ensure nil :after async)
+  (use-package dired+)
+
+  (setq ls-lisp-dirs-first t
+        dired-recursive-copies 'always
+        dired-recursive-deletes 'always
+        dired-ls-F-marks-symlinks t
+        delete-by-moving-to-trash t))
+
+(use-package neotree
+  :general
+  (:keymaps 'my-evil-leader-map
+            "F" #'neotree-toggle
+            "M-f" #'neotree-find)
+  (:states 'normal :keymaps 'neotree-mode-map
+           "TAB" #'neotree-enter
+           "SPC" #'neotree-quick-look
+           "q" #'neotree-hide
+           "RET" #'neotree-enter)
+  :config (setq neo-smart-open t))
+
+;; The things I do to silence the byte compiler
+(progn
+  (use-package-ensure-elpa 'ranger 't
+                            '(:deferred t)
+                            :ensure)
+  (condition-case err
+      (ranger-override-dired-mode t)
+    ((debug error)
+     (ignore
+      (display-warning 'use-package
+                        (format "%s %s: %s" "ranger" ":init"
+                                (error-message-string err))
+                        :error)))))
+
 
 (use-package savehist                   ; Save command history
   :init (savehist-mode t)
@@ -571,10 +727,12 @@ narrowed."
 
 (use-package projectile                 ; Project-based navigation
   :general (:keymaps 'my-evil-leader-map
-                     "p" #'projectile-find-file-dwim
-                     "P" #'projectile-switch-project)
+                     "p" #'projectile-command-map
+                     "P" #'projectile-find-file-dwim)
   :init (projectile-mode t)
+  :demand t
   :config
+
   (setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
         projectile-known-projects-file (expand-file-name "projectile.eld" my-dir)
         projectile-mode-line
@@ -583,21 +741,64 @@ narrowed."
                   (format " Projectile[%s]" (projectile-project-name)))))
 
   (use-package helm-projectile
-    :general (:keymaps 'my-evil-leader-map
-                       [remap projectile-find-file-dwim] #'helm-projectile
-                       [remap projectile-switch-project] #'helm-projectile-switch-project)
+    :general
+    (:keymaps 'my-evil-leader-map
+              [remap projectile-find-file-dwim] #'helm-projectile-find-file-dwim)
+    (:keymaps 'projectile-command-map
+              [remap projectile-switch-project] #'helm-projectile-switch-project
+              [remap projectile-grep] #'helm-projectile-grep-or-ack
+              [remap projectile-ag] #'helm-projectile-ag
+              [remap projectile-find-file] #'helm-projectile-find-file)
     :init (helm-projectile-on)
-    :config (setq projectile-completion-system 'helm
-                  projectile-switch-project-action #'helm-projectile
+    :config
+    (defun neotree-and-helm-projectile ()
+      "Helper function to call both helm-projectile and neotree-projectile-action"
+      (neotree-projectile-action)
+      (helm-projectile))
+
+    (setq projectile-completion-system 'helm
+                  projectile-switch-project-action #'neotree-and-helm-projectile
                   helm-projectile-fuzzy-match t)))
 
 ;;; Editing
+
+(use-package eshell
+  :general
+  ("<f12>" #'eshell-here)
+  (:keymaps 'eshell-mode-map
+   [remap eshell-complete] #'helm-esh-pcomplete
+   "M-p" #'helm-eshell-history)
+
+  :init
+  ;; from http://www.howardism.org/Technical/Emacs/eshell-fun.html
+  (defun eshell-here ()
+    "Open a new shell in the current buffer's directory"
+    (interactive)
+    (let* ((parent (if (buffer-file-name)
+                       (file-name-directory (buffer-file-name))
+                     default-directory))
+           (height (/ (window-total-height) 3))
+           (name (format "*eshell: %s*" (car (last (split-string parent "/" t))))))
+      (split-window-vertically (- height))
+      (if (get-buffer name)
+          (switch-to-buffer name)
+        (eshell "new")
+        (rename-buffer name))
+      (shrink-window height)))
+
+  :config
+
+  (use-package pcomplete-extension)
+
+  (add-hook 'eshell-mode-hook #'eshell-cmpl-initialize)
+  (add-hook 'eshell-mode-hook #'company-mode))
 
 (use-package multiple-cursors :disabled t
   :init (multiple-cursors-mode t))
 
 (use-package drag-stuff :disabled t
   :init (drag-stuff-global-mode t))
+
 
 (use-package flycheck
   :general (:keymaps 'my-evil-leader-map
@@ -651,6 +852,7 @@ narrowed."
   :init (auto-insert-mode t))
 
 (use-package company                    ; Autocompletion
+  :delight
   :general (:keymaps 'company-active-map
                      "M-j" #'company-select-next
                      "M-k" #'company-select-previous
@@ -723,6 +925,7 @@ narrowed."
   :config (setq pandoc-data-dir (expand-file-name "pandoc" my-dir)))
 
 (use-package real-auto-save             ; Auto save buffers
+  :delight
   :commands real-auto-save-mode
   :init (add-hook 'after-save-hook #'real-auto-save-mode)
   :config (setq real-auto-save-interval 60))
@@ -742,8 +945,8 @@ narrowed."
 
 (use-package paradox                    ; Better package management
   :config
-  (use-package async)
-  (setq paradox-execute-asynchronously t))
+  (setq paradox-execute-asynchronously t
+        paradox-github-token "c840fc991fed833ee5c0805d12eb2e996381708a"))
 
 (use-package ediff                      ; Emacs diff utility
   :general (:keymaps 'ediff-mode
@@ -754,12 +957,10 @@ narrowed."
   :general
   ("<f10>" #'magit-status)
   (:keymaps 'magit-status-mode-map
-            "SPC" #'execute-extended-command
-            "j" #'next-line
-            "k" #'previous-line
-            "C" #'magit-commit
-            "C-=" #'magit-diff-working-tree)
+            "SPC" #'execute-extended-command)
   :config
+  (use-package evil-magit
+    :after evil)
   (defun my-git-commit-setup-fun ()
     (when (fboundp #'visual-line-mode) (visual-line-mode -1))
     (when (fboundp #'auto-fill-mode) (auto-fill-mode t)))
@@ -774,8 +975,12 @@ narrowed."
 (use-package ess)
 (use-package vimrc-mode :mode "[._]?(pentadactyl|vimperator)rc$" "\\.(penta|vimp)$")
 (use-package generic-x :disabled t)
-(use-package elpy :after python :config (elpy-enable))
 (use-package lua-mode :config (setq lua-indent-level 2))
+
+(use-package elpy :after python
+  :config
+  (elpy-enable)
+  (pyvenv-tracking-mode t))
 
 (use-package markdown-mode
   :config
@@ -783,15 +988,32 @@ narrowed."
 
 (use-package tex
   :ensure nil
-  :config
+  :init
   (use-package auctex
-    :config
+    :init
+    (use-package auctex-latexmk
+      :init
+      (auctex-latexmk-setup))
     (use-package company-auctex
       :after company
-      :init
-      (add-hook 'TeX-mode-hook #'company-auctex-init)))
+      :config
+      (company-auctex-init)))
+
+  :config
+
+  (defun my-tex-watch ()
+    "Start a latexmk process watching the current buffer"
+    (interactive)
+    (let ((latexmk-command "latexmk"))
+      (shell-command
+       (format "%s --pvc %s '%s' &"
+               latexmk-command (if TeX-PDF-mode "-pdf" "") buffer-file-name))))
+
   (setq TeX-auto-save t
         TeX-parse-self t)
+  (add-to-list 'TeX-view-program-selection '(output-pdf "mupdf"))
+  (add-to-list 'TeX-view-program-list '("mupdf" "mupdf %o"))
+  (add-hook 'TeX-mode-hook #'company-mode)
   (add-hook 'LaTeX-mode-hook #'auto-fill-mode)
   (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode))
 
@@ -826,6 +1048,7 @@ narrowed."
 
 ;;;; Elisp
 (use-package outline
+  :delight outline-minor-mode
   :init
   (add-hook 'emacs-lisp-mode-hook #'outline-minor-mode)
 
@@ -868,16 +1091,24 @@ narrowed."
        :inherit 'my-headline-face))))
 
 (use-package eldoc                    ; Documentation in echo area
+  :delight
   :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
   :config (setq eldoc-idle-delay 0.3))
 
 (use-package highlight-quoted    ; Faces for lisp quotes and symbols
   :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
+
 (use-package elisp-slime-nav          ; Navigate elisp documentation
+  :delight
   :general (:keymaps '(elisp-slime-nav-mode-map help-mode-map) :states 'motion
                      "K" #'elisp-slime-nav-describe-elisp-thing-at-point
                      "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
   :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode))
+
+;;; Lisp
+(use-package slime
+  :config
+  (setq inferior-lisp-program "/usr/bin/sbcl"))
 
 ;;;; Web
 (use-package css-mode
@@ -910,7 +1141,7 @@ narrowed."
     :init (add-hook 'css-mode-hook #'css-eldoc-enable)))
 
 (use-package web-mode
-  :mode "\\.html?$"
+  :mode "\\.html?$" "\\.tpl$"
   :config
   (setq web-mode-enable-block-face t
         web-mode-enable-part-face t
@@ -918,9 +1149,10 @@ narrowed."
         web-mode-enable-current-column-highlight t
         web-mode-css-indent-offset 2
         web-mode-code-indent-offset 2
-        web-mode-markup-indent-offset 2))
+        web-mode-markup-indent-offset 2)
+  (my-add-list 'web-mode-engines-alist '(("mako" . "\\.tpl\\'"))))
 
-
+;;; Server
 (server-start)
 
 ;;; Local Variables
