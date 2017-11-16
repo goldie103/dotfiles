@@ -1,17 +1,5 @@
 ;;; Setup
 
-;;;; Helper functions
-(defun my-add-list (list-var elements)
-  "Append ELEMENTS to the end of LIST-VAR if not already in list.
-
-Return new value of LIST-VAR. If LIST-VAR is not defined, then
-define it as ELEMENTS."
-  (let ((l (if (listp elements) elements (list elements))))
-    (if (and (boundp list-var) (symbol-value list-var))
-        (dolist (item l) (add-to-list list-var item))
-      (set list-var l)))
-  (symbol-value list-var))
-
 ;;;; Constants
 (defconst my-dir
   (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
@@ -37,10 +25,10 @@ define it as ELEMENTS."
 (require 'package)
 (setq package-enable-at-startup nil     ; we will manually initialize
       load-prefer-newer t)              ; don't load outdated byte code
-(my-add-list 'package-archives
-             '(("melpa" . "http://melpa.milkbox.net/packages/")
-               ("org" . "http://orgmode.org/elpa/")
-               ("elpy" . "http://jorgenschaefer.github.io/packages/")))
+(nconc package-archives
+       '(("melpa" . "http://melpa.milkbox.net/packages/")
+         ("org" . "http://orgmode.org/elpa/")
+         ("elpy" . "http://jorgenschaefer.github.io/packages/")))
 (package-initialize)                    ; manually initialize
 
 (unless (package-installed-p 'use-package)
@@ -62,7 +50,6 @@ define it as ELEMENTS."
 (use-package delight
     :init
     (delight '((undo-tree-mode nil undo-tree)
-               (helm-mode nil)
                (auto-fill-function nil auto-fill-mode)))
     ;; This has to be done manually for some reason
     (eval-after-load 'auto-fill-mode
@@ -143,12 +130,6 @@ define it as ELEMENTS."
         (w32-shell-execute "open" path)
       (call-process "sh" nil 0 nil "-c" path))))
 
-(defun restart-emacs ()
-  "Restart emacs under X by first launching a new process, and then killing."
-  (interactive)
-  (let ((kill-emacs-hook (append kill-emacs-hook (list #'new-emacs))))
-    (save-buffers-kill-emacs)))
-
 (defun sudo-save ()
   "Save current buffer with sudo."
   (interactive)
@@ -201,7 +182,6 @@ narrowed."
   (dolist (func (cdr hook)) (add-hook (car hook) func)))
 
 ;;;; Bindings
-(defvar my-window-map "C-w" "Keymap for my window related commands")
 
 (general-define-key
  "M-SPC" #'cycle-spacing
@@ -215,7 +195,9 @@ narrowed."
  "C-w" nil)
 
 (general-define-key
- :prefix my-window-map
+ :prefix "C-w"
+ :prefix-command 'my-window-command
+ :prefix-map 'my-window-map
  "C-w" #'other-window
  "w" #'other-window
  "s" #'split-window-vertically
@@ -248,32 +230,11 @@ narrowed."
 (general-define-key :keymaps 'undo-tree-map "C-/" nil)
 (general-define-key :keymaps 'undo-tree-map :states 'normal "U" #'undo-tree-redo)
 
-(general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
-
 
 
 ;;; Major packages
 ;;;; Evil
-(use-package evil
-  :init
-;;;;; Evil Packages
-  (use-package evil-escape      ; escape from everything with two keys
-    :delight
-    :init (add-hook 'evil-mode-hook #'evil-escape-mode))
-
-  (use-package evil-surround            ; surround operator
-    :init (add-hook 'prog-mode-hook #'evil-surround-mode))
-
-  (use-package evil-matchit             ; more tag jumping support
-    :general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
-    :init (add-hook 'evil-mode-hook #'global-evil-matchit-mode)
-    :config
-    (setq evilmi-may-jump-by-percentage nil)) ; allow count usage
-
-;;;;; Evil Init
-  (defvar my-evil-leader-map (make-sparse-keymap) "Evil leader bindings")
-  (define-prefix-command 'my-evil-leader-map)
-  (evil-mode t)
+(use-package evil :demand t
 ;;;;; Evil Bindings
   :general
   (:keymaps 'motion
@@ -281,22 +242,24 @@ narrowed."
             "C-w" nil
             "<up>" nil
             "<down>" nil
+            "," nil
             "SPC" #'execute-extended-command
             "q" #'kill-this-buffer
-            "," #'my-evil-leader-map
             "\"" #'evil-jump-item
             "Q" #'evil-record-macro
             [remap evil-next-line] #'evil-next-visual-line
             [remap evil-previous-line] #'evil-previous-visual-line)
+  (:prefix ","
+           :prefix-command 'my-evil-leader-command
+           :prefix-map 'my-evil-leader-map
+           "f" #'find-file
+           "b" #'list-buffers
+           "w" #'save-buffer
+           "W" #'sudo-save
+           "SPC" #'evil-ex)
   (:keymaps 'normal
             "q" nil
             "\"" #'evil-jump-item)
-  (:keymaps 'my-evil-leader-map
-            "f" #'find-file
-            "b" #'list-buffers
-            "w" #'save-buffer
-            "W" #'sudo-save
-            "SPC" #'evil-ex)
 
 ;;;;; Evil Config
   :config
@@ -305,47 +268,49 @@ narrowed."
         evil-symbol-word-search t
         evil-ex-substitute-global t)    ; global sed by default
 
-  (my-add-list 'evil-emacs-state-modes
-               '(shell-mode term-mode multi-term-mode package-menu-mode))
-  ;; yank to EOL
-  (evil-add-command-properties #'evil-yank-line :motion 'evil-end-of-line))
+  (nconc evil-emacs-state-modes '(shell-mode term-mode multi-term-mode package-menu-mode))
+  (evil-add-command-properties #'evil-yank-line :motion 'evil-end-of-line)
+  (evil-mode t))
+
+;;;;; Evil Packages
+(use-package evil-escape      ; escape from everything with two keys
+  :after evil
+  :delight
+  :config (evil-escape-mode t))
+
+(use-package evil-surround            ; surround operator
+  :after evil
+  :init (add-hook 'prog-mode-hook #'evil-surround-mode))
+
+(use-package evil-matchit             ; more tag jumping support
+  :after evil
+  :general (:keymaps 'evil-matchit-mode-map [remap evil-jump-item] #'evilmi-jump-items)
+  :config
+  (setq evilmi-may-jump-by-percentage nil)
+  (global-evil-matchit-mode t)) ; allow count usage
+
+(use-package evil-goggles
+  :after evil
+  :config (evil-goggles-use-diff-faces))
 
 ;;;; Helm
-(use-package helm-config :ensure helm
+(use-package helm-config :ensure helm :demand t
   :delight helm-mode
-  :init
-;;;;; Helm Packages
-
-  (use-package helm-eshell :ensure nil
-    :general ([remap eshell-list-history] #'helm-eshell-history))
-
-  (use-package helm-dash                ; Language documentation
-    :config
-    (setq helm-dash-docsets-path
-          (expand-file-name "dash" (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
-
-  (use-package helm-descbinds        ; `describe-bindings' replacement
-    :init (add-hook 'helm-mode-hook #'helm-descbinds-mode)
-    :config (setq helm-descbinds-window-style 'split-window))
-
-  (use-package helm-swoop               ; fast search and navigation
-    :general
-    ([remap grep] #'helm-swoop)
-    (:keymaps 'isearch-mode-map "M-/" #'helm-swoop-all-from-isearch)
-    (:keymaps 'helm-swoop-map "M-/" #'helm-multi-swoop-all-from-helm-swoop)
-
-    :config
-    (setq helm-swoop-speed-or-color t
-          helm-swoop-use-fuzzy-match t))
-
-  (use-package helm-flx
-    :init (helm-flx-mode t)
-    :config (setq helm-flx-for-helm-locate t))
-
-;;;;; Helm Init
-  (setq helm-split-window-inside-p t)          ; split in current window
-  (helm-mode t)
-
+  :defines (helm-completion-in-region-fuzzy-match
+            helm-recentf-fuzzy-match
+            helm-mode-fuzzy-match
+            helm-ff-auto-update-initial-value
+            helm-ff-skip-boring-files
+            helm-ff-file-name-history-use-recentf
+            helm-M-x-fuzzy-match
+            helm-imenu-fuzzy-match
+            helm-semantic-fuzzy-match
+            helm-move-to-line-cycle-in-source
+            helm-buffers-fuzzy-matching
+            helm-apropos-fuzzy-match
+            helm-scroll-amount
+            helm-allow-mouse
+            helm-split-window-inside-p)
 ;;;;; Helm Bindings
   :general
   ([remap execute-extended-command] #'helm-M-x
@@ -379,52 +344,67 @@ narrowed."
   (:keymaps 'helm-find-files-map "C-d" #'helm-ff-persistent-delete)
 ;;;;; Helm Config
   :config
-  (set-face-attribute 'helm-buffer-directory nil :inherit 'dired-directory
-                      :foreground nil :background nil)
-  (set-face-attribute 'helm-buffer-saved-out nil
-                      :inherit 'font-lock-warning-face
-                      :foreground nil :background nil :inverse-video nil)
-
-  (use-package helm-adaptive-done :ensure nil
-    :config (helm-adaptive-mode t))
-
-  (use-package helm-utils
-    :config (helm-popup-tip-mode t))
-
-  (use-package helm-mode :ensure nil
-    :config
-    (setq helm-completion-in-region-fuzzy-match t
-          helm-mode-fuzzy-match t))
-
-  (use-package helm-for-files :ensure nil
-    :config (setq helm-recentf-fuzzy-match t))
-
-
-  (use-package helm-files :ensure nil
-    :config
-    (setq helm-ff-auto-update-initial-value t
-          helm-ff-file-name-history-use-recentf t
-          helm-ff-skip-boring-files t))
-
-  (use-package helm-command :ensure nil
-    :config
-    (setq helm-M-x-fuzzy-match t))
-
-  (use-package helm-imenu :ensure nil
-    :config (setq helm-imenu-fuzzy-match t))
-
-  (use-package helm-semantic :ensure nil
-    :config (setq helm-semantic-fuzzy-match t))
-
-  (setq helm-move-to-line-cycle-in-source t     ; cycle on end
+  (setq helm-completion-in-region-fuzzy-match t
+        helm-split-window-inside-p t
+        helm-recentf-fuzzy-match t
+        helm-mode-fuzzy-match t
+        helm-ff-auto-update-initial-value t
+        helm-ff-file-name-history-use-recentf t
+        helm-ff-skip-boring-files t
+        helm-M-x-fuzzy-match t
+        helm-imenu-fuzzy-match t
+        helm-semantic-fuzzy-match t
+        helm-move-to-line-cycle-in-source t     ; cycle on end
         helm-buffers-fuzzy-matching t
         helm-apropos-fuzzy-match t
         helm-scroll-amount 5                    ; other window scroll
-        helm-allow-mouse t)
-  (helm-autoresize-mode t))
+        helm-allow-mouse t
+        helm-split-window-inside-p t)
+  (helm-adaptive-mode t)
+  (helm-popup-tip-mode t)
+  (helm-autoresize-mode t)
+  (helm-mode t))
+
+;;;;; Helm Packages
+
+(use-package helm-eshell :ensure nil
+  :after helm eshell
+  :general ([remap eshell-list-history] #'helm-eshell-history))
+
+(use-package helm-dash                ; Language documentation
+  :after helm
+  :config
+  (setq helm-dash-docsets-path
+        (expand-file-name "dash" (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
+
+(use-package helm-descbinds        ; `describe-bindings' replacement
+  :after helm
+  :config
+  (setq helm-descbinds-window-style 'split-window)
+  (helm-descbinds-mode t))
+
+(use-package helm-swoop               ; fast search and navigation
+  :after helm
+  :general
+  ([remap grep] #'helm-swoop)
+  (:keymaps 'isearch-mode-map "M-/" #'helm-swoop-all-from-isearch)
+  (:keymaps 'helm-swoop-map "M-/" #'helm-multi-swoop-all-from-helm-swoop)
+
+  :config
+  (setq helm-swoop-speed-or-color t
+        helm-swoop-use-fuzzy-match t))
+
+(use-package helm-flx
+  :after helm
+  :config
+  (setq helm-flx-for-helm-locate t)
+  (helm-flx-mode t))
+
+(use-package helm-tramp
+  :after helm)
 
 ;;;; Async
-(use-package async :demand t)
+(use-package async :init (async-bytecomp-package-mode t))
 
 ;;; Help
 
@@ -433,9 +413,10 @@ narrowed."
 
 (use-package guide-key            ; delayed completion for prefix keys
   :delight
-  :init (guide-key-mode t)
-  :config (setq guide-key/recursive-key-sequence-flag t
-                guide-key/guide-key-sequence '("C-x" "C-c" "C-w" "," "<f1>")))
+  :config
+  (setq guide-key/recursive-key-sequence-flag t
+        guide-key/guide-key-sequence '("C-x" "C-c" "C-w" "," "<f1>"))
+  (guide-key-mode t))
 
 (use-package info
   :config
@@ -443,57 +424,56 @@ narrowed."
 
 ;;; Appearance
 ;;;; Theme
-(use-package gruvbox-theme :disabled t
-  ;;:demand t
-  :config (load-theme 'gruvbox)
-  (set-face-attribute 'default nil :foreground "#ebdbb2")
-  (set-face-attribute 'highlight nil :foreground nil :background "#3c3836")
-  (set-face-attribute 'shadow nil :background "#1d2021"))
+
+(use-package all-the-icons)
 
 (use-package doom-themes :demand t
+  :after all-the-icons spaceline-all-the-icons
   :defines (doom-themes-enable-bold
             doom-themes-enable-italic
             doom-neotree-file-icons)
-  :init
-  (use-package all-the-icons)
-  (use-package solaire-mode
-    :init
-    (add-hook 'after-change-major-mode-hook #'solaire-mode)
-    (add-hook 'after-revert-hook #'solaire-mode)
-    (add-hook 'minibuffer-setup-hook #'solaire-mode-in-minibuffer)
-    (solaire-mode-swap-bg))
   :config
+
+  (defmacro my-load-theme-daemon (&rest body)
+    "Function to help set up a frame with correct themes"
+    (if (daemonp)
+        `(add-to-list 'after-make-frame-functions
+                      (lambda (frame) (with-selected-frame frame ,@body)))
+      `(progn ,@body)))
+
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t
         doom-neotree-file-icons t)
-  (load-theme 'doom-vibrant t)
   (doom-themes-visual-bell-config)
   (doom-themes-neotree-config)
-  (doom-themes-org-config))
+  (doom-themes-org-config)
+
+  (my-load-theme-daemon
+   (load-theme 'doom-molokai t)
+   (set-face-attribute 'mode-line nil :background nil)))
+
+(use-package solaire-mode
+  :after doom-themes
+  :config
+  (add-hook 'after-change-major-mode-hook #'solaire-mode)
+  (add-hook 'after-revert-hook #'solaire-mode)
+  (add-hook 'minibuffer-setup-hook #'solaire-mode-in-minibuffer)
+  (solaire-mode-swap-bg))
+
 
 ;;;; Modeline
-(use-package smart-mode-line :disabled t
-  :commands sml/faces-from-theme
-  :init
-  (sml/setup)
-  :config
-  (setq
-   sml/replacer-regexp-list
-   '(("^~/\\.emacs\\.d/elpa/" ":ELPA:")
-     ("^~/dotfiles/" ":.:")
-     ("^~/doc/" ":Doc:")
-     ("^~/\\([^/]+\\)/" ":\\1:"))))
 
 (use-package spaceline-config
   :demand t
   :ensure spaceline
   :config
-  (spaceline-spacemacs-theme)
+  (setq spaceline-responsive nil
+        powerline-default-separator nil)
   (spaceline-helm-mode t))
 
 (use-package spaceline-all-the-icons
   :demand t
-  :after spaceline
+  :after spaceline all-the-icons
   :config
   (spaceline-all-the-icons-theme)
   (spaceline-all-the-icons--setup-anzu)
@@ -501,37 +481,32 @@ narrowed."
   (spaceline-all-the-icons--setup-git-ahead)
   (spaceline-all-the-icons--setup-paradox)
   (spaceline-all-the-icons--setup-neotree)
-  (spaceline-toggle-all-the-icons-battery-status-off)
-  (spaceline-toggle-all-the-icons-time-off)
   (spaceline-toggle-all-the-icons-git-status-on)
-  (setq spaceline-all-the-icons-separator-type 'wave)
-  ;; Required for doom-theme
-  (dolist (face '(spaceline-highlight-face powerline-active2 mode-line))
-    (set-face-attribute face nil :background "#1e2128")))
-
-(use-package nyan-mode :disabled t      ; essential package
-  :init (nyan-mode t))
+  (setq spaceline-all-the-icons-separator-type 'wave))
 
 (use-package which-func                 ; Modeline definition name
-  :init (which-function-mode t))
+  :config (which-function-mode t))
 
 (use-package wc-goal-mode               ; Modeline word count
   :init (add-hook 'text-mode-hook #'wc-goal-mode))
 
 (use-package anzu
-  :init (global-anzu-mode t))
-
-(spaceline-ml-all-the-icons)
+  :config (global-anzu-mode t))
 
 
 ;;;; Faces
-(use-package hl-line :init (add-hook 'prog-mode-hook #'hl-line-mode))
-(use-package hl-sentence :init (add-hook 'text-mode-hook #'hl-sentence-mode))
 (use-package highlight-numbers :init (add-hook 'prog-mode-hook #'highlight-numbers-mode))
-(use-package page-break-lines :init (global-page-break-lines-mode t) :delight)
+(use-package page-break-lines :config (global-page-break-lines-mode t) :delight)
 (use-package rainbow-mode :init (add-hook 'css-mode-hook #'rainbow-mode))
 (use-package rainbow-delimiters :init (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 (use-package rainbow-blocks)
+
+(use-package hl-line
+  :init (add-hook 'prog-mode-hook #'hl-line-mode)
+  :config
+  (use-package hl-sentence
+    :init (add-hook 'text-mode-hook #'hl-sentence-mode)
+    :config (set-face-attribute 'hl-sentence nil :inherit 'hl-line)))
 
 (use-package whitespace
   :delight
@@ -543,7 +518,6 @@ narrowed."
    whitespace-action '(auto-cleanup warn-if-read-only)))
 
 ;;;; My faces
-;;(set-fontset-font "fontset-default" nil (font-spec :size 20 :name "Symbola"))
 
 (defvar my-font-faces
   (if my-desktop-p
@@ -552,7 +526,7 @@ narrowed."
         (font-lock-comment-face nil :slant italic)
         (font-lock-string-face nil :inherit variable-pitch))
     '((default nil :family "TamzenForPowerline" :height 105)
-      (variable-pitch nil :family "Sans" :height 110)))
+      (variable-pitch nil :family "Bitter" :height 105)))
   "Font faces dependant on the current machine")
 
 (dolist (face my-font-faces) (apply #'set-face-attribute face))
@@ -580,31 +554,27 @@ narrowed."
 (add-hook 'prog-mode-hook #'my-highlight-fic)
 
 ;;; Interface
-
 (use-package nlinum
   :demand t
-  :init (add-hook 'prog-mode-hook #'nlinum-mode)
-  :config
-  (setq nlinum-highlight-current-line t))
+  :init (add-hook 'prog-mode-hook #'nlinum-mode))
 
 (use-package simple :ensure nil
   :config (setq find-file-visit-truename t))
 
-(use-package zone                       ; Screensaver
-  :config
-  (use-package zone-nyan
-    :config (setq zone-programs [zone-nyan])))
+(use-package zone)                      ; Screensaver
+(use-package zone-nyan
+  :after zone
+  :config (setq zone-programs [zone-nyan]))
 
 (use-package golden-ratio               ; Window resizing
   :delight
-  :init (golden-ratio-mode t)
   :config
   (setq golden-ratio-auto-scale t)
 
-  ;; https://tuhdo.github.io/helm-intro.html
   (defun my-helm-alive-p ()
     (if (boundp 'helm-alive-p) (symbol-value 'helm-alive-p)))
-  (add-to-list 'golden-ratio-inhibit-functions #'my-helm-alive-p))
+  (add-to-list 'golden-ratio-inhibit-functions #'my-helm-alive-p)
+  (golden-ratio-mode t))
 
 (use-package hideshow                   ; Code folding
   :general
@@ -612,34 +582,24 @@ narrowed."
             "TAB" #'hs-toggle-hiding
             "<C-tab>" #'hs-hide-level)
   :init
-  (use-package hideshowvis)
-  (add-hook 'java-mode-hook #'hs-minor-mode)
-  :config)
+  (add-hook 'java-mode-hook #'hs-minor-mode))
 
 (use-package uniquify                 ; Distinguish same-named buffers
   :ensure nil
   :config (setq uniquify-buffer-name-style 'forward
                 uniquify-trailing-separator-p t))
 
-(use-package winner     :disabled t     ; Window configuration undo
-  :general (:prefix my-window-map
-                    "u" #'winner-undo
-                    "U" #'winner-redo)
-  :init (winner-mode t))
+(use-package winner                     ; Window configuration undo
+  :general (:keymaps 'my-window-map
+                     "u" #'winner-undo
+                     "U" #'winner-redo)
+  :config (winner-mode t))
 
 (use-package writeroom-mode            ; Distraction-free writing mode
   :general (:keymaps 'text-mode-map "<C-f11>" #'writeroom-mode)
   :functions my-writeroom-effect
   :config
-  (setq writeroom-width 100)
-  (defun my-writeroom-effect (arg)
-    (let ((off (if arg -1 t))
-          (on (if arg t -1)))
-      (when (fboundp #'display-time-mode) (display-time-mode on))
-      (when (fboundp #'display-battery-mode) (display-battery-mode on))
-      (when (fboundp #'which-function-mode) (which-function-mode off))
-      (when (fboundp #'nyan-mode) (nyan-mode off))))
-  (add-to-list 'writeroom-global-effects #'my-writeroom-effect))
+  (setq writeroom-width 100))
 
 (use-package visual-fill-column                                 ; Wrap text at fill col
   :init (add-hook 'text-mode-hook #'visual-fill-column-mode)
@@ -653,39 +613,55 @@ narrowed."
   (:keymaps 'org-mode-map "C-e" nil)
   :config (setq avy-background t))
 
-(use-package ace-window :disabled t
+(use-package ace-window
   :general ([remap other-window] #'ace-window)
   :config (setq aw-keys (or avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))))
 
 (use-package desktop                    ; Save opened buffers, windows, frames
-  :init (desktop-save-mode t)
   :config
   (setq desktop-auto-save-timeout 60
         desktop-dirname my-dir)
   (add-to-list 'desktop-path desktop-dirname)
-  (my-add-list 'desktop-modes-not-to-save
-               '(magit-mode git-commit-mode)))
+  (nconc desktop-modes-not-to-save '(magit-mode git-commit-mode))
+  (desktop-save-mode t))
 
 (use-package expand-region :disabled t  ; Expand selection by blocks at a time
-  :general (:keymaps 'motion "zz" #'er/expand-region)
+  :general (:states 'motion "zz" #'er/expand-region)
   :config (setq expand-region-contract-fast-key "x"))
 
+(use-package savehist                   ; Save command history
+  :config
+  (setq savehist-file (expand-file-name "savehist" my-dir)
+        history-delete-duplicates t
+        savehist-save-minibuffer-history t)
+  (savehist-mode t))
+
+(use-package saveplace              ; Save and return to place in file
+  :demand t
+  :config
+  (setq-default save-place t)
+  (setq save-place-file (expand-file-name "places" my-dir)))
+
+(use-package tramp                      ; Edit remote files
+  :config
+  (setq tramp-default-method "ssh"))
+;;; File navigation
+;;;; Dired
 (use-package dired
   :ensure nil
   :defines ls-lisp-dirs-first
   :config
-  (use-package wdired)
-  (use-package dired-x :ensure nil :init (setq-default dired-omit-files-p t))
-  (use-package dired-aux :ensure nil)
-  (use-package dired-async :ensure nil :after async)
-  (use-package dired+)
-
   (setq ls-lisp-dirs-first t
         dired-recursive-copies 'always
         dired-recursive-deletes 'always
         dired-ls-F-marks-symlinks t
         delete-by-moving-to-trash t))
+(use-package dired-x :after dired :ensure nil :init (setq-default dired-omit-files-p t))
+(use-package dired-aux :after dired :ensure nil)
+(use-package dired-async :ensure async :after dired :config (dired-async-mode t))
+(use-package dired+ :after dired)
 
+;;;; Neotree
 (use-package neotree
   :general
   (:keymaps 'my-evil-leader-map
@@ -698,67 +674,46 @@ narrowed."
            "RET" #'neotree-enter)
   :config (setq neo-smart-open t))
 
+;;;; Ranger
 ;; The things I do to silence the byte compiler
-(progn
-  (use-package-ensure-elpa 'ranger 't
-                            '(:deferred t)
-                            :ensure)
-  (condition-case err
-      (ranger-override-dired-mode t)
-    ((debug error)
-     (ignore
-      (display-warning 'use-package
-                        (format "%s %s: %s" "ranger" ":init"
-                                (error-message-string err))
-                        :error)))))
 
+;; (use-package wdired :after dired)
 
-(use-package savehist                   ; Save command history
-  :init (savehist-mode t)
-  :config (setq savehist-file (expand-file-name "savehist" my-dir)
-                history-delete-duplicates t
-                savehist-save-minibuffer-history t))
+(use-package ranger
+  :config (ranger-override-dired-mode t))
 
-(use-package saveplace              ; Save and return to place in file
-  :demand t
-  :config
-  (setq-default save-place t)
-  (setq save-place-file (expand-file-name "places" my-dir)))
-
-(use-package projectile                 ; Project-based navigation
+;;;; Projectile
+(use-package projectile :demand t       ; Project-based navigation
   :general (:keymaps 'my-evil-leader-map
                      "p" #'projectile-command-map
                      "P" #'projectile-find-file-dwim)
-  :init (projectile-mode t)
-  :demand t
   :config
-
   (setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
-        projectile-known-projects-file (expand-file-name "projectile.eld" my-dir)
-        projectile-mode-line
-        '(:eval (if (file-remote-p default-directory)
-                    " Projectile"
-                  (format " Projectile[%s]" (projectile-project-name)))))
+        projectile-known-projects-file (expand-file-name "projectile.eld" my-dir))
+  (projectile-mode t))
 
-  (use-package helm-projectile
-    :general
-    (:keymaps 'my-evil-leader-map
-              [remap projectile-find-file-dwim] #'helm-projectile-find-file-dwim)
-    (:keymaps 'projectile-command-map
-              [remap projectile-switch-project] #'helm-projectile-switch-project
-              [remap projectile-grep] #'helm-projectile-grep-or-ack
-              [remap projectile-ag] #'helm-projectile-ag
-              [remap projectile-find-file] #'helm-projectile-find-file)
-    :init (helm-projectile-on)
+(use-package helm-projectile
+  :after projectile helm
+  :general
+  (:keymaps 'my-evil-leader-map
+            [remap projectile-find-file-dwim] #'helm-projectile-find-file-dwim)
+  (:keymaps 'projectile-command-map
+            [remap projectile-switch-project] #'helm-projectile-switch-project
+            [remap projectile-grep] #'helm-projectile-grep-or-ack
+            [remap projectile-ag] #'helm-projectile-ag
+            [remap projectile-find-file] #'helm-projectile-find-file)
+  :config
+  (setq projectile-completion-system 'helm
+        projectile-switch-project-action #'helm-projectile
+        helm-projectile-fuzzy-match t)
+  (use-package neotree
     :config
-    (defun neotree-and-helm-projectile ()
+    (defun helm-projectile-and-neotree ()
       "Helper function to call both helm-projectile and neotree-projectile-action"
       (neotree-projectile-action)
       (helm-projectile))
-
-    (setq projectile-completion-system 'helm
-                  projectile-switch-project-action #'neotree-and-helm-projectile
-                  helm-projectile-fuzzy-match t)))
+    (setq projectile-switch-project-action #'helm-projectile-and-neotree))
+  (helm-projectile-on))
 
 ;;; Editing
 
@@ -787,18 +742,16 @@ narrowed."
       (shrink-window height)))
 
   :config
-
-  (use-package pcomplete-extension)
-
   (add-hook 'eshell-mode-hook #'eshell-cmpl-initialize)
   (add-hook 'eshell-mode-hook #'company-mode))
 
+(use-package pcomplete-extension :after eshell)
+
 (use-package multiple-cursors :disabled t
-  :init (multiple-cursors-mode t))
+  :config (multiple-cursors-mode t))
 
 (use-package drag-stuff :disabled t
-  :init (drag-stuff-global-mode t))
-
+  :config (drag-stuff-global-mode t))
 
 (use-package flycheck
   :general (:keymaps 'my-evil-leader-map
@@ -807,20 +760,23 @@ narrowed."
   :init (add-hook 'prog-mode-hook #'flycheck-mode)
   :config
   (setq flycheck-keymap-prefix (kbd "C-c f")
-        flycheck-indication-mode 'right-fringe)
+        flycheck-indication-mode 'right-fringe))
 
-  (use-package helm-flycheck
-    :general
-    (:keymaps 'flycheck-mode-map "C-c f c" #'helm-flycheck)
-    (:keymaps 'my-evil-leader-map "cc" #'helm-flycheck))
+(use-package flycheck-tip             ; Display errors by popup
+  :after flycheck
+  :general
+  ([remap flycheck-next-error] #'flycheck-tip-cycle
+   [remap flycheck-previous-error] #'flycheck-tip-cycle-reverse))
 
-  (use-package flycheck-tip             ; Display errors by popup
-    :general
-    ([remap flycheck-next-error] #'flycheck-tip-cycle
-     [remap flycheck-previous-error] #'flycheck-tip-cycle-reverse))
+(use-package flycheck-pos-tip
+  :after flycheck
+  :init (add-hook 'flycheck-mode-hook #'flycheck-pos-tip-mode))
 
-  (use-package flycheck-pos-tip
-    :init (add-hook 'flycheck-mode-hook #'flycheck-pos-tip-mode)))
+(use-package helm-flycheck
+  :after helm flycheck
+  :general
+  (:keymaps 'flycheck-mode-map "C-c f c" #'helm-flycheck)
+  (:keymaps 'my-evil-leader-map "cc" #'helm-flycheck))
 
 (use-package lorem-ipsum                ; Insert filler text
   :functions my-lorem-sgml-settings
@@ -835,21 +791,21 @@ narrowed."
   :init (add-hook 'text-mode-hook #'writegood-mode)
   :config
   (add-hook 'writegood-mode-hook #'writegood-passive-voice-turn-off)
-  (my-add-list 'writegood-weasel-words
-               '("thing" "different" "probably" "really")))
+  (nconc writegood-weasel-words '("thing" "different" "probably" "really")))
 
 (use-package abbrev                     ; Auto-correct
   :ensure nil
-  :init (abbrev-mode t)
-  :config (setq save-abbrevs 'silently
-                abbrev-all-caps t
-                abbrev-file-name (expand-file-name "abbrevs.el" my-dir)))
+  :config
+  (setq save-abbrevs 'silently
+        abbrev-all-caps t
+        abbrev-file-name (expand-file-name "abbrevs.el" my-dir))
+  (add-hook 'text-mode-hook #'abbrev-mode))
 
 (use-package auto-indent-mode :disabled t
-  :init (auto-indent-global-mode t))
+  :config (auto-indent-global-mode t))
 
 (use-package autoinsert :disabled t     ; Auto insert buffer text
-  :init (auto-insert-mode t))
+  :config (auto-insert-mode t))
 
 (use-package company                    ; Autocompletion
   :delight
@@ -859,7 +815,6 @@ narrowed."
                      "M-d" #'company-show-doc-buffer)
   :init (add-hook 'prog-mode-hook #'company-mode)
   :config
-
   (setq company-idle-delay 0            ; immediate completion attempt
         company-show-numbers t          ; allow M-num selection
         company-tooltip-align-annotations t
@@ -889,32 +844,35 @@ narrowed."
       (apply orig-func args)
       (setq ispell-extra-args old-ispell-extra-args)
       (ispell-kill-ispell t)))
-  (advice-add #'ispell-word :around #'my-ispell-run-together)
+  (advice-add #'ispell-word :around #'my-ispell-run-together))
 
-  (use-package flyspell                 ; On-the-fly spell check
-    :init
-    (add-hook 'text-mode-hook #'flyspell-mode)
-    (add-hook 'prog-mode-hook #'flyspell-prog-mode)
+(use-package flyspell                 ; On-the-fly spell check
+  :after ispell
+  :init
+  (add-hook 'text-mode-hook #'flyspell-mode)
+  (add-hook 'prog-mode-hook #'flyspell-prog-mode)
+  :config
+  (setq flyspell-issue-welcome-flag nil
+        flyspell-issue-message-flag nil)
+  (advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together))
 
-    :config
-    (use-package flyspell-popup
-      :general ([remap ispell-word] #'flyspell-popup-correct))
+(use-package flyspell-popup
+  :after flyspell
+  :general ([remap ispell-word] #'flyspell-popup-correct))
 
-    (use-package flyspell-lazy
-      :init
-      (add-hook 'flyspell-mode #'flyspell-lazy-mode)
-      (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
-
-    (setq flyspell-issue-welcome-flag nil
-          flyspell-issue-message-flag nil)
-    (advice-add #'flyspell-auto-correct-word :around #'my-ispell-run-together)))
+(use-package flyspell-lazy
+  :after flyspell
+  :init
+  (add-hook 'flyspell-mode #'flyspell-lazy-mode)
+  (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
 
 (use-package smartparens-config :disabled t     ; Balanced parenthesis management
   :ensure smartparens)
 
 (use-package autorevert           ; Auto revert external modifications
-  :init (global-auto-revert-mode t)
-  :config (setq global-auto-revert-non-file-buffers t))
+  :config
+  (setq global-auto-revert-non-file-buffers t)
+  (global-auto-revert-mode t))
 
 (use-package pandoc-mode                ; Markup conversion tool
   :general
@@ -946,7 +904,7 @@ narrowed."
 (use-package paradox                    ; Better package management
   :config
   (setq paradox-execute-asynchronously t
-        paradox-github-token "c840fc991fed833ee5c0805d12eb2e996381708a"))
+        paradox-automatically-star t))
 
 (use-package ediff                      ; Emacs diff utility
   :general (:keymaps 'ediff-mode
@@ -959,17 +917,74 @@ narrowed."
   (:keymaps 'magit-status-mode-map
             "SPC" #'execute-extended-command)
   :config
-  (use-package evil-magit
-    :after evil)
   (defun my-git-commit-setup-fun ()
     (when (fboundp #'visual-line-mode) (visual-line-mode -1))
     (when (fboundp #'auto-fill-mode) (auto-fill-mode t)))
   (add-hook 'git-commit-setup-hook #'my-git-commit-setup-fun))
 
+(use-package evil-magit
+  :after evil magit)
+
 (use-package git-timemachine           ; Travel through commit history
   :general ("<C-f10>" #'git-timemachine-toggle))
 
+(use-package git-gutter-fringe+
+  :general ("<M-f10>" #'git-gutter+-toggle-fringe)
+  :config (git-gutter+-mode))
+
 ;;; Languages
+(use-package pdf-tools
+  :general (:keymaps 'pdf-view-mode-map
+                     "SPC" #'helm-M-x
+                     "," #'my-evil-leader-map
+                     "q" #'image-kill-buffer
+                     "y" #'my-pdf-view-page-as-text
+                     "j" #'pdf-view-next-line-or-next-page
+                     "k" #'pdf-view-previous-line-or-previous-page
+                     "h" #'pdf-view-previous-page-command
+                     "l" #'pdf-view-next-page-command
+                     "g" #'pdf-view-first-page
+                     "G" #'my-pdf-view-goto-page
+                     "m" #'pdf-view-position-to-register
+                     "`" #'pdf-view-jump-to-register
+                     "/" #'pdf-occur
+                     "o" #'pdf-outline
+                     "f" #'pdf-links-action-perform
+                     "b" #'pdf-view-midnight-minor-mode
+                     "C-o" #'pdf-history-backwards
+                     "C-i" #'pdf-history-forwards)
+  :config
+  (defun my-pdf-view-goto-page (count)
+    "Go to page COUNT in pdf-view-mode. If COUNT is not supplied, go to last page"
+    (interactive "P")
+    (if count (pdf-view-goto-page count) (pdf-view-last-page)))
+  (defun my-pdf-view-page-as-text ()
+    (interactive)
+    (pdf-view-mark-whole-page)
+    (pdf-view-kill-ring-save)
+    (switch-to-buffer (make-temp-name (concat (buffer-name) " text")))
+    (save-excursion (yank)))
+  (pdf-tools-install))
+
+(use-package doc-view
+  :ensure nil
+  :general (:keymaps 'doc-view-mode-map
+                     "SPC" #'helm-M-x
+                     "," #'my-evil-leader-map
+                     "q" #'image-kill-buffer
+                     "j" #'doc-view-next-line-or-next-page
+                     "k" #'doc-view-previous-line-or-previous-page
+                     "h" #'doc-view-previous-page
+                     "l" #'doc-view-next-page
+                     "g" #'doc-view-first-page
+                     "G" #'my-doc-view-goto-page
+                     "/" #'doc-view-search)
+  :config
+  (defun my-doc-view-goto-page (count)
+    "Go to page COUNT in pdf-view-mode. If COUNT is not supplied, go to last page"
+    (interactive "P")
+    (if count (doc-view-goto-page count) (doc-view-last-page))))
+
 (use-package gitignore-mode)
 (use-package arduino-mode)
 (use-package ess)
@@ -987,20 +1002,8 @@ narrowed."
   (setq markdown-header-face 'my-headline-face))
 
 (use-package tex
-  :ensure nil
-  :init
-  (use-package auctex
-    :init
-    (use-package auctex-latexmk
-      :init
-      (auctex-latexmk-setup))
-    (use-package company-auctex
-      :after company
-      :config
-      (company-auctex-init)))
-
+  :ensure auctex
   :config
-
   (defun my-tex-watch ()
     "Start a latexmk process watching the current buffer"
     (interactive)
@@ -1010,17 +1013,31 @@ narrowed."
                latexmk-command (if TeX-PDF-mode "-pdf" "") buffer-file-name))))
 
   (setq TeX-auto-save t
+        TeX-source-correlate-mode t
         TeX-parse-self t)
-  (add-to-list 'TeX-view-program-selection '(output-pdf "mupdf"))
-  (add-to-list 'TeX-view-program-list '("mupdf" "mupdf %o"))
   (add-hook 'TeX-mode-hook #'company-mode)
+  (add-hook 'TeX-mode-hook #'TeX-PDF-mode)
+  (add-hook 'TeX-mode-hook #'TeX-interactive-mode)
   (add-hook 'LaTeX-mode-hook #'auto-fill-mode)
   (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode))
 
+(use-package auctex-latexmk
+  :after auctex
+  :config
+  (setq auctex-latexmk-inherit-TeX-PDF-mode t)
+  (auctex-latexmk-setup))
+
+(use-package company-auctex
+    :after company auctex
+    :config
+    (company-auctex-init))
+
 ;;;; Org
 (use-package org
+  :ensure org-plus-contrib
   :general
   (:keymaps 'org-mode-map [remap my-narrow-or-widen-dwim] #'my-org-narrow-or-widen-dwim)
+  (:keymaps 'org-mode-map :states 'normal "!" #'org-toggle-latex-fragment)
 
   :config
   (defun my-org-narrow-or-widen-dwim (p)
@@ -1040,13 +1057,17 @@ narrowed."
           ((org-at-block-p) (org-narrow-to-block))
           (t (org-narrow-to-subtree))))
 
-  (dolist (face '(org-table org-block org-code))
-    (set-face-attribute face nil :family (face-attribute 'default :family)))
-  (set-face-attribute 'org-table nil :foreground nil :inherit 'font-lock-string-face)
+  (setq org-pretty-entities t
+        org-highlight-latex-and-related '(latex script entities)))
 
-  (setq org-pretty-entities t))
+(use-package evil-org
+  :after evil org
+  :config
+  (setq org-special-ctrl-a/e t)
+  (add-hook 'org-mode-hook #'evil-org-mode)
+  (add-hook 'evil-org-mode-hook #'evil-org-set-key-theme))
 
-;;;; Elisp
+;;;; Lisp
 (use-package outline
   :delight outline-minor-mode
   :init
@@ -1068,9 +1089,6 @@ narrowed."
   (add-hook 'emacs-lisp-mode-hook #'my-outline-minor-mode)
 
   :config
-  (use-package outline-magic
-    :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
-
   (when my-desktop-p
     (dolist (spec '((outline-1 . 150)
                     (outline-2 . 150)
@@ -1090,13 +1108,18 @@ narrowed."
        :height (cdr spec)
        :inherit 'my-headline-face))))
 
+(use-package outline-magic
+  :after outline
+  :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
+
 (use-package eldoc                    ; Documentation in echo area
   :delight
   :init (add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
   :config (setq eldoc-idle-delay 0.3))
 
 (use-package highlight-quoted    ; Faces for lisp quotes and symbols
-  :init (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
+  :init
+  (add-hook 'emacs-lisp-mode-hook #'highlight-quoted-mode))
 
 (use-package elisp-slime-nav          ; Navigate elisp documentation
   :delight
@@ -1105,10 +1128,17 @@ narrowed."
                      "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
   :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode))
 
-;;; Lisp
+(general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
+
 (use-package slime
   :config
-  (setq inferior-lisp-program "/usr/bin/sbcl"))
+  (setq inferior-lisp-program "/usr/bin/sbcl"
+        slime-contribs '(slime-fancy
+                         slime-compiler-notes-tree
+                         slime-highlight-edits
+                         slime-hyperdoc
+                         slime-quicklisp))
+  (add-hook 'lisp-mode-hook #'slime))
 
 ;;;; Web
 (use-package css-mode
@@ -1135,10 +1165,11 @@ narrowed."
          (format "%s --watch' %s' &" sass-command buffer-file-name)))))
 
   ;; Run `prog-mode-hook' manually since `css-mode' doesn't derive from it
-  (add-hook 'css-mode-hook (lambda () (run-hooks 'prog-mode-hook)))
+  (add-hook 'css-mode-hook (lambda () (run-hooks 'prog-mode-hook))))
 
-  (use-package css-eldoc                ; Basic minibuffer display help for CSS
-    :init (add-hook 'css-mode-hook #'css-eldoc-enable)))
+(use-package css-eldoc                ; Basic minibuffer display help for CSS
+  :after css-mode
+  :init (add-hook 'css-mode-hook #'css-eldoc-enable))
 
 (use-package web-mode
   :mode "\\.html?$" "\\.tpl$"
@@ -1150,10 +1181,7 @@ narrowed."
         web-mode-css-indent-offset 2
         web-mode-code-indent-offset 2
         web-mode-markup-indent-offset 2)
-  (my-add-list 'web-mode-engines-alist '(("mako" . "\\.tpl\\'"))))
-
-;;; Server
-(server-start)
+  (nconc web-mode-engines-alist '(("mako" . "\\.tpl\\'"))))
 
 ;;; Local Variables
 ;; Local Variables:
