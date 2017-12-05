@@ -28,5 +28,5 @@ fi
 #emacs --daemon
 
 # start window manager
-exec i3 -c $XDG_CONFIG_HOME/i3/init.conf
+#exec i3 -c $XDG_CONFIG_HOME/i3/init.conf
 

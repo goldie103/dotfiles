@@ -1,4 +1,4 @@
-# vim: set ft=sh
+# vim: set ft=sh      -*- mode: sh -*-
 
 # XDG directories
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -10,7 +10,10 @@ export CLASSPATH=".:/usr/share/java/junit.jar:/usr/share/java/hamcrest/core.jar"
 
 # Python virtualenvwrapper
 export WORKON_HOME="$XDG_DATA_HOME/py-env"
+mkdir -p $WORKON_HOME
 export PROJECT_HOME="$HOME/dev"
+
+[[ -f "virtualenvwrapper.sh" ]] && source "virtualenvwrapper.sh"
 
 # ZSH cleanliness
 export ZDOTDIR="$XDG_CONFIG_HOME"/zsh
@@ -22,11 +25,11 @@ export VIMPERATOR_RUNTIME="$XDG_CONFIG_HOME"/vimperator
 export VIMPERATOR_INIT=":source $VIMPERATOR_RUNTIME/init.vimp"
 export ALTERNATE_EDITOR=""
 export EDITOR='vi'
-export VISUAL='emacsclient -ca emacs'
+export VISUAL='emacsclient -ca ""'
+export BROWSER='qutebrowser'
 
 export UDIR=/media/User && [[ ! -d $UDIR ]] && export UDIR=$HOME
 export DOT=$UDIR/dev/dot && [[ ! -d $DOT ]] && export DOT=$UDIR/dotfiles
-# Set PATH as it can't be set in env
-export PATH="$PATH:$XDG_DATA_HOME/bin"
+export PATH="$PATH:$HOME/.local/bin:$HOME/.roswell/bin"
 # Start X server
 [[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx $XDG_CONFIG_HOME/X11/xinitrc

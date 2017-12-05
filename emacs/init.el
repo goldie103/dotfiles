@@ -21,29 +21,31 @@
 (setq custom-file (expand-file-name "custom.el" my-dir))
 (load custom-file 'no-error 'no-message)
 
-;;;; Package
-(require 'package)
-(setq package-enable-at-startup nil     ; we will manually initialize
-      load-prefer-newer t)              ; don't load outdated byte code
-(nconc package-archives
-       '(("melpa" . "http://melpa.milkbox.net/packages/")
-         ("org" . "http://orgmode.org/elpa/")
-         ("elpy" . "http://jorgenschaefer.github.io/packages/")))
-(package-initialize)                    ; manually initialize
+;;;; Package Management
 
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-(eval-when-compile
-  ;; required before use-package is loaded
-  (defvar use-package-enable-imenu-support)
-  (setq use-package-enable-imenu-support t)
-  (require 'use-package))
+;; Set up straight.el
+(let ((bootstrap-file (concat user-emacs-directory "straight/bootstrap.el"))
+      (bootstrap-version 2))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
+;; Set up use-package
+
+(straight-use-package 'use-package)
+
+(defvar use-package-enable-imenu-support)
+(setq use-package-enable-imenu-support t); add imenu headings for use-package blocks
+(eval-when-compile (require 'use-package))
 (setq
- use-package-verbose t             ; log message after loading a package
- use-package-always-ensure t       ; ensure all packages are installed
- use-package-always-defer t)       ; defer all packages
+ use-package-verbose t              ; log message after loading a package
+ use-package-always-ensure t        ; ensure all packages are installed
+ use-package-always-defer t)        ; defer all packages
 
 (use-package general)
 
@@ -120,15 +122,6 @@
   (advice-add func :after-while #'my-last-buf))
 
 ;;;; Useful Functions
-(defun new-emacs ()
-  "Launch a new GUI emacs under X or Windows as necessary."
-  (let* ((win-p (memq system-type '(windows-nt ms-dos)))
-         (path (expand-file-name
-                (if win-p "runemacs.exe" invocation-name)
-                invocation-directory)))
-    (if win-p
-        (w32-shell-execute "open" path)
-      (call-process "sh" nil 0 nil "-c" path))))
 
 (defun sudo-save ()
   "Save current buffer with sudo."
@@ -183,7 +176,7 @@ narrowed."
 
 ;;;; Bindings
 
-(general-define-key
+(general-def
  "M-SPC" #'cycle-spacing
  "RET" #'newline-and-indent
  "C-x n" #'my-narrow-or-widen-dwim
@@ -194,7 +187,7 @@ narrowed."
  [remap switch-to-buffer] #'ibuffer
  "C-w" nil)
 
-(general-define-key
+(general-def
  :prefix "C-w"
  :prefix-command 'my-window-command
  :prefix-map 'my-window-map
@@ -203,16 +196,16 @@ narrowed."
  "s" #'split-window-vertically
  "C-s" #'split-window-horizontally
  "=" #'balance-windows
+ "k" #'enlarge-window
+ "j" #'shrink-window
  "f" #'delete-frame
  "d" #'delete-window
  "C-d" #'delete-other-windows)
 
-(general-define-key
- :keymaps 'help-mode-map
+(general-def help-mode-map
  "H" #'help-go-back
  "L" #'help-go-forward)
-(general-define-key
- :keymaps 'help-map
+(general-def help-map
  "<f1>" #'apropos
  "w" #'woman
  "k" #'describe-key-briefly
@@ -227,29 +220,25 @@ narrowed."
  "i" #'info-lookup-symbol
  "C-i" #'info-emacs-manual)
 
-(general-define-key :keymaps 'undo-tree-map "C-/" nil)
-(general-define-key :keymaps 'undo-tree-map :states 'normal "U" #'undo-tree-redo)
-
-
+(general-def undo-tree-map "C-/" nil)
 
 ;;; Major packages
 ;;;; Evil
 (use-package evil :demand t
 ;;;;; Evil Bindings
   :general
-  (:keymaps 'motion
-            "TAB" nil
-            "C-w" nil
-            "<up>" nil
-            "<down>" nil
-            "," nil
-            "SPC" #'execute-extended-command
-            "q" #'kill-this-buffer
-            "\"" #'evil-jump-item
-            "Q" #'evil-record-macro
-            [remap evil-next-line] #'evil-next-visual-line
-            [remap evil-previous-line] #'evil-previous-visual-line)
-  (:prefix ","
+  ("<f3>" #'evil-record-macro)
+  (:states 'normal :keymaps 'undo-tree-map "U" #'undo-tree-redo)
+  (:keymaps '(motion normal)
+           "C-w" nil
+           "," nil
+           "SPC" #'execute-extended-command
+           "q" #'kill-this-buffer
+           "\"" #'evil-jump-item
+           [remap evil-next-line] #'evil-next-visual-line
+           [remap evil-previous-line] #'evil-previous-visual-line)
+  (:keymaps '(motion normal)
+           :prefix ","
            :prefix-command 'my-evil-leader-command
            :prefix-map 'my-evil-leader-map
            "f" #'find-file
@@ -257,9 +246,6 @@ narrowed."
            "w" #'save-buffer
            "W" #'sudo-save
            "SPC" #'evil-ex)
-  (:keymaps 'normal
-            "q" nil
-            "\"" #'evil-jump-item)
 
 ;;;;; Evil Config
   :config
@@ -423,6 +409,37 @@ narrowed."
   (add-to-list 'Info-directory-list (expand-file-name "info" (getenv "XDG_CONFIG_HOME"))))
 
 ;;; Appearance
+;;;; Modeline
+
+(use-package spaceline-config
+  :demand t
+  :ensure spaceline
+  :config
+  (setq spaceline-responsive nil
+        powerline-default-separator nil)
+  (spaceline-helm-mode t))
+
+(use-package spaceline-all-the-icons
+  :demand t
+  :after spaceline all-the-icons
+  :config
+  (spaceline-all-the-icons-theme)
+  (spaceline-all-the-icons--setup-anzu)
+  (spaceline-all-the-icons--setup-git-ahead)
+  (spaceline-all-the-icons--setup-neotree)
+  (spaceline-toggle-all-the-icons-git-status-on)
+  (setq spaceline-all-the-icons-separator-type 'wave))
+
+(use-package which-func                 ; Modeline definition name
+  :config (which-function-mode t))
+
+(use-package wc-goal-mode               ; Modeline word count
+  :init (add-hook 'text-mode-hook #'wc-goal-mode))
+
+(use-package anzu
+  :config (global-anzu-mode t))
+
+
 ;;;; Theme
 
 (use-package all-the-icons)
@@ -450,7 +467,11 @@ narrowed."
 
   (my-load-theme-daemon
    (load-theme 'doom-molokai t)
-   (set-face-attribute 'mode-line nil :background nil)))
+   (set-face-attribute 'mode-line nil :background nil)
+   (with-eval-after-load 'web-mode
+     (set-face-attribute 'web-mode-block-face nil :background (face-attribute 'helm-source-header :background))
+     (set-face-attribute 'web-mode-current-column-highlight-face nil :background (face-attribute 'helm-source-header :background))
+     (set-face-attribute 'web-mode-current-element-highlight-face nil :foreground nil :background (face-attribute 'helm-source-header :background)))))
 
 (use-package solaire-mode
   :after doom-themes
@@ -459,39 +480,6 @@ narrowed."
   (add-hook 'after-revert-hook #'solaire-mode)
   (add-hook 'minibuffer-setup-hook #'solaire-mode-in-minibuffer)
   (solaire-mode-swap-bg))
-
-
-;;;; Modeline
-
-(use-package spaceline-config
-  :demand t
-  :ensure spaceline
-  :config
-  (setq spaceline-responsive nil
-        powerline-default-separator nil)
-  (spaceline-helm-mode t))
-
-(use-package spaceline-all-the-icons
-  :demand t
-  :after spaceline all-the-icons
-  :config
-  (spaceline-all-the-icons-theme)
-  (spaceline-all-the-icons--setup-anzu)
-  (spaceline-all-the-icons--setup-package-updates)
-  (spaceline-all-the-icons--setup-git-ahead)
-  (spaceline-all-the-icons--setup-paradox)
-  (spaceline-all-the-icons--setup-neotree)
-  (spaceline-toggle-all-the-icons-git-status-on)
-  (setq spaceline-all-the-icons-separator-type 'wave))
-
-(use-package which-func                 ; Modeline definition name
-  :config (which-function-mode t))
-
-(use-package wc-goal-mode               ; Modeline word count
-  :init (add-hook 'text-mode-hook #'wc-goal-mode))
-
-(use-package anzu
-  :config (global-anzu-mode t))
 
 
 ;;;; Faces
@@ -526,7 +514,7 @@ narrowed."
         (font-lock-comment-face nil :slant italic)
         (font-lock-string-face nil :inherit variable-pitch))
     '((default nil :family "TamzenForPowerline" :height 105)
-      (variable-pitch nil :family "Bitter" :height 105)))
+      (variable-pitch nil :foundry "UKWN" :family "Bitter" :height 120)))
   "Font faces dependant on the current machine")
 
 (dolist (face my-font-faces) (apply #'set-face-attribute face))
@@ -626,7 +614,7 @@ narrowed."
   (desktop-save-mode t))
 
 (use-package expand-region :disabled t  ; Expand selection by blocks at a time
-  :general (:states 'motion "zz" #'er/expand-region)
+  :general (:keymaps 'motion "zz" #'er/expand-region)
   :config (setq expand-region-contract-fast-key "x"))
 
 (use-package savehist                   ; Save command history
@@ -646,11 +634,18 @@ narrowed."
   :config
   (setq tramp-default-method "ssh"))
 ;;; File navigation
+;;;; Google Drive
+
 ;;;; Dired
 (use-package dired
   :ensure nil
   :defines ls-lisp-dirs-first
   :config
+  (defun my-silence-auto-revert ()
+    "Set `auto-revert-verbose' to nil in the current buffer"
+    (defvar auto-revert-verbose)
+    (setq auto-revert-verbose nil))
+  (add-hook 'dired-mode-hook #'my-silence-auto-revert)
   (setq ls-lisp-dirs-first t
         dired-recursive-copies 'always
         dired-recursive-deletes 'always
@@ -901,11 +896,6 @@ narrowed."
                 compilation-auto-jump-to-first-error t
                 compilation-ask-about-save nil))
 
-(use-package paradox                    ; Better package management
-  :config
-  (setq paradox-execute-asynchronously t
-        paradox-automatically-star t))
-
 (use-package ediff                      ; Emacs diff utility
   :general (:keymaps 'ediff-mode
                      "j" #'ediff-next-difference
@@ -933,10 +923,10 @@ narrowed."
   :config (git-gutter+-mode))
 
 ;;; Languages
-(use-package pdf-tools
+(use-package pdf-tools :disabled t      ; TODO installing this with straight.el
   :general (:keymaps 'pdf-view-mode-map
                      "SPC" #'helm-M-x
-                     "," #'my-evil-leader-map
+                     "," #'my-evil-leader-command
                      "q" #'image-kill-buffer
                      "y" #'my-pdf-view-page-as-text
                      "j" #'pdf-view-next-line-or-next-page
@@ -970,7 +960,7 @@ narrowed."
   :ensure nil
   :general (:keymaps 'doc-view-mode-map
                      "SPC" #'helm-M-x
-                     "," #'my-evil-leader-map
+                     "," #'my-evil-leader-command
                      "q" #'image-kill-buffer
                      "j" #'doc-view-next-line-or-next-page
                      "k" #'doc-view-previous-line-or-previous-page
@@ -1033,13 +1023,35 @@ narrowed."
     (company-auctex-init))
 
 ;;;; Org
+(use-package qml-mode)
+
 (use-package org
-  :ensure org-plus-contrib
   :general
   (:keymaps 'org-mode-map [remap my-narrow-or-widen-dwim] #'my-org-narrow-or-widen-dwim)
   (:keymaps 'org-mode-map :states 'normal "!" #'org-toggle-latex-fragment)
 
+  :init
+  ;; Fix org version warning from using straight.el
+  ;; https://github.com/raxod502/radian/blob/ee92ea6cb0473bf7d20c6d381753011312ef4a52/radian-emacs/radian-org.el#L46-L112
+
+  (defun my-org-git-version ()
+    "Return the abbreviated SHA for the Org Git repo"
+    (let ((default-directory (concat user-emacs-directory "straight/repos/org")))
+      (if (executable-find "git")
+          (with-temp-buffer
+            (call-process "git" nil '(t nil) nil "rev-parse" "--short" "HEAD")
+            (if (> (buffer-size) 0)
+                (string-trim (buffer-string))
+              "revision unknown"))
+        "git not available")))
+
+  (defalias #'org-git-version #'my-org-git-version)
+  (defun org-release () "N/A")
+  (provide 'org-version)
+
   :config
+  (defalias #'org-git-version #'my-org-git-version)
+
   (defun my-org-narrow-or-widen-dwim (p)
     "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
 
@@ -1058,6 +1070,7 @@ narrowed."
           (t (org-narrow-to-subtree))))
 
   (setq org-pretty-entities t
+        org-hide-emphasis-markers t
         org-highlight-latex-and-related '(latex script entities)))
 
 (use-package evil-org
@@ -1128,17 +1141,22 @@ narrowed."
                      "gd" #'elisp-slime-nav-find-elisp-thing-at-point)
   :init (add-hook 'emacs-lisp-mode-hook #'elisp-slime-nav-mode))
 
-(general-define-key :keymaps 'emacs-lisp-mode-map "C-c C-c" #'eval-defun)
+(general-def emacs-lisp-mode-map "C-c C-c" #'eval-defun)
 
 (use-package slime
   :config
-  (setq inferior-lisp-program "/usr/bin/sbcl"
-        slime-contribs '(slime-fancy
-                         slime-compiler-notes-tree
-                         slime-highlight-edits
-                         slime-hyperdoc
-                         slime-quicklisp))
-  (add-hook 'lisp-mode-hook #'slime))
+  (load (expand-file-name "~/.roswell/helper.el"))
+
+  (slime-setup '(slime-fancy
+                 slime-compiler-notes-tree
+                 slime-highlight-edits
+                 slime-hyperdoc
+                 slime-quicklisp))
+
+  (setq slime-lisp-implementations
+        '((sbcl ("sbcl" "--dynamic-space-size" "2000"))
+          (roswell ("ros" "-Q" "run")))
+        slime-default-lisp 'roswell))
 
 ;;;; Web
 (use-package css-mode
@@ -1174,6 +1192,9 @@ narrowed."
 (use-package web-mode
   :mode "\\.html?$" "\\.tpl$"
   :config
+
+
+
   (setq web-mode-enable-block-face t
         web-mode-enable-part-face t
         web-mode-enable-current-element-highlight t
