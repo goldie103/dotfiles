@@ -1,19 +1,11 @@
+;; -*- lexical-binding: t -*-
+
 ;;; Setup
 
 ;;;; Constants
 (defconst my-dir
-  (expand-file-name "emacs/" (getenv "XDG_CACHE_HOME"))
+  (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache"))
   "Personal elisp settings files and generated files.")
-
-(defconst my-dir-elisp
-  (expand-file-name "my-elisp/" user-emacs-directory)
-  "Personal elisp files.")
-(add-to-list 'load-path my-dir-elisp)
-
-(defconst my-dir-packages
-  (expand-file-name "elisp/" user-emacs-directory)
-  "Directory for packages not available through a repository.")
-(add-to-list 'load-path my-dir-packages)
 
 (defvar my-win-p (eq system-type 'windows-nt) "Non-nil if using MS Windows.")
 (defvar my-desktop-p (string= (system-name) "lyngbakr") "Non-nil if on desktop machine")
@@ -24,8 +16,8 @@
 ;;;; Package Management
 
 ;; Set up straight.el
-(let ((bootstrap-file (concat user-emacs-directory "straight/bootstrap.el"))
-      (bootstrap-version 2))
+(let ((bootstrap-file (concat user-emacs-directory "straight/repos/straight.el/bootstrap.el"))
+      (bootstrap-version 3))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
         (url-retrieve-synchronously
@@ -39,12 +31,16 @@
 
 (straight-use-package 'use-package)
 
+;; deal with compiler issues
+(defvar straight-use-package-by-default)
 (defvar use-package-enable-imenu-support)
-(setq use-package-enable-imenu-support t); add imenu headings for use-package blocks
-(eval-when-compile (require 'use-package))
+(defvar use-package-verbose)
+(defvar use-package-always-defer)
+
 (setq
+ straight-use-package-by-default t  ; always ensure packages are installed
+ use-package-enable-imenu-support t ; add imenu headings for use-package blocks
  use-package-verbose t              ; log message after loading a package
- use-package-always-ensure t        ; ensure all packages are installed
  use-package-always-defer t)        ; defer all packages
 
 (use-package general)
@@ -235,6 +231,7 @@ narrowed."
            "SPC" #'execute-extended-command
            "q" #'kill-this-buffer
            "\"" #'evil-jump-item
+           "*" #'evil-use-register
            [remap evil-next-line] #'evil-next-visual-line
            [remap evil-previous-line] #'evil-previous-visual-line)
   (:keymaps '(motion normal)
@@ -262,7 +259,7 @@ narrowed."
 (use-package evil-escape      ; escape from everything with two keys
   :after evil
   :delight
-  :config (evil-escape-mode t))
+  :init (evil-escape-mode t))
 
 (use-package evil-surround            ; surround operator
   :after evil
@@ -280,7 +277,7 @@ narrowed."
   :config (evil-goggles-use-diff-faces))
 
 ;;;; Helm
-(use-package helm-config :ensure helm :demand t
+(use-package helm-config :straight helm :demand t
   :delight helm-mode
   :defines (helm-completion-in-region-fuzzy-match
             helm-recentf-fuzzy-match
@@ -327,7 +324,9 @@ narrowed."
   (:keymaps 'helm-map
             "M-d" #'helm-scroll-other-window
             "M-u" #'helm-scroll-other-window-down)
-  (:keymaps 'helm-find-files-map "C-d" #'helm-ff-persistent-delete)
+  (:keymaps 'helm-find-files-map
+            "C-d" #'helm-ff-persistent-delete
+            "C-o" #'helm-ff-run-open-file-with-default-tool)
 ;;;;; Helm Config
   :config
   (setq helm-completion-in-region-fuzzy-match t
@@ -353,7 +352,7 @@ narrowed."
 
 ;;;;; Helm Packages
 
-(use-package helm-eshell :ensure nil
+(use-package helm-eshell :straight nil
   :after helm eshell
   :general ([remap eshell-list-history] #'helm-eshell-history))
 
@@ -397,7 +396,7 @@ narrowed."
 (use-package discover-my-major      ; list current major mode bindings
   :general ([remap describe-mode] #'discover-my-major))
 
-(use-package guide-key            ; delayed completion for prefix keys
+(use-package guide-key :demand t    ; delayed completion for prefix keys
   :delight
   :config
   (setq guide-key/recursive-key-sequence-flag t
@@ -413,7 +412,7 @@ narrowed."
 
 (use-package spaceline-config
   :demand t
-  :ensure spaceline
+  :straight spaceline
   :config
   (setq spaceline-responsive nil
         powerline-default-separator nil)
@@ -442,7 +441,31 @@ narrowed."
 
 ;;;; Theme
 
-(use-package all-the-icons)
+(defmacro my-load-theme (theme &rest body)
+  "Load THEME and then execute BODY such that it applies correctly in the daemon.
+
+This is a workaround to deal with themes not getting loaded when Emacs is run as a daemon.
+Some themes rely on settings from the current frame, but when launching as a daemon, there
+is not necessarily a current frame when the theme is loaded.
+
+This can be circumvented by adding the theme loading code to `after-frame-make-functions',
+so that it is only executed after the frame is loaded. However, we only want to run the
+theme code once, not after every frame is opened.
+
+We get around this by removing the entry in `after-frame-make-functions', so the function
+should execute once and then remove itself.
+
+This approach potentially still has the limitation of not behaving correctly in terminal
+frames versus display frames. Further investigation is required."
+  (if (daemonp)
+      `(cl-labels ((my-load-theme-daemon (frame)
+                                         (with-selected-frame frame (load-theme ',theme t) ,@body)
+                                         (remove-hook 'after-make-frame-functions
+                                                      #'my-load-theme-daemon)))
+         (add-hook 'after-make-frame-functions #'my-load-theme-daemon))
+    `(progn (load-theme ',theme t) ,@body)))
+
+(use-package all-the-icons :demand t)
 
 (use-package doom-themes :demand t
   :after all-the-icons spaceline-all-the-icons
@@ -450,14 +473,6 @@ narrowed."
             doom-themes-enable-italic
             doom-neotree-file-icons)
   :config
-
-  (defmacro my-load-theme-daemon (&rest body)
-    "Function to help set up a frame with correct themes"
-    (if (daemonp)
-        `(add-to-list 'after-make-frame-functions
-                      (lambda (frame) (with-selected-frame frame ,@body)))
-      `(progn ,@body)))
-
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t
         doom-neotree-file-icons t)
@@ -465,13 +480,17 @@ narrowed."
   (doom-themes-neotree-config)
   (doom-themes-org-config)
 
-  (my-load-theme-daemon
-   (load-theme 'doom-molokai t)
-   (set-face-attribute 'mode-line nil :background nil)
-   (with-eval-after-load 'web-mode
-     (set-face-attribute 'web-mode-block-face nil :background (face-attribute 'helm-source-header :background))
-     (set-face-attribute 'web-mode-current-column-highlight-face nil :background (face-attribute 'helm-source-header :background))
-     (set-face-attribute 'web-mode-current-element-highlight-face nil :foreground nil :background (face-attribute 'helm-source-header :background)))))
+  (my-load-theme doom-dracula
+   ;;(set-face-attribute 'mode-line nil :background nil)
+   ;; (with-eval-after-load 'web-mode
+   ;;   (set-face-attribute 'web-mode-block-face nil :background
+   ;;                       (face-attribute 'helm-source-header :background))
+   ;;   (set-face-attribute 'web-mode-current-column-highlight-face nil
+   ;;                       :background (face-attribute 'helm-source-header :background))
+   ;;   (set-face-attribute 'web-mode-current-element-highlight-face nil
+   ;;                       :foreground nil
+   ;;                       :background (face-attribute 'helm-source-header :background)))
+   ))
 
 (use-package solaire-mode
   :after doom-themes
@@ -490,11 +509,7 @@ narrowed."
 (use-package rainbow-blocks)
 
 (use-package hl-line
-  :init (add-hook 'prog-mode-hook #'hl-line-mode)
-  :config
-  (use-package hl-sentence
-    :init (add-hook 'text-mode-hook #'hl-sentence-mode)
-    :config (set-face-attribute 'hl-sentence nil :inherit 'hl-line)))
+  :init (add-hook 'prog-mode-hook #'hl-line-mode))
 
 (use-package whitespace
   :delight
@@ -514,6 +529,7 @@ narrowed."
         (font-lock-comment-face nil :slant italic)
         (font-lock-string-face nil :inherit variable-pitch))
     '((default nil :family "TamzenForPowerline" :height 105)
+      (fixed-pitch nil :family "TamzenForPowerline" :height 105)
       (variable-pitch nil :foundry "UKWN" :family "Bitter" :height 120)))
   "Font faces dependant on the current machine")
 
@@ -546,7 +562,7 @@ narrowed."
   :demand t
   :init (add-hook 'prog-mode-hook #'nlinum-mode))
 
-(use-package simple :ensure nil
+(use-package simple :straight nil
   :config (setq find-file-visit-truename t))
 
 (use-package zone)                      ; Screensaver
@@ -573,7 +589,7 @@ narrowed."
   (add-hook 'java-mode-hook #'hs-minor-mode))
 
 (use-package uniquify                 ; Distinguish same-named buffers
-  :ensure nil
+  :straight nil
   :config (setq uniquify-buffer-name-style 'forward
                 uniquify-trailing-separator-p t))
 
@@ -638,7 +654,7 @@ narrowed."
 
 ;;;; Dired
 (use-package dired
-  :ensure nil
+  :straight nil
   :defines ls-lisp-dirs-first
   :config
   (defun my-silence-auto-revert ()
@@ -651,9 +667,9 @@ narrowed."
         dired-recursive-deletes 'always
         dired-ls-F-marks-symlinks t
         delete-by-moving-to-trash t))
-(use-package dired-x :after dired :ensure nil :init (setq-default dired-omit-files-p t))
-(use-package dired-aux :after dired :ensure nil)
-(use-package dired-async :ensure async :after dired :config (dired-async-mode t))
+(use-package dired-x :after dired :straight nil :init (setq-default dired-omit-files-p t))
+(use-package dired-aux :after dired :straight nil)
+(use-package dired-async :straight async :after dired :config (dired-async-mode t))
 (use-package dired+ :after dired)
 
 ;;;; Neotree
@@ -685,6 +701,7 @@ narrowed."
   :config
   (setq projectile-cache-file (expand-file-name "projectile.cache" my-dir)
         projectile-known-projects-file (expand-file-name "projectile.eld" my-dir))
+  (projectile-register-project-type 'python '("Pipfile"))
   (projectile-mode t))
 
 (use-package helm-projectile
@@ -789,7 +806,7 @@ narrowed."
   (nconc writegood-weasel-words '("thing" "different" "probably" "really")))
 
 (use-package abbrev                     ; Auto-correct
-  :ensure nil
+  :straight nil
   :config
   (setq save-abbrevs 'silently
         abbrev-all-caps t
@@ -862,7 +879,7 @@ narrowed."
   (add-hook 'flyspell-prog-mode #'flyspell-lazy-mode))
 
 (use-package smartparens-config :disabled t     ; Balanced parenthesis management
-  :ensure smartparens)
+  :straight smartparens)
 
 (use-package autorevert           ; Auto revert external modifications
   :config
@@ -885,7 +902,7 @@ narrowed."
 
 (use-package recentf                    ; List recent files
   :config
-  (setq recentf-exclude '("COMMIT_EDITMSG") ; exclude commit messages
+  (setq recentf-exclude '("COMMIT_EDITMSG" ".*\\.png$") ; exclude commit messages
         recentf-save-file (expand-file-name "recentf" my-dir)))
 
 (use-package compile
@@ -923,6 +940,7 @@ narrowed."
   :config (git-gutter+-mode))
 
 ;;; Languages
+(use-package ein)
 (use-package pdf-tools :disabled t      ; TODO installing this with straight.el
   :general (:keymaps 'pdf-view-mode-map
                      "SPC" #'helm-M-x
@@ -957,7 +975,7 @@ narrowed."
   (pdf-tools-install))
 
 (use-package doc-view
-  :ensure nil
+  :straight nil
   :general (:keymaps 'doc-view-mode-map
                      "SPC" #'helm-M-x
                      "," #'my-evil-leader-command
@@ -982,17 +1000,26 @@ narrowed."
 (use-package generic-x :disabled t)
 (use-package lua-mode :config (setq lua-indent-level 2))
 
+(defun my-run-python-script ()
+  "Run python script"
+  (interactive)
+  (compile (concat "pipenv run python " (buffer-name))))
+
 (use-package elpy :after python
   :config
   (elpy-enable)
   (pyvenv-tracking-mode t))
+
+(use-package js
+  :config
+  (setq-default js-indent-level 2))
 
 (use-package markdown-mode
   :config
   (setq markdown-header-face 'my-headline-face))
 
 (use-package tex
-  :ensure auctex
+  :straight auctex
   :config
   (defun my-tex-watch ()
     "Start a latexmk process watching the current buffer"
@@ -1003,6 +1030,7 @@ narrowed."
                latexmk-command (if TeX-PDF-mode "-pdf" "") buffer-file-name))))
 
   (setq TeX-auto-save t
+        TeX-auto-local nil
         TeX-source-correlate-mode t
         TeX-parse-self t)
   (add-hook 'TeX-mode-hook #'company-mode)
@@ -1010,6 +1038,8 @@ narrowed."
   (add-hook 'TeX-mode-hook #'TeX-interactive-mode)
   (add-hook 'LaTeX-mode-hook #'auto-fill-mode)
   (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode))
+
+(use-package bibtex :config (setq bibtex-dialect 'biblatex))
 
 (use-package auctex-latexmk
   :after auctex
@@ -1022,6 +1052,11 @@ narrowed."
     :config
     (company-auctex-init))
 
+(use-package go-mode)
+(use-package company-go
+  :after company go-mode)
+(use-package go-eldoc
+  :init (add-hook 'go-mode-hook #'go-eldoc-setup))
 ;;;; Org
 (use-package qml-mode)
 
@@ -1030,27 +1065,71 @@ narrowed."
   (:keymaps 'org-mode-map [remap my-narrow-or-widen-dwim] #'my-org-narrow-or-widen-dwim)
   (:keymaps 'org-mode-map :states 'normal "!" #'org-toggle-latex-fragment)
 
-  :init
-  ;; Fix org version warning from using straight.el
-  ;; https://github.com/raxod502/radian/blob/ee92ea6cb0473bf7d20c6d381753011312ef4a52/radian-emacs/radian-org.el#L46-L112
-
-  (defun my-org-git-version ()
-    "Return the abbreviated SHA for the Org Git repo"
-    (let ((default-directory (concat user-emacs-directory "straight/repos/org")))
-      (if (executable-find "git")
-          (with-temp-buffer
-            (call-process "git" nil '(t nil) nil "rev-parse" "--short" "HEAD")
-            (if (> (buffer-size) 0)
-                (string-trim (buffer-string))
-              "revision unknown"))
-        "git not available")))
-
-  (defalias #'org-git-version #'my-org-git-version)
-  (defun org-release () "N/A")
-  (provide 'org-version)
+  :custom-face
+  (org-table ((t (:inherit fixed-pitch))))
+  (org-block ((t (:inherit fixed-pitch))))
+  (org-code ((t (:inherit fixed-pitch))))
+  (org-verbatim ((t (:inherit fixed-pitch))))
+  (org-formula ((t (:inherit fixed-pitch))))
+  (org-block-begin-line ((t (:inherit fixed-pitch))))
+  (org-block-end-line ((t (:inherit fixed-pitch))))
+  (org-special-keyword ((t (:inherit fixed-pitch))))
+  (org-meta-line ((t (:inherit fixed-pitch))))
+  (font-lock-comment-face ((t (:inherit fixed-pitch))))
 
   :config
-  (defalias #'org-git-version #'my-org-git-version)
+
+  ;; Workaround hack for getting org to work with straight.el
+  (require 'subr-x)
+  (use-package git)
+  (defun org-git-version ()
+    "The Git version of org-mode.
+Inserted by installing org-mode or when a release is made."
+    (require 'git)
+    (let ((git-repo (expand-file-name
+                     "straight/repos/org/" user-emacs-directory)))
+      (string-trim
+       (git-run "describe"
+                "--match=release\*"
+                "--abbrev=6"
+                "HEAD"))))
+  (defun org-release ()
+    "The release version of org-mode.
+Inserted by installing org-mode or when a release is made."
+    (require 'git)
+    (let ((git-repo (expand-file-name
+                     "straight/repos/org/" user-emacs-directory)))
+      (string-trim
+       (string-remove-prefix
+        "release_"
+        (git-run "describe"
+                 "--match=release\*"
+                 "--abbrev=0"
+                 "HEAD")))))
+  (provide 'org-version)
+
+  ;; Auto export on save
+
+  (defcustom my-org-default-export nil
+    "Default function to use when exporting org documents.
+Used by `my-org-export'. If nil, then don't export at all."
+    :safe (lambda (fun) (member fun '(org-latex-export-to-pdf))))
+
+  (defcustom my-org-export-async-p t
+    "If non-nil, then `my-org-export-async' will pass the t argument."
+    :risky nil)
+
+  (defun my-org-export ()
+    "Call `my-org-default-export' function with `my-org-export-async' as an argument."
+    (interactive)
+    (when my-org-default-export
+      (funcall my-org-default-export my-org-export-async-p)))
+
+  (defun my-org-export-on-save ()
+    "Add `my-org-export' to `after-save-hook'."
+    (add-hook 'after-save-hook #'my-org-export t t))
+
+  (add-hook 'org-mode-hook #'my-org-export-on-save)
 
   (defun my-org-narrow-or-widen-dwim (p)
     "If the buffer is narrowed, it widens. Otherwise, it narrows intelligently.
@@ -1070,8 +1149,60 @@ narrowed."
           (t (org-narrow-to-subtree))))
 
   (setq org-pretty-entities t
+        org-entities-user '(("vDash" "\\vDash" nil "&#8872;" "|=" "|=" "⊨"))
         org-hide-emphasis-markers t
-        org-highlight-latex-and-related '(latex script entities)))
+        org-preview-latex-image-directory (expand-file-name "ltximg" my-dir)
+        org-highlight-latex-and-related '(latex script entities)
+        org-export-in-background t
+        org-confirm-babel-evaluate nil
+        org-src-fontify-natively t
+        org-src-tab-acts-natively t
+        org-edit-src-content-indentation 0
+        org-latex-pdf-process '("latexmk -pdflatex='%latex -shell-escape -interaction nonstopmode' -pdf -output-directory=%o -f %f")
+        org-export-async-init-file (expand-file-name "org-export.el"
+                                                     (file-name-directory user-init-file))))
+
+(use-package org-ref :after org :demand t)
+
+(use-package ob-ipython :after org
+  :init
+  (org-babel-do-load-languages 'org-babel-load-languages '((ipython . t)))
+  :config
+  (use-package company
+    :config (add-to-list 'company-backends 'company-ob-ipython))
+  (setq org-babel-async-python t
+        ob-ipython-command "jupyter")
+  (add-hook 'org-babel-after-execute-hook 'org-display-inline-images))
+
+(use-package ox-ipynb
+  :demand t
+  :straight (ox-ipynb :type git :host github :repo "jkitchin/ox-ipynb"))
+
+(use-package ox-latex
+  :straight nil
+  :config
+  (add-to-list 'org-latex-logfiles-extensions "tex")
+  (add-to-list 'org-latex-classes
+               '("problemset"
+                 "\\documentclass[10pt]{article}
+[DEFAULT-PACKAGES]
+\\usepackage{fancyhdr}
+[PACKAGES]
+[EXTRA]
+
+\\makeatletter
+\\pagestyle{fancy}
+\\fancyhf{}
+\\lhead{\\@title}
+\\rhead{\\@author}
+\\makeatother
+
+\\def \\circledtwo {\\raisebox{.5pt}{\\textcircled{\\raisebox{-.9pt} {2}}}}"
+                 ("\\section{%s}". "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
 
 (use-package evil-org
   :after evil org
@@ -1122,8 +1253,9 @@ narrowed."
        :inherit 'my-headline-face))))
 
 (use-package outline-magic
+  :demand t
   :after outline
-  :general (:keymaps 'outline-minor-mode-map "TAB" #'outline-cycle))
+  :general (:keymaps 'outline-minor-mode-map :states 'normal "TAB" #'outline-cycle))
 
 (use-package eldoc                    ; Documentation in echo area
   :delight
@@ -1192,8 +1324,6 @@ narrowed."
 (use-package web-mode
   :mode "\\.html?$" "\\.tpl$"
   :config
-
-
 
   (setq web-mode-enable-block-face t
         web-mode-enable-part-face t
